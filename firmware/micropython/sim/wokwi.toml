@@ -1,0 +1,18 @@
+# Wokwi simulation of the smart bin.
+#
+# `firmware` must point at a MicroPython build for the ESP32-C6. Download one from
+# https://micropython.org/download/ESP32_GENERIC_C6/ and drop it here as micropython-c6.bin —
+# it is deliberately not committed (several MB, and it is not ours).
+#
+# The RFC2217 port lets mpremote push code into the running simulation exactly as it does over
+# USB: mpremote connect port:rfc2217://localhost:4000 fs cp main.py :main.py
+[wokwi]
+version = 1
+firmware = "micropython-c6.bin"
+elf = "micropython-c6.bin"
+rfc2217ServerPort = 4000
+
+# Custom chips stand in for the parts Wokwi has no model of. See chips/README.md.
+# [[chip]]
+# name = "vl6180x"
+# binary = "chips/vl6180x.chip.wasm"

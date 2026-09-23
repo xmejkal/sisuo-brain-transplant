@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "author": "smartbin",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "board-xiao-esp32-c6", "id": "xiao", "top": 0, "left": 0, "attrs": {} },
+    { "type": "wokwi-pushbutton", "id": "btn_open", "top": 120, "left": -120,
+      "attrs": { "color": "green", "label": "OPEN" } },
+    { "type": "wokwi-pushbutton", "id": "btn_mode", "top": 180, "left": -120,
+      "attrs": { "color": "blue", "label": "MODE" } },
+    { "type": "wokwi-led", "id": "led_red", "top": 120, "left": 160,
+      "attrs": { "color": "red", "label": "status R" } },
+    { "type": "wokwi-led", "id": "led_green", "top": 180, "left": 160,
+      "attrs": { "color": "green", "label": "status G" } },
+    { "type": "wokwi-resistor", "id": "r_red", "top": 140, "left": 120, "attrs": { "value": "330" } },
+    { "type": "wokwi-resistor", "id": "r_green", "top": 200, "left": 120, "attrs": { "value": "330" } },
+    { "type": "wokwi-led", "id": "motor_a", "top": 260, "left": 160,
+      "attrs": { "color": "yellow", "label": "motor IA" } },
+    { "type": "wokwi-led", "id": "motor_b", "top": 320, "left": 160,
+      "attrs": { "color": "yellow", "label": "motor IB" } }
+  ],
+  "connections": [
+    [ "btn_open:1.l", "xiao:D1", "green", [] ],
+    [ "btn_open:2.l", "xiao:GND", "black", [] ],
+    [ "btn_mode:1.l", "xiao:D6", "blue", [] ],
+    [ "btn_mode:2.l", "xiao:GND", "black", [] ],
+
+    [ "xiao:D7", "r_red:1", "red", [] ],
+    [ "r_red:2", "led_red:A", "red", [] ],
+    [ "led_red:C", "xiao:GND", "black", [] ],
+
+    [ "xiao:D10", "r_green:1", "green", [] ],
+    [ "r_green:2", "led_green:A", "green", [] ],
+    [ "led_green:C", "xiao:GND", "black", [] ],
+
+    [ "xiao:D3", "motor_a:A", "yellow", [] ],
+    [ "motor_a:C", "xiao:GND", "black", [] ],
+    [ "xiao:D8", "motor_b:A", "yellow", [] ],
+    [ "motor_b:C", "xiao:GND", "black", [] ]
+  ],
+  "dependencies": {}
+}

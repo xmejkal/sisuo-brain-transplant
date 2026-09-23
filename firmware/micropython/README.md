@@ -17,6 +17,7 @@ main.py              two lines; hold MODE at boot to skip auto-start
 config.py            every tunable + pin map; /config.json overrides per unit
 smartbin/            the firmware package
   __init__.py        START HERE: the tour (and re-exports build/run)
+sim/                 Wokwi simulation: diagram, scenario, custom-chip notes
   assembly.py        the composition root: build(), run(), and every "which one" choice
   states.py          states, triggers and the transition table — the product, as data
   state_machine.py   walks that table: hooks, history, event publishing
@@ -69,11 +70,19 @@ written to flash by `mpremote run`.
 | 5 | L9110S + motor + 6V pack | `mpremote run bringup/05_motor.py` |
 | 6 | everything | deploy, then `mpremote repl` and `smartbin.build()` |
 
+## Testing, in three layers
+1. **`tests/` on the Mac** — the state machine, timings and strategies, plus device construction
+   and the VL6180X's register conversation via `tests/fake_machine.py`, a stand-in for MicroPython's
+   `machine` module. Free, about a second.
+2. **`sim/` on Wokwi** — a real MicroPython build on a simulated XIAO ESP32-C6. Catches whatever
+   depends on the real `machine` module. See [`sim/README.md`](sim/README.md).
+3. **The bench** — the only thing that proves it works.
+
 ## Tests
 ```sh
 cd firmware/micropython && python3 -m unittest discover -s tests -t tests -v
 ```
-46 tests, no hardware, under a second: the safety cap, the open/hold/close cycle, obstruction
+58 tests, no hardware, under two seconds: the safety cap, the open/hold/close cycle, obstruction
 retries and the latched fault, transition-table reachability, sensor debounce and cooldown,
 button debounce, the LED, the event bus isolating broken listeners, the factory building the
 strategy each config string names (and falling back safely on a typo), the config invariants (the

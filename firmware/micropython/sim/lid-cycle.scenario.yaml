@@ -1,0 +1,29 @@
+# A full lid cycle, asserted from the serial log.
+#
+#   wokwi-cli . --scenario lid-cycle.scenario.yaml
+#
+# The firmware logs every state transition ("lid: idle --open_pressed--> opening"), which makes
+# the state machine directly observable without any extra test harness.
+name: lid cycle
+version: 1
+author: smartbin
+
+steps:
+  - wait-serial: "smartbin ready"
+
+  # Press OPEN. The button is wired to ground, so pressing pulls the pin low.
+  - set-control:
+      part-id: btn_open
+      control: pressed
+      value: 1
+  - delay: 100ms
+  - set-control:
+      part-id: btn_open
+      control: pressed
+      value: 0
+
+  - wait-serial: "idle --open_pressed--> opening"
+  - wait-serial: "opening --stroke_finished--> open"
+  - wait-serial: "open --hold_expired--> closing"
+  - wait-serial: "closing"
+  - delay: 500ms
