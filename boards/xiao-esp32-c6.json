@@ -56,6 +56,8 @@
     "wake_api": "esp32.wake_on_ext1",
     "single_polarity_for_all_pins": true,
     "simulated_by_wokwi": false,
-    "//simulated_by_wokwi": "Wokwi wakes this chip from a timer but not from a GPIO - established by experiment, see firmware/micropython/sim/README.md. Deep sleep is a bench test."
+    "//simulated_by_wokwi": "Wokwi wakes this chip from a timer but not from a GPIO - established by experiment, see firmware/micropython/sim/README.md. Deep sleep is a bench test.",
+    "//wake_level": "All ext1 wake pins share one polarity on this chip, so every wake source must idle at the opposite level. Buttons wired to GND idle HIGH and go LOW when pressed, so wake is LOW-going and the sensor's interrupt must be configured active-low to match.",
+    "wake_on_high": false
   }
 }

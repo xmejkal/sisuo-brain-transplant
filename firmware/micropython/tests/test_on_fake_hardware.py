@@ -171,7 +171,50 @@ class TestDeepSleep(unittest.TestCase):
         armed_pins, level = fake_machine.FakeMachineModule.armed_wake
         self.assertIn(config.PIN_BUTTON_OPEN, armed_pins)
         self.assertIn(config.PIN_TOF_INTERRUPT, armed_pins)
-        self.assertEqual(level, fake_machine.FakeEsp32Module.WAKEUP_ANY_HIGH)
+
+    def test_the_armed_wake_level_is_the_one_the_buttons_can_actually_assert(self):
+        """
+        The bug this exists to prevent: the board wires both buttons to ground, so they assert
+        LOW, while the firmware armed wake for a HIGH. The bin would have slept and never woken.
+        Two tests asserted the two halves of that contradiction and both passed.
+        """
+        smart_bin = build_bin(SENSOR_STRATEGY="tof_interrupt", POWER_POLICY="deep_sleep")
+
+        with self.assertRaises(fake_machine.DeepSleepRequested):
+            smart_bin.sleep_now()
+
+        _, level = fake_machine.FakeMachineModule.armed_wake
+        button_asserts_high = smart_bin.hardware.button_open.pressed_level == 1
+        expected = (
+            fake_machine.FakeEsp32Module.WAKEUP_ANY_HIGH
+            if button_asserts_high
+            else fake_machine.FakeEsp32Module.WAKEUP_ALL_LOW
+        )
+        self.assertEqual(level, expected)
+
+    def test_the_pull_on_a_wake_pin_opposes_the_level_that_wakes(self):
+        """A pin pulled the same way it is waiting to be driven can never change."""
+        smart_bin = build_bin(SENSOR_STRATEGY="tof_interrupt", POWER_POLICY="deep_sleep")
+
+        with self.assertRaises(fake_machine.DeepSleepRequested):
+            smart_bin.sleep_now()
+
+        waking_on_high = smart_bin.config.WAKE_ON_HIGH
+        for gpio in fake_machine.FakeMachineModule.armed_wake[0]:
+            pull = pin(gpio).pull
+            self.assertEqual(
+                pull,
+                fake_machine.PULL_DOWN if waking_on_high else fake_machine.PULL_UP,
+                "GPIO%d is pulled the same way it must be driven to wake" % gpio,
+            )
+
+    def test_it_refuses_to_sleep_when_nothing_could_wake_it(self):
+        """A bin asleep with no way back is worse than a flat battery."""
+        smart_bin = build_bin(SENSOR_STRATEGY="tof", POWER_POLICY="deep_sleep")
+        smart_bin.config.WAKE_ON_HIGH = not (smart_bin.hardware.button_open.pressed_level == 1)
+        smart_bin.config.WAKE_ON_HIGH = True  # buttons assert LOW, so nothing can assert HIGH
+
+        self.assertFalse(smart_bin.sleep_now())  # returns rather than raising DeepSleepRequested
 
     def test_waking_on_the_button_opens_the_lid_without_a_second_press(self):
         smart_bin = build_bin(SENSOR_STRATEGY="tof_interrupt", POWER_POLICY="deep_sleep")

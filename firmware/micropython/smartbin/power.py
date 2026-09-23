@@ -134,17 +134,50 @@ class DeepSleepPolicy(PowerPolicy):
     def sleep_now(self, smart_bin):
         """
         Put everything in its resting state, arm the wake pins, and stop the chip. Does not
-        return — the next thing that runs is boot.py.
+        return — unless it refuses, which it does rather than sleep with no way back.
+
+        A bin that sleeps with nothing able to wake it is dead until someone unplugs it. That is
+        a worse outcome than a flat battery, so every reason to refuse is checked here.
         """
         config = smart_bin.config
+        sensor_can_wake = smart_bin.sensor.arm_for_sleep()
+
+        if not self._wake_sources_can_assert(smart_bin, sensor_can_wake):
+            return False
+
         smart_bin.hardware.enter_safe_state()
-
-        if not smart_bin.sensor.arm_for_sleep():
-            log.warn("power: sensor cannot watch while asleep; only the button will wake the bin")
-
         wake_gpio = self.wake_gpio_numbers(config, smart_bin.sensor)
         log.info("power: sleeping, wake on GPIO %s", wake_gpio)
         board.deep_sleep(wake_gpio, wake_on_high=config.WAKE_ON_HIGH)
+        return True
+
+    def _wake_sources_can_assert(self, smart_bin, sensor_can_wake):
+        """
+        Can anything actually wake this bin?
+
+        The chip applies one polarity to every wake pin, so a source whose asserted level is the
+        opposite of `WAKE_ON_HIGH` is not a wake source at all — it is a pin that will sit there.
+        A button wired to ground asserts LOW; the sensor's interrupt is configured to match
+        whichever polarity is chosen.
+        """
+        config = smart_bin.config
+        button_asserts_high = smart_bin.hardware.button_open.pressed_level == 1
+
+        reasons = []
+        if button_asserts_high != config.WAKE_ON_HIGH:
+            reasons.append(
+                "the OPEN button asserts %s but wake is armed for %s"
+                % ("HIGH" if button_asserts_high else "LOW",
+                   "HIGH" if config.WAKE_ON_HIGH else "LOW")
+            )
+        if not sensor_can_wake:
+            reasons.append("the sensor cannot watch while asleep (%s)" % config.SENSOR_STRATEGY)
+
+        if len(reasons) > 1 or (reasons and not sensor_can_wake and button_asserts_high != config.WAKE_ON_HIGH):
+            log.error("power: refusing to sleep, nothing could wake the bin: %s", "; ".join(reasons))
+            return False
+        for reason in reasons:
+            log.warn("power: %s", reason)
         return True
 
     @staticmethod

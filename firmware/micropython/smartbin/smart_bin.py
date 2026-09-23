@@ -70,15 +70,28 @@ class SmartBin:
         self.lid.fire(states.SENSOR_FAILED)
 
     async def poll_buttons(self):
+        """
+        The buttons are the only way out of FAULT, so this task must outlive anything it touches:
+        a listener that raises while announcing a mode change would otherwise take the bin's last
+        recovery path with it.
+        """
         while True:
-            if self.hardware.button_open.pressed_edge():
-                was_faulted = self.lid.state == states.FAULT
-                self.lid.fire(states.OPEN_PRESSED)
-                if was_faulted:
-                    self.restart_sensor_polling()
-            if self.hardware.button_mode.pressed_edge():
-                self.next_sound_profile()
+            try:
+                self._poll_buttons_once()
+            except Exception as exception:  # noqa: BLE001 - see docstring
+                log.error("button handling failed: %s", exception)
             await async_sleep_ms(self.config.BUTTON_POLL_MS)
+
+    def _poll_buttons_once(self):
+        """One look at both buttons. OPEN also clears a fault, which is what restarts sensing."""
+        if self.hardware.button_open.pressed_edge():
+            was_faulted = self.lid.state == states.FAULT
+            self.lid.fire(states.OPEN_PRESSED)
+            if was_faulted:
+                self.restart_sensor_polling()
+
+        if self.hardware.button_mode.pressed_edge():
+            self.next_sound_profile()
 
     async def blink_fault(self):
         """The one piece of feedback with its own clock, so it is a task rather than a listener."""
@@ -109,11 +122,20 @@ class SmartBin:
         return None
 
     def restart_sensor_polling(self):
-        """Start the sensor task again after a fault has been cleared."""
+        """
+        Start the sensor task again after a fault has been cleared.
+
+        The new task replaces the old one in `self._tasks` as well, so shutdown still cancels
+        everything it started — a restarted task that nothing tracks would outlive `main()`.
+        """
         if self._sensor_task is not None:
             self._sensor_task.cancel()
+            if self._sensor_task in self._tasks:
+                self._tasks.remove(self._sensor_task)
+
         log.info("restarting sensor polling")
         self._sensor_task = asyncio.create_task(self.poll_sensor())
+        self._tasks.append(self._sensor_task)
 
     def sleep_now(self):
         """Bench helper: sleep immediately, to measure idle current without waiting."""
@@ -121,6 +143,7 @@ class SmartBin:
 
     # ----------------------------------------------------------------- lifecycle
     _sensor_task = None
+    _tasks: list = []
 
     async def main(self):
         """Run the bin. Returns only on cancellation; everything is left safe on the way out."""
@@ -138,26 +161,26 @@ class SmartBin:
         if wake_trigger is not None:
             self.lid.fire(wake_trigger)
 
-        tasks = self._start_tasks()
+        self._start_tasks()
         try:
             await self._run_idle_loop()
         finally:
-            for task in tasks:
+            for task in self._tasks:
                 if task is not None:
                     task.cancel()
             self.hardware.enter_safe_state()
 
     def _start_tasks(self):
         self._sensor_task = asyncio.create_task(self.poll_sensor())
-        tasks = [
+        self._tasks = [
             self._sensor_task,
             asyncio.create_task(self.poll_buttons()),
             asyncio.create_task(self.blink_fault()),
         ]
         repl_task = self._start_repl()
         if repl_task is not None:
-            tasks.append(repl_task)
-        return tasks
+            self._tasks.append(repl_task)
+        return self._tasks
 
     async def _run_idle_loop(self):
         """

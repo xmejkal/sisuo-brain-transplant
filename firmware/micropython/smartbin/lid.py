@@ -93,14 +93,20 @@ class Lid:
         self._motor.stop()
         self._cancel_hold_timer()
 
-        if self.machine.previous_state != states.OPEN:
-            self._open_since_ms = self._clock.now_ms()
+        try:
+            if self.machine.previous_state != states.OPEN:
+                self._open_since_ms = self._clock.now_ms()
 
-        held_for_ms = self._clock.elapsed_ms(self._open_since_ms)
-        if held_for_ms >= self._config.MAX_OPEN_MS:
-            log.warn("lid: held open %d ms; closing anyway", held_for_ms)
-            self.machine.fire(states.HOLD_EXPIRED)   # queued: we are inside a transition
-            return
+            held_for_ms = self._clock.elapsed_ms(self._open_since_ms)
+            if held_for_ms >= self._config.MAX_OPEN_MS:
+                log.warn("lid: held open %d ms; closing anyway", held_for_ms)
+                self.machine.fire(states.HOLD_EXPIRED)   # queued: we are inside a transition
+                return
+        except Exception as exception:  # noqa: BLE001 - see below
+            # A bad calibration value reaching this arithmetic must not leave the lid open with
+            # nothing to close it. The machine swallows hook exceptions, so without this the bin
+            # would sit open until the battery died.
+            log.error("lid: hold timing failed (%s); using the default hold", exception)
 
         self._hold_task = self._spawn(self._hold_then_close())
 

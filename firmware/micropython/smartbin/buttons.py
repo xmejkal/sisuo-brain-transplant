@@ -3,6 +3,10 @@ The bin's two buttons.
 
 A device, not a decision: this knows how to read a button reliably, and nothing about what a
 press means. What OPEN and MODE do is decided by the state machine and the application.
+
+Which level means "pressed" is the board's business, not this file's — a button to ground reads
+0, one to 3V3 reads 1 — so it is passed in. It matters beyond reading the button: deep sleep can
+only wake on one polarity, so a button wired the wrong way for it can never wake the bin.
 """
 
 from . import timing
@@ -17,9 +21,13 @@ class Button:
     several buttons and the lid keeps moving meanwhile.
     """
 
-    def __init__(self, pin, debounce_ms=40, clock=None):
+    def __init__(self, pin, debounce_ms=40, clock=None, pressed_level=0):
         self._pin = pin
         self._debounce_ms = debounce_ms
+        #: The level this button reads when pressed. 0 for the usual wiring (to ground with a
+        #: pull-up); 1 for a button wired to 3V3 with a pull-down, which is what deep sleep
+        #: wants if it is to wake on a rising edge.
+        self.pressed_level = pressed_level
         self._clock = clock or timing.Clock()
         self._stable_level = pin.value()
         self._candidate_level = self._stable_level
@@ -27,7 +35,7 @@ class Button:
 
     @property
     def is_pressed(self):
-        return self._stable_level == 0
+        return self._stable_level == self.pressed_level
 
     def pressed_edge(self):
         """True exactly once per press, on the debounced transition to pressed."""
@@ -44,4 +52,4 @@ class Button:
             return False
 
         self._stable_level = level
-        return level == 0
+        return level == self.pressed_level

@@ -77,7 +77,12 @@ TOF_MAX_FAILURES = 10       # unreadable this many times in a row -> the bin fau
 IR_CARRIER_HZ = 38000
 IR_BURST_US = 600
 
-STALL_COUNTS = 12000        # raw ADC counts at stall; measure with tools/calibrate.py
+# Raw ADC counts at stall, across the board's 1 ohm shunt, read at 11 dB attenuation (~3.1 V
+# full scale, 16-bit). The patent literature's ~230 mA stall is ~230 mV is ~4900 counts, and a
+# threshold sits between running (~70 mA, ~1500) and that. This number is a starting point and
+# MUST be measured on the real motor with tools/calibrate.py — see STATUS.md, where measuring
+# the motor's current is the open question that could still change the driver choice.
+STALL_COUNTS = 3200
 STALL_BLANKING_MS = 200     # ignore start-up inrush
 STALL_SAMPLES = 8           # ADC reads averaged per check (the C6's ADC is noisy)
 STALL_CONSECUTIVE_HITS = 3  # checks above the threshold before believing it
@@ -100,11 +105,18 @@ SLEEP_AFTER_MS = 30000      # idle this long -> deep sleep (deep_sleep policy on
 SLEEP_AFTER_FAULT_MS = 300000   # a faulted bin sleeps too, just later (5 min of visible red)
 
 # All deep-sleep wake sources share one polarity, because the chip applies one level to all of
-# them. True means every wake signal must idle LOW and go HIGH to wake: buttons wired to 3V3
-# with pull-downs, and the ToF interrupt configured active-high. False means the opposite, which
-# suits ground-wired buttons but hits an open MicroPython bug on this chip (#17334, "stuck pin").
-# Whichever you choose, the wiring and this flag must agree or the bin wakes instantly, forever.
-WAKE_ON_HIGH = True
+# them — so this follows the board, and the board wires both buttons to GND. A button that idles
+# HIGH and goes LOW when pressed can only wake a chip that is waiting for a LOW, and the sensor's
+# interrupt is configured to match.
+#
+# The cost is that low-level wake has an open MicroPython bug on this chip (#17334, "stuck pin"),
+# which is a bench risk to check early. The alternative is rewiring both buttons to 3V3 with
+# pull-downs and flipping this to True.
+#
+# Get this wrong in either direction and the bin never wakes, or wakes instantly forever. The
+# firmware refuses to sleep when it detects the mismatch rather than bricking itself quietly —
+# see power.DeepSleepPolicy.sleep_now.
+WAKE_ON_HIGH = False
 
 # ----------------------------------------------------------------- housekeeping
 I2C_FREQ_HZ = 400000
@@ -121,8 +133,41 @@ WATCHDOG_FEED_MS = 2000
 OVERLAY_PATH = "/config.json"
 OVERLAY_TEMP_PATH = "/config.json.tmp"
 
-# Only these may be overridden per unit. Everything else — pin numbers above all — is design,
-# and a calibration file has no business repointing the motor or raising the safety cap.
+# Only these may be overridden per unit, and only within these bounds. Everything else — pin
+# numbers above all — is design, and a calibration file has no business repointing the motor.
+#
+# The bounds matter as much as the whitelist: a null or absurd value used to reach the lid's
+# hold-timer arithmetic, raise inside a state-machine hook, and leave the lid open with nothing
+# left to close it.
+#
+#   key: (type, minimum, maximum)   — strings and None-able keys use (type, None, None)
+LIMITS = {
+    "LID_OPEN_RUN_MS": (int, 50, 10000),
+    "LID_CLOSE_RUN_MS": (int, 50, 10000),
+    "LID_OPEN_HOLD_MS": (int, 500, 60000),
+    "MAX_OPEN_MS": (int, 1000, 600000),
+    "MOTOR_OPEN_SPEED": (int, 0, 255),
+    "MOTOR_CLOSE_SPEED": (int, 0, 255),
+    "TOF_NEAR_MM": (int, 0, 255),
+    "TOF_FAR_MM": (int, 0, 255),
+    "TOF_OFFSET_MM": (int, -128, 127),
+    "TOF_CROSSTALK": (int, 0, 65535),
+    "TOF_RANGE_IGNORE": (int, 0, 65535),
+    "TOF_INTERRUPT_PERIOD_MS": (int, 10, 2550),
+    "STALL_COUNTS": (int, 0, 65535),
+    "STALL_BLANKING_MS": (int, 0, 5000),
+    "SENSOR_CONSECUTIVE_HITS": (int, 1, 20),
+    "SENSOR_COOLDOWN_MS": (int, 0, 60000),
+    "VOLUME": (int, 0, 30),
+    "SLEEP_AFTER_MS": (int, 1000, 3600000),
+    "WATCHDOG_MS": (int, 0, 60000),
+    "ACTIVE_PROFILE": (str, None, None),
+    "SENSOR_STRATEGY": (str, None, None),
+    "CLOSE_DETECTOR": (str, None, None),
+    "POWER_POLICY": (str, None, None),
+    "LOG_EVENTS": (bool, None, None),
+}
+
 CALIBRATABLE = (
     "LID_OPEN_RUN_MS", "LID_CLOSE_RUN_MS", "LID_OPEN_HOLD_MS", "MAX_OPEN_MS",
     "MOTOR_OPEN_SPEED", "MOTOR_CLOSE_SPEED",
@@ -158,9 +203,33 @@ def _load_overlay():
         if key not in CALIBRATABLE:
             print("W config: ignoring %s from /config.json (not calibratable)" % key)
             continue
+        if not is_within_limits(key, value):
+            print("W config: ignoring %s=%r from /config.json (out of range)" % (key, value))
+            continue
         globals()[key] = value
         accepted[key] = value
     return accepted
+
+
+def is_within_limits(key, value):
+    """
+    Would this value be safe to use?
+
+    A calibration file is edited by hand and written by a bin that may lose power mid-write, so
+    "the file said so" is not a good enough reason to drive a motor.
+    """
+    limit = LIMITS.get(key)
+    if limit is None:
+        return False
+    expected_type, minimum, maximum = limit
+
+    if expected_type is bool:
+        return isinstance(value, bool)
+    if expected_type is str:
+        return isinstance(value, str) and len(value) > 0
+    if isinstance(value, bool) or not isinstance(value, int):
+        return False
+    return minimum <= value <= maximum
 
 
 _OVERLAY = _load_overlay()
@@ -170,13 +239,14 @@ def save(overrides):
     """
     Persist calibration or a setting choice to /config.json, merging with what is there.
 
-    Written to a temporary file and renamed, so losing power mid-write cannot leave a truncated
-    file that reverts the bin to defaults on the next boot.
+    Written to a temporary file and renamed, so losing power mid-write cannot leave a *truncated*
+    file. It can still lose the file entirely — see `_rename` — and the defaults in this file are
+    the fallback when it does.
     """
-    rejected = [key for key in overrides if key not in CALIBRATABLE]
+    rejected = [key for key in overrides if not is_within_limits(key, overrides[key])]
     if rejected:
-        print("W config: refusing to save non-calibratable keys:", rejected)
-        overrides = {k: v for k, v in overrides.items() if k in CALIBRATABLE}
+        print("W config: refusing to save (not calibratable, or out of range):", rejected)
+        overrides = {k: v for k, v in overrides.items() if is_within_limits(k, v)}
     if not overrides:
         return False
 
@@ -219,6 +289,15 @@ def calibration():
 
 
 def _rename(source, destination):
+    """
+    Replace `destination` with `source`.
+
+    MicroPython's os.rename does not overwrite, so the old file has to go first — which leaves a
+    window where a power loss takes the calibration with it. The window is one flash operation
+    wide and the alternative needs a filesystem feature this port does not have, so it is
+    accepted and stated rather than claimed away. The defaults in this file are always a safe
+    fallback, which is what makes that acceptable.
+    """
     import os
 
     try:
