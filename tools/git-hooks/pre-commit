@@ -1,0 +1,18 @@
+#!/bin/sh
+# Refuse a commit where the derived files no longer match the design.
+#
+# `make check` is the same command CI runs. Catching it here costs ten seconds and saves a
+# round trip; skip it with `git commit --no-verify` when you genuinely mean to.
+set -e
+cd "$(git rev-parse --show-toplevel)"
+
+if ! make check > /tmp/pre-commit-check.txt 2>&1; then
+    echo "The firmware, the board and the simulation have drifted apart:"
+    echo
+    tail -25 /tmp/pre-commit-check.txt
+    echo
+    echo "Run 'make' to regenerate, or 'git commit --no-verify' if you mean it."
+    exit 1
+fi
+
+echo "make check: everything is in step"

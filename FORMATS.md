@@ -182,3 +182,25 @@ The research changed three things from the plan:
 3. **A stand-in part can lack a pin the real one has** (the L9110S has no PWM input where the
    TB6612 does). The mapping table can now say so with `null`, which records a decision instead of
    emitting an invalid wire.
+
+
+## Keeping it all in step
+
+Four layers, each cheap, each covering the one before it:
+
+| Layer | Catches | Misses |
+| --- | --- | --- |
+| **`make`** | anything out of date, on demand; `make -n` shows the plan | anyone who does not run it |
+| **Claude Code hook** (the `spark` plugin's `hooks/hooks.json`) | drift the moment an AI session edits `board.tsx`, `config.py` or the mapping table | edits made in another editor |
+| **git pre-commit** (`make install-hooks`) | drift before it reaches history | `git commit --no-verify` |
+| **GitHub Actions** (`make check` on push) | everything, permanently | nothing, but it is the slowest to tell you |
+
+`make` regenerates; `make check` changes nothing and fails if anything disagrees. That second
+mode is what stops a stale diagram from being committed, and it is why every generator here has
+a `--check` flag.
+
+The check people forget is the third one: **firmware against hardware**. Nothing else would
+notice that `config.py` drives D3 while the board wired the motor to D0 — and nothing would,
+until the lid did not move. `tools/circuit-to-wokwi/check-consistency.ts` reads the pin numbers
+out of the firmware and the labels out of the design and compares them: currently 14 pins, all
+in agreement.

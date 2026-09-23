@@ -1,0 +1,36 @@
+# Every push: does everything still describe the same bin?
+#
+# This is `make check` — it changes nothing and fails if the firmware, the board and the
+# simulation have drifted apart. The one thing CI can do that a person cannot is never forget.
+name: check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: oven-sh/setup-bun@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install the toolchains
+        run: |
+          npm ci
+          pip install mpy-cross
+          cd tools/circuit-to-wokwi && bun install
+
+      # The MicroPython unix build is not packaged for CI runners; `make check` skips that step
+      # when it is absent and says so, rather than pretending it passed.
+      - name: Check that everything is in step
+        run: make check

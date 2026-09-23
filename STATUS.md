@@ -67,6 +67,17 @@ which is waiting on two measurements only Petr can take.
   Expect to fix part IDs and the pushbutton control name on first use.
 * Lid run times, the distance window and any ToF calibration are all placeholders.
 
+## The one command that matters
+
+```sh
+make          # regenerate whatever is out of date (board -> diagram, gerbers, SVGs, 3D)
+make check    # change nothing; fail if firmware, board and simulation disagree
+```
+
+`board.tsx` and the firmware are written by hand. Everything else is derived, and editing a
+derived file by hand is undone by the next `make`. Four layers keep it honest: `make`, a Claude
+Code hook from the spark plugin, a git pre-commit hook (`make install-hooks`), and CI.
+
 ## Commands worth remembering
 
 ```sh

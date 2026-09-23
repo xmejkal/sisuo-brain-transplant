@@ -35,8 +35,8 @@ CHIP_BINARIES   := $(CHIP_SOURCES:.chip.c=.chip.wasm)
 
 DERIVED := $(CIRCUIT) $(DIAGRAM) $(GERBERS) $(PCB_SVG) $(SCHEMATIC_SVG) $(MODEL_3D) $(CHIP_BINARIES)
 
-.PHONY: all check clean firmware-tests firmware-compiles firmware-simulates board-builds \
-        pins-agree simulation-matches
+.PHONY: all check clean install-hooks firmware-tests firmware-compiles firmware-simulates \
+        board-builds pins-agree simulation-matches
 
 all: $(DERIVED)
 	@echo "everything is up to date."
@@ -115,6 +115,12 @@ simulation-matches: $(CIRCUIT)
 	@cd $(CONVERTER) && bun test > /tmp/make-bun.txt 2>&1 || { tail -20 /tmp/make-bun.txt; exit 1; }
 	@grep -E "^ *[0-9]+ pass" /tmp/make-bun.txt | sed 's/^/  /'
 	@cd $(CONVERTER) && bun run cli.ts --check | tail -1 | sed 's/^/   /'
+
+# Refuse to commit a repository whose derived files disagree with the design. One-off, opt-in,
+# and skippable with --no-verify; CI is the backstop that cannot be skipped.
+install-hooks:
+	@git config core.hooksPath tools/git-hooks
+	@echo "git will now run 'make check' before each commit"
 
 clean:
 	rm -rf dist $(DIAGRAM) $(GERBERS) $(PCB_SVG) $(SCHEMATIC_SVG) $(MODEL_3D) $(CHIP_BINARIES)
