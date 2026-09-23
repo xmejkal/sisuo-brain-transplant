@@ -1,5 +1,11 @@
 # Bill of materials — smart bin (Seeed XIAO ESP32-C6)
 
+> **SUPERSEDED IN PART (2026-09-23).** Current decisions: no OLED (dropped); motor driver =
+> the **L9110S module Petr owns** (not TB6612); wave sensor = the **VL6180X he owns**, see
+> `parts/SENSOR_OPTIONS.md`; what to buy and from where: `SHOPPING.md`. The original Sisuo board
+> is not desoldered — all small parts are bought new. Sections below still hold for power domains
+> and passive values.
+
 Prototyping philosophy (per Petr): **plug-and-play vendor modules, minimal analog work,
 all-digital signal chain.** Every module below is real, 3.3V-native, and runs off the LiPo
 rail. Where a bare/simple part is genuinely easier, it's offered as a choice.

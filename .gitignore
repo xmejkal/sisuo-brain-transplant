@@ -3,3 +3,5 @@ dist/
 _scratch/
 _seeed/
 *.log
+__pycache__/
+*.pyc
