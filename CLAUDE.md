@@ -68,7 +68,12 @@ bench/calibration/deploy: `firmware/micropython/README.md`. Arduino v1 kept only
 - `build()` constructs and starts nothing; `run()` starts the loop; `main.py` is 2 lines.
   `aiorepl` gives a live REPL while it runs (the bin is `b`). Deploy: `./deploy.sh`.
   Calibrate: `tools/calibrate.py` (stroke times, ToF offset/crosstalk/range-ignore, stall).
-  Tests: `python3 -m unittest discover -s tests -t tests` (39, incl. one on real asyncio).
+  Tests: `python3 -m unittest discover -s tests -t tests` (60; incl. real asyncio + a fake
+  `machine` module in tests/fake_machine.py, so device construction and the VL6180X driver run
+  on the Mac). **Simulate: `micropython sim/run_on_micropython.py`** (brew install micropython) —
+  the whole firmware on a real MicroPython runtime, 12 checks, exit code = pass/fail. Also
+  `mpy-cross` every module to catch on-device compile errors. Wokwi setup in `sim/` (XIAO C6 is
+  a stock part; needs a token for CI; nothing there has been run yet).
 - Safety: hard `MOTOR_MAX_RUN_MS` inside the motion loop, motor stop in `finally` + on every
   transition out, WDT only in `run()` (default OFF — it survives Ctrl-C and would reset you at
   the REPL), **10k pulldowns on both L9110S inputs** (hardware).

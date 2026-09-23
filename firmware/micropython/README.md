@@ -74,15 +74,19 @@ written to flash by `mpremote run`.
 1. **`tests/` on the Mac** — the state machine, timings and strategies, plus device construction
    and the VL6180X's register conversation via `tests/fake_machine.py`, a stand-in for MicroPython's
    `machine` module. Free, about a second.
-2. **`sim/` on Wokwi** — a real MicroPython build on a simulated XIAO ESP32-C6. Catches whatever
-   depends on the real `machine` module. See [`sim/README.md`](sim/README.md).
-3. **The bench** — the only thing that proves it works.
+2. **`sim/run_on_micropython.py`** — the whole firmware on a real MicroPython runtime with a fake
+   chip under it (`brew install micropython`, then `micropython sim/run_on_micropython.py`).
+   Catches what only MicroPython does: its asyncio, its compiler, its ticks. This is where the
+   "lid held open forever" bug was found.
+3. **`sim/` on Wokwi** — a real MicroPython build on a simulated XIAO ESP32-C6, for the things
+   that need the real `machine` module. See [`sim/README.md`](sim/README.md).
+4. **The bench** — the only thing that proves it works.
 
 ## Tests
 ```sh
 cd firmware/micropython && python3 -m unittest discover -s tests -t tests -v
 ```
-58 tests, no hardware, under two seconds: the safety cap, the open/hold/close cycle, obstruction
+60 tests, no hardware, under two seconds: the safety cap, the open/hold/close cycle, obstruction
 retries and the latched fault, transition-table reachability, sensor debounce and cooldown,
 button debounce, the LED, the event bus isolating broken listeners, the factory building the
 strategy each config string names (and falling back safely on a typo), the config invariants (the

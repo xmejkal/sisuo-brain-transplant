@@ -38,12 +38,19 @@ class StateMachine:
         self._exit_hooks = {}
         self._queued_triggers = []
         self._dispatching = False
+        self._previous_state = None
         self.history = []
 
     # ----------------------------------------------------------------- inspection
     @property
     def state(self):
         return self._state
+
+    @property
+    def previous_state(self):
+        """The state we came from. Equal to `state` during a self-transition, which is how a
+        hook tells "entered afresh" from "re-entered"."""
+        return self._previous_state
 
     @property
     def bus(self):
@@ -96,6 +103,7 @@ class StateMachine:
             return False
 
         previous = self._state
+        self._previous_state = previous
         log.info("%s: %s --%s--> %s", self._name, previous, trigger, destination)
 
         # The state is set before any hook runs, so that a hook which raises cannot leave the

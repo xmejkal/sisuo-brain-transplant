@@ -105,6 +105,45 @@ class TestOpenCloseCycle(unittest.TestCase):
             self.assertEqual(lid.state, states.OPEN)
 
 
+class TestMaximumOpenTime(unittest.TestCase):
+    """
+    Found by running the firmware on MicroPython: a hand that never leaves used to re-arm the
+    hold timer forever, so the lid stayed open until the battery died.
+    """
+
+    def test_a_hand_that_never_leaves_still_lets_the_lid_close(self):
+        config = FakeConfig()
+        config.MAX_OPEN_MS = 2000
+        lid, _, runner, _ = build_lid(config)
+
+        lid.fire(states.OPEN_PRESSED)
+        runner.run(steps=120)
+        self.assertEqual(lid.state, states.OPEN)
+
+        # Keep waving well past the ceiling.
+        for _ in range(40):
+            runner.run(steps=10)
+            lid.fire(states.HAND_DETECTED)
+            if lid.state != states.OPEN:
+                break
+
+        self.assertNotEqual(lid.state, states.OPEN, "the lid never stopped being held open")
+
+    def test_waving_within_the_ceiling_still_holds_the_lid_open(self):
+        """The ceiling must not break the ordinary case: a hand in the way keeps the lid open."""
+        config = FakeConfig()
+        config.MAX_OPEN_MS = 60000
+        lid, _, runner, _ = build_lid(config)
+
+        lid.fire(states.OPEN_PRESSED)
+        runner.run(steps=120)
+
+        for _ in range(10):
+            runner.run(steps=30)
+            lid.fire(states.HAND_DETECTED)
+            self.assertEqual(lid.state, states.OPEN)
+
+
 class TestObstruction(unittest.TestCase):
     """The failure the original bin got wrong: it retried forever."""
 

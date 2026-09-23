@@ -35,6 +35,7 @@ class Lid:
         self._motion_task = None
         self._hold_task = None
         self._failed_close_attempts = 0
+        self._open_since_ms = None
 
         self.machine = StateMachine(
             states.TRANSITIONS, states.IDLE, bus=bus, clock=self._clock, name="lid"
@@ -73,14 +74,34 @@ class Lid:
 
     def _on_idle(self):
         self._failed_close_attempts = 0
+        self._open_since_ms = None
         self._motor.stop()
 
     def _on_opening(self):
         self._start_stroke(opening=True, run_ms=self._config.LID_OPEN_RUN_MS)
 
     def _on_open(self):
+        """
+        Hold the lid open, and re-arm that hold whenever a hand is still in the way — but only
+        up to `MAX_OPEN_MS` in total.
+
+        Without that ceiling, anything permanently in front of the sensor (a bin bag, a wall,
+        a sticker on the window) holds the lid open forever and flattens the battery. Once the
+        ceiling is reached the lid closes anyway; if something really is in the way, the closing
+        stroke discovers it and the OBSTRUCTED path takes over, which is where that belongs.
+        """
         self._motor.stop()
         self._cancel_hold_timer()
+
+        if self.machine.previous_state != states.OPEN:
+            self._open_since_ms = self._clock.now_ms()
+
+        held_for_ms = self._clock.elapsed_ms(self._open_since_ms)
+        if held_for_ms >= self._config.MAX_OPEN_MS:
+            log.warn("lid: held open %d ms; closing anyway", held_for_ms)
+            self.machine.fire(states.HOLD_EXPIRED)   # queued: we are inside a transition
+            return
+
         self._hold_task = self._spawn(self._hold_then_close())
 
     def _on_closing(self):

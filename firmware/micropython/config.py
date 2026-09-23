@@ -49,7 +49,10 @@ MOTOR_CLOSE_SPEED = 200
 MOTOR_PWM_FREQ_HZ = 5000    # the L9110's bipolar output stage just heats up above ~10 kHz
 LID_OPEN_RUN_MS = 900       # <- calibrate
 LID_CLOSE_RUN_MS = 950      # <- calibrate
-LID_OPEN_HOLD_MS = 4000
+LID_OPEN_HOLD_MS = 4000     # how long the lid waits before closing
+MAX_OPEN_MS = 30000         # ceiling on the total time held open, however much waving happens:
+                            # without it, anything parked in front of the sensor keeps the lid
+                            # open until the battery is flat
 MOTOR_MAX_RUN_MS = 1500     # hard safety cap; must exceed both run times with margin
 MAX_CLOSE_RETRIES = 3       # obstructed this many times -> FAULT, rather than retrying forever
 MOTION_POLL_MS = 10
@@ -121,7 +124,7 @@ OVERLAY_TEMP_PATH = "/config.json.tmp"
 # Only these may be overridden per unit. Everything else — pin numbers above all — is design,
 # and a calibration file has no business repointing the motor or raising the safety cap.
 CALIBRATABLE = (
-    "LID_OPEN_RUN_MS", "LID_CLOSE_RUN_MS", "LID_OPEN_HOLD_MS",
+    "LID_OPEN_RUN_MS", "LID_CLOSE_RUN_MS", "LID_OPEN_HOLD_MS", "MAX_OPEN_MS",
     "MOTOR_OPEN_SPEED", "MOTOR_CLOSE_SPEED",
     "TOF_NEAR_MM", "TOF_FAR_MM", "TOF_OFFSET_MM", "TOF_CROSSTALK", "TOF_RANGE_IGNORE",
     "TOF_INTERRUPT_PERIOD_MS",

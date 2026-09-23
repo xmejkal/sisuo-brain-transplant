@@ -2,9 +2,23 @@
 
 Three layers of testing, cheapest first. Each catches things the one below cannot.
 
+**The middle layer runs today, locally, with no account:** `sim/run_on_micropython.py` runs the
+real firmware on a real MicroPython runtime with a fake chip underneath it.
+
+```sh
+brew install micropython          # once
+micropython sim/run_on_micropython.py     # 12 checks; exit code says pass or fail
+python3     sim/run_on_micropython.py     # the same script under CPython, as a control
+```
+
+It presses the buttons, waves a hand at the rangefinder, holds something in the lid's way, and
+checks what the bin does — on the runtime whose asyncio actually differs from CPython's. It
+found a real bug the first time it ran: see below.
+
 | Layer | Runs | Catches | Cost |
 | --- | --- | --- | --- |
 | `tests/` on the Mac | `python3 -m unittest discover -s tests -t tests` | the state machine, timings, strategies, and — via `tests/fake_machine.py` — device construction and the VL6180X register conversation | free, ~1 s |
+| **`sim/run_on_micropython.py`** | the whole firmware on the MicroPython unix runtime | MicroPython's own semantics: its asyncio, its compiler, its ticks | free, ~8 s |
 | **Wokwi** (this folder) | a real MicroPython build on a simulated XIAO ESP32-C6 | anything that depends on the real `machine` module, asyncio on-device, boot behaviour, real pin toggling | free in the editor; CI needs a token |
 | the bench | the actual bin | timing, electrical behaviour, the DFR0534's real command set, the lid's mechanics | the only thing that proves it works |
 
@@ -56,3 +70,30 @@ Nothing here has been run yet: the scenario file and diagram are written from th
 formats, not from a passing run. The first run will need fixing up, most likely the part IDs in
 `diagram.json` and the exact control name for a pushbutton. CI minutes may also need a paid plan
 — the free allowance is not documented.
+
+
+## What this layer has already caught
+
+**A hand that never leaves held the lid open forever.** Every detection re-armed the hold timer,
+by design — "a hand in the way keeps the lid open" — but nothing capped the total. Anything
+parked in front of the sensor (a bin bag, a wall, a sticker on the window) would hold the lid
+open until the battery was flat. The transition log made it obvious at a glance:
+
+    open --hand_detected--> open
+    open --hand_detected--> open
+    open --hand_detected--> open        ... forever
+
+Fixed with `config.MAX_OPEN_MS`: past that ceiling the lid closes regardless, and if something
+really is in the way the closing stroke discovers it and the OBSTRUCTED path takes over — which
+is where that decision belongs. Two regression tests in `tests/test_lid.py` hold it in place.
+
+None of the Mac unit tests would have found this: they fire triggers deliberately, and nobody
+writes the test for the case they did not think of. A scenario that just *holds a hand there* did.
+
+## Compiling with MicroPython's own compiler
+
+`mpy-cross` catches anything the on-device compiler would reject, in a second and with no runtime:
+
+```sh
+for f in smartbin/*.py config.py main.py boot.py; do mpy-cross -o /tmp/out.mpy "$f" || echo "FAIL $f"; done
+```
