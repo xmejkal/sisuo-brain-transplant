@@ -10,3 +10,5 @@ __pycache__/
 firmware/micropython/sim/*.bin
 .env
 *.token
+firmware/micropython/sim/chips/*.wasm
+firmware/micropython/sim/chips/wokwi-api.h

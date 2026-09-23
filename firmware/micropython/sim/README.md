@@ -31,14 +31,42 @@ Verified 2026-09-23 against [docs.wokwi.com](https://docs.wokwi.com/getting-star
   over RFC2217, exactly as over USB.
 * **Buttons and LEDs exist**; the motor is shown as two LEDs on the driver's input pins, which is
   enough to see and assert direction and duty.
-* **No VL6180X, no H-bridge or DC motor, no MP3 module.** Each would need a custom chip
-  (`chips/README.md`). Without the sensor, run with `SENSOR_STRATEGY = "none"` and drive the lid
-  from the buttons — the state machine is what this layer is really testing.
+* **No VL6180X and no H-bridge — so we wrote them.** `chips/vl6180x.chip.c` answers I2C at 0x29
+  with the registers the driver reads and a draggable distance slider; `chips/l9110s.chip.c`
+  watches the driver's two inputs and prints `MOTOR: opening` / `closing` / `stopped`, which is
+  what the scenario asserts on. Both compile with `wokwi-cli chip compile <file>.chip.c`.
+* **No MP3 module.** Not worth a chip: the firmware's own log says which cue it played.
 * **Deep sleep under MicroPython is unverified here.** It works in Wokwi for Arduino/ESP-IDF
   projects, but nobody has confirmed `machine.deepsleep()` + `esp32.wake_on_ext1` in MicroPython.
   Treat a failure as "unsupported in the simulator" until the bench says otherwise.
 
 ## Running it
+
+Everything is in place except a token: the diagram lints clean, both custom chips compile, and
+`micropython-c6.bin` (v1.29.0, the same version as the `mpy-cross` we compile with) is
+downloaded. What remains is one environment variable.
+
+```sh
+export WOKWI_CLI_TOKEN=wok_...        # from https://wokwi.com/dashboard/ci (50 free CI minutes)
+wokwi-cli . --scenario lid-cycle.scenario.yaml --timeout 20000
+```
+
+The CLI itself is a binary, not an npm package:
+
+```sh
+curl -sL -o ~/.local/bin/wokwi-cli \
+  https://github.com/wokwi/wokwi-cli/releases/latest/download/wokwi-cli-macos-arm64
+chmod +x ~/.local/bin/wokwi-cli
+```
+
+An agent can drive the simulator directly through Wokwi's MCP server, which is the same binary:
+
+```json
+{"mcpServers": {"wokwi": {"command": "wokwi-cli", "args": ["mcp"],
+  "env": {"WOKWI_CLI_TOKEN": "wok_..."}}}}
+```
+
+## The older notes
 
 In the browser, quickest: start from <https://wokwi.com/projects/new/micropython-esp32-c6>, paste
 `diagram.json`, then paste the firmware files.

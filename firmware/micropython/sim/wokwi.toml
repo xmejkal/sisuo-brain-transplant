@@ -12,7 +12,11 @@ firmware = "micropython-c6.bin"
 elf = "micropython-c6.bin"
 rfc2217ServerPort = 4000
 
-# Custom chips stand in for the parts Wokwi has no model of. See chips/README.md.
-# [[chip]]
-# name = "vl6180x"
-# binary = "chips/vl6180x.chip.wasm"
+# Custom chips stand in for the parts Wokwi has no model of — we wrote them. See chips/README.md.
+[[chip]]
+name = "vl6180x"
+binary = "chips/vl6180x.chip.wasm"
+
+[[chip]]
+name = "l9110s"
+binary = "chips/l9110s.chip.wasm"

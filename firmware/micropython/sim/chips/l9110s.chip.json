@@ -1,0 +1,5 @@
+{
+  "name": "L9110S motor channel",
+  "author": "smartbin",
+  "pins": ["GND", "IA", "IB", "OA", "OB"]
+}

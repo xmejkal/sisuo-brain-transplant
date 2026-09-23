@@ -1,0 +1,16 @@
+{
+  "name": "VL6180X time-of-flight sensor",
+  "author": "smartbin",
+  "pins": ["GND", "VIN", "SDA", "SCL", "INT"],
+  "controls": [
+    {
+      "id": "distance",
+      "label": "Distance (mm)",
+      "type": "range",
+      "min": 0,
+      "max": 255,
+      "step": 1,
+      "value": 200
+    }
+  ]
+}
