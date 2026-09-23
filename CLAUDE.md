@@ -62,9 +62,20 @@ bench/calibration/deploy: `firmware/micropython/README.md`. Arduino v1 kept only
   transition out, WDT only in `run()`, **10k pulldowns on both L9110S inputs** (hardware).
 
 ### Pin map v2 (GPIO in brackets) — supersedes the v1 map above
-Motor IA D3[21] · IB D8[19] · I2C SDA D4[22] / SCL D5[23] (IR config reuses these two) ·
-Open btn D6[16] · Mode btn D7[17] · MP3 TX D9[20] (module TXD NOT wired — not 5V tolerant) ·
-LED red D10[18] · green D0[0] · **D1[1]/D2[2] reserved: the only ADC pins (stall sense)**.
+**Only GPIO0-7 wake an ESP32-C6 from deep sleep = D0/D1/D2 only.** They are spent accordingly:
+ToF INT D0[0] (wake) · Open btn D1[1] (wake) · stall ADC / limit switch D2[2] (ADC-capable) ·
+Motor IA D3[21] · SDA D4[22] · SCL D5[23] (IR config reuses these two) · Mode btn D6[16] ·
+LED red D7[17] · Motor IB D8[19] · MP3 TX D9[20] (module TXD NOT wired — not 5V tolerant) ·
+LED green D10[18].
+
+### Power (firmware/micropython/smartbin/power.py)
+`config.POWER`: `always_on` (bench/USB) | `deep_sleep`. Deep sleep needs `SENSOR="tof_interrupt"`:
+the VL6180X ranges continuously by itself and pulls its INT pin below a threshold. Verified:
+`esp32.wake_on_ext0` does NOT exist on C6 and `Pin.irq(wake=DEEPSLEEP)` silently no-ops — use
+`esp32.wake_on_ext1`, ACTIVE-HIGH (low-level wake bug micropython#17334). Wake = full reset, only
+`RTC().memory()` survives; `prepare()` maps the wake pin to a trigger. Idle ≈ 200-400 µA (sensor
+dominates; ESP ~15 µA). **The C6's LP core is NOT usable from MicroPython** (no API; it is a
+coprocessor, not a second app core).
 
 ### Arduino reference build
 Arduino/C++ state machine (Idle→Opening→Open→Closing). Wave/IR or Open button → drive lid open on

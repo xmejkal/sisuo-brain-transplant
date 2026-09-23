@@ -16,26 +16,32 @@ same numbers, which is the single easiest mistake to make on this board.
 import json
 
 # ----------------------------------------------------------------- which parts are fitted
-SENSOR = "tof"              # "tof" (VL6180X on I2C) | "ir" (LED + 38 kHz receiver) | "none"
+SENSOR = "tof"              # "tof" (polled I2C) | "tof_interrupt" (sensor watches, can wake the
+                            #   chip from deep sleep) | "ir" | "none" (buttons only)
+POWER = "always_on"         # "always_on" (bench, USB) | "deep_sleep" (battery)
 CLOSE_DETECT = "timed"      # "timed" | "limit" (microswitch) | "stall" (shunt + ADC)
 AUDIO_ENABLED = True
 REPL_ENABLED = True         # live REPL via aiorepl while the bin runs
 LOG_EVENTS = True
 
 # ----------------------------------------------------------------- pins (GPIO, not D-numbers)
+# Only GPIO0-7 can wake an ESP32-C6 from deep sleep, and on the XIAO that is D0, D1 and D2 and
+# nothing else. Those three are therefore spent on the things that must wake the bin (the ToF
+# interrupt and the OPEN button) plus the one analogue input we may want (stall sensing).
+PIN_TOF_INTERRUPT = 0       # D0  <- VL6180X GPIO1   [wake-capable]
+PIN_BUTTON_OPEN = 1         # D1  to GND             [wake-capable]
+PIN_SHUNT_ADC = 2           # D2  stall sense, or PIN_LIMIT_SWITCH — ADC-capable
+PIN_LIMIT_SWITCH = 2        # D2  (alternative use of the same pin)
 PIN_MOTOR_IA = 21           # D3  -> L9110S A-IA
-PIN_MOTOR_IB = 19           # D8  -> L9110S A-IB
 PIN_I2C_SDA = 22            # D4  (ToF config)
 PIN_I2C_SCL = 23            # D5  (ToF config)
 PIN_IR_EMITTER = 22         # D4  (IR config) -> BC337 base
 PIN_IR_RECEIVER = 23        # D5  (IR config) <- receiver OUT
-PIN_BUTTON_OPEN = 16        # D6  (also the ROM console TX; fine for a button, never for the MP3)
-PIN_BUTTON_MODE = 17        # D7
+PIN_BUTTON_MODE = 16        # D6  (also the ROM console TX; fine for a button, never for the MP3)
+PIN_LED_RED = 17            # D7
+PIN_MOTOR_IB = 19           # D8  -> L9110S A-IB
 PIN_MP3_TX = 20             # D9  -> module RXD. The module's TXD stays unwired.
-PIN_LED_RED = 18            # D10
-PIN_LED_GREEN = 0           # D0
-PIN_SHUNT_ADC = 1           # D1  - keep free: GPIO0/1/2 are the only ADC pins on this chip
-PIN_LIMIT_SWITCH = 2        # D2
+PIN_LED_GREEN = 18          # D10
 
 # ----------------------------------------------------------------- motion (CALIBRATE THESE)
 MOTOR_OPEN_SPEED = 220      # 0-255
@@ -55,6 +61,9 @@ BUTTON_DEBOUNCE_MS = 40
 SENSOR_CONSECUTIVE = 2      # detections in a row before the lid reacts
 SENSOR_COOLDOWN_MS = 1500   # ignore the sensor for this long after acting
 
+TOF_INTERRUPT_PERIOD_MS = 500   # how often the sensor ranges by itself while the chip sleeps;
+                                # ~340 uA at 500 ms, ~170 uA at 1000 ms, max 2550
+TOF_INTERRUPT_ACTIVE_HIGH = True  # low-level wake has an open MicroPython bug on the C6
 TOF_NEAR_MM = 30            # below this is the lid or a dirty window, not a hand
 TOF_FAR_MM = 100            # the datasheet guarantees 100 mm; do not raise this hopefully
 TOF_OFFSET_MM = None        # from the offset calibration, once mounted behind the window
@@ -78,6 +87,10 @@ SOUND_PROFILES = {
     "chatty": {"opening": 4, "open": 5, "closing": 6, "idle": 7, "obstructed": 3, "fault": 8},
     "silent": {},
 }
+
+# ----------------------------------------------------------------- power
+IDLE_TICK_MS = 200          # how often the power policy gets a say
+SLEEP_AFTER_MS = 30000      # idle this long -> deep sleep (deep_sleep policy only)
 
 # ----------------------------------------------------------------- housekeeping
 I2C_FREQ_HZ = 400000

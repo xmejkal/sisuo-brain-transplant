@@ -31,6 +31,14 @@ class ProximitySensor:
     def read(self):
         return None
 
+    def arm_for_sleep(self):
+        """Prepare to keep watching while the CPU is off. Only the interrupt sensor can."""
+        return False
+
+    def acknowledge_wake(self):
+        """Called after the chip wakes because of this sensor."""
+        return None
+
     def _sees_hand(self):
         """Implemented by each strategy: the raw, undebounced answer."""
         raise NotImplementedError
@@ -122,6 +130,53 @@ class IrBurstSensor(ProximitySensor):
         heard = self._receiver.value() == 0
         self._emitter.duty_u16(0)
         return heard
+
+
+class TofInterruptSensor(TofSensor):
+    """
+    The same VL6180X, doing the watching itself.
+
+    The sensor ranges continuously on its own clock and asserts its interrupt pin when something
+    comes closer than the threshold. While awake we read that pin instead of the I2C bus, which
+    is cheaper and gives the same answer; asleep, that pin is what wakes the chip.
+
+    `interrupt_pin` must be D0, D1 or D2 — the only pins on this board that can wake an
+    ESP32-C6 — and `power.DeepSleepPolicy` refuses to sleep otherwise.
+    """
+
+    def __init__(self, driver, interrupt_pin, period_ms=500, active_high=True, **kwargs):
+        super().__init__(driver, **kwargs)
+        self._pin = interrupt_pin
+        self._period_ms = period_ms
+        self._active_high = active_high
+        self._asserted = 1 if active_high else 0
+        self._configure()
+
+    def _configure(self):
+        self._driver.configure_interrupt(self._far_mm, active_high=self._active_high)
+        self._driver.start_continuous(self._period_ms)
+
+    def _sees_hand(self):
+        if self._pin.value() != self._asserted:
+            return False
+        self._driver.clear_interrupt()
+        return True
+
+    def read(self):
+        """The last continuous reading — no new measurement, so this is cheap to poll."""
+        try:
+            return self._driver.last_range()
+        except OSError as exception:
+            log.warn("tof read failed: %s", exception)
+            return None
+
+    def arm_for_sleep(self):
+        """Clear any latched interrupt so we do not wake instantly on the one we just handled."""
+        self._driver.clear_interrupt()
+        return True
+
+    def acknowledge_wake(self):
+        self._driver.clear_interrupt()
 
 
 class ButtonOnlySensor(ProximitySensor):

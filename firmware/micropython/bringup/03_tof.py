@@ -1,7 +1,8 @@
 """
 Bring-up step 3 — VL6180X time-of-flight sensor.
 
-Wiring: SDA <- D4 (GPIO22), SCL <- D5 (GPIO23), VIN <- 3V3, GND. Breakouts with a regulator and
+Wiring: SDA <- D4 (GPIO22), SCL <- D5 (GPIO23), VIN <- 3V3, GND. For deep sleep later, also wire
+the breakout's GPIO1/INT pin to D0 (GPIO0) — one of the only three pins that can wake this chip. Breakouts with a regulator and
 level shifter (Adafruit 3316, Pololu 2489) are safe on 3.3 V; a bare board may not be — check
 before powering it.
 

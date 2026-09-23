@@ -26,7 +26,7 @@ except ImportError:
 
 import config as _default_config
 
-from . import app, closing, log, sensors
+from . import app, closing, log, power, sensors
 
 VERSION = "2.0.0-dev"
 
@@ -48,7 +48,7 @@ def build(config=_default_config, hardware=None):
     bus = EventBus()
     sensor = _build_sensor(config, hardware)
     close_detector = _build_close_detector(config, hardware)
-    return app.SmartBin(hardware, config, bus, sensor, close_detector)
+    return app.SmartBin(hardware, config, bus, sensor, close_detector, power.build(config))
 
 
 def _build_sensor(config, hardware):
@@ -58,7 +58,7 @@ def _build_sensor(config, hardware):
         "cooldown_ms": config.SENSOR_COOLDOWN_MS,
     }
 
-    if config.SENSOR == "tof":
+    if config.SENSOR in ("tof", "tof_interrupt"):
         from .vl6180x import VL6180X
 
         driver = VL6180X(hardware.i2c, offset=config.TOF_OFFSET_MM)
@@ -66,6 +66,16 @@ def _build_sensor(config, hardware):
             driver.crosstalk = config.TOF_CROSSTALK
         if config.TOF_RANGE_IGNORE:
             driver.set_range_ignore(config.TOF_RANGE_IGNORE)
+        if config.SENSOR == "tof_interrupt":
+            return sensors.TofInterruptSensor(
+                driver,
+                hardware.tof_interrupt,
+                period_ms=config.TOF_INTERRUPT_PERIOD_MS,
+                active_high=config.TOF_INTERRUPT_ACTIVE_HIGH,
+                near_mm=config.TOF_NEAR_MM,
+                far_mm=config.TOF_FAR_MM,
+                **common
+            )
         return sensors.TofSensor(
             driver, near_mm=config.TOF_NEAR_MM, far_mm=config.TOF_FAR_MM, **common
         )

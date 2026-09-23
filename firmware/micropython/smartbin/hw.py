@@ -38,6 +38,7 @@ class Hardware:
 
         self.player = self._build_player()
         self.i2c = None
+        self.tof_interrupt = None
         self.ir_emitter = None
         self.ir_receiver = None
         self.shunt_adc = None
@@ -58,13 +59,17 @@ class Hardware:
 
     def _build_sensor_pins(self):
         """The two sensor wirings share pins D4/D5, so only one can exist at a time."""
-        if self.config.SENSOR == "tof":
+        if self.config.SENSOR in ("tof", "tof_interrupt"):
             self.i2c = I2C(
                 0,
                 sda=Pin(self.config.PIN_I2C_SDA),
                 scl=Pin(self.config.PIN_I2C_SCL),
                 freq=self.config.I2C_FREQ_HZ,
             )
+            if self.config.SENSOR == "tof_interrupt":
+                # No internal pull here: the breakout pulls GPIO1 to its own 2.8 V, and a pull in
+                # the opposite direction would fight it.
+                self.tof_interrupt = Pin(self.config.PIN_TOF_INTERRUPT, Pin.IN)
         elif self.config.SENSOR == "ir":
             self.ir_emitter = PWM(
                 Pin(self.config.PIN_IR_EMITTER), freq=self.config.IR_CARRIER_HZ, duty_u16=0

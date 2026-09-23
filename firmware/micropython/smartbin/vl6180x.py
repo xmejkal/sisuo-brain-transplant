@@ -24,6 +24,10 @@ MODEL_ID = 0xB4
 
 # --- registers (16-bit addresses) ------------------------------------------------------------
 _IDENTIFICATION_MODEL_ID = 0x000
+_SYSTEM_MODE_GPIO1 = 0x011
+_SYSTEM_GROUPED_PARAMETER_HOLD = 0x017
+_SYSRANGE_THRESH_HIGH = 0x019
+_SYSRANGE_THRESH_LOW = 0x01A
 _SYSTEM_INTERRUPT_CONFIG = 0x014
 _SYSTEM_INTERRUPT_CLEAR = 0x015
 _SYSTEM_FRESH_OUT_OF_RESET = 0x016
@@ -42,6 +46,13 @@ _RESULT_RANGE_RETURN_RATE = 0x066
 ERROR_NONE = 0
 ERROR_NOCONVERGE = 7
 ERROR_RANGEIGNORE = 8
+
+# SYSTEM__INTERRUPT_CONFIG_GPIO, bits[2:0]: when GPIO1 should be asserted.
+INT_DISABLED = 0
+INT_LEVEL_LOW = 1      # closer than THRESH_LOW - this is the "a hand appeared" case
+INT_LEVEL_HIGH = 2
+INT_OUT_OF_WINDOW = 3
+INT_NEW_SAMPLE = 4
 
 # ST's recommended "private register" tuning block, applied once after reset. The values are
 # undocumented by design; they come from the datasheet's mandatory init sequence.
@@ -159,6 +170,51 @@ class VL6180X:
     def return_rate(self):
         """RESULT__RANGE_RETURN_RATE, needed by the crosstalk calibration procedure."""
         return self._read16(_RESULT_RANGE_RETURN_RATE)
+
+    # ----------------------------------------------------------------- autonomous ranging
+    def configure_interrupt(self, threshold_low_mm, mode=INT_LEVEL_LOW, active_high=True):
+        """
+        Make GPIO1 assert when a reading crosses a threshold, with no host involvement.
+
+        This is what lets the ESP32 deep-sleep: the sensor keeps ranging by itself and only
+        wakes the chip when something is closer than `threshold_low_mm`.
+
+        `active_high` matters on this board — MicroPython's low-level deep-sleep wake on the C6
+        has an open "stuck pin" bug, so the wake signal is configured high-going. Note the pin is
+        open-drain: asserted-high relies on the breakout's pull-up (both Adafruit and Pololu have
+        one, to 2.8 V, which clears the C6's input threshold).
+        """
+        self._write8(_SYSTEM_MODE_GPIO1, 0x30 if active_high else 0x10)
+        self._write8(_SYSTEM_GROUPED_PARAMETER_HOLD, 0x01)
+        self._write8(_SYSRANGE_THRESH_LOW, threshold_low_mm & 0xFF)
+        self._write8(_SYSRANGE_THRESH_HIGH, 0xFF)
+        self._write8(_SYSTEM_INTERRUPT_CONFIG, mode)
+        self._write8(_SYSTEM_GROUPED_PARAMETER_HOLD, 0x00)
+        self.clear_interrupt()
+
+    def start_continuous(self, period_ms=500):
+        """
+        Range repeatedly on the sensor's own clock. The period sets the idle current: roughly
+        1.7 mA at 10 Hz, scaling down with rate, so ~340 uA at 500 ms and ~170 uA at 1 s.
+        Maximum is 2550 ms.
+        """
+        self._write8(_SYSRANGE_INTERMEASUREMENT_PERIOD, max(0, min(254, period_ms // 10)))
+        self._write8(_SYSRANGE_START, 0x03)
+
+    def stop_continuous(self):
+        if self._read8(_SYSRANGE_START) & 0x02:
+            self._write8(_SYSRANGE_START, 0x01)
+
+    def interrupt_pending(self):
+        return bool(self._read8(_RESULT_INTERRUPT_STATUS_GPIO) & 0x07)
+
+    def clear_interrupt(self):
+        """The interrupt latches until this is called, so it always follows a wake."""
+        self._write8(_SYSTEM_INTERRUPT_CLEAR, 0x07)
+
+    def last_range(self):
+        """The most recent continuous-mode reading, without starting a new measurement."""
+        return self._read8(_RESULT_RANGE_VAL)
 
     # ----------------------------------------------------------------- calibration
     @property
