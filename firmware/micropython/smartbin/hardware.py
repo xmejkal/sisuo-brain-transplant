@@ -1,11 +1,19 @@
 """
-Every peripheral, constructed in one place.
+Every device the bin can command or read, constructed in one place.
 
-With platform.py, this is the only module that touches `machine`. Everything else receives what
-it needs, which is what lets the logic run under CPython in tests and what makes the sensor
-wiring a config choice rather than a rewrite.
+THE RULE, because it was not obvious before: **hardware owns devices, not decisions.**
 
-Constructing this moves nothing: pins are set to their resting state and that is all.
+    a device      knows how to talk to a physical thing: the motor driver, the LED, a button,
+                  the MP3 module, the rangefinder chip. It has no opinion about the lid.
+    a strategy    makes a decision using devices: "is that a hand?", "is the lid shut?",
+                  "should we sleep?" Those live in sensors.py, closing.py and power.py, and are
+                  assembled in factory.py.
+
+So the rangefinder *chip* is here next to the motor, while "is a hand there?" is not — that is a
+judgement, and which judgement you want is a config choice.
+
+With platform.py this is the only module that touches `machine`, which is what lets everything
+else be tested on a PC. Constructing it moves nothing: pins go to their resting state, no more.
 
 Pin numbers are ESP32-C6 GPIO numbers, not XIAO D-numbers; config.py maps between them.
 """
@@ -17,26 +25,31 @@ from . import audio, log, motor, ui
 
 class Hardware:
     """
-    The bin's peripherals. Attributes that depend on which parts are fitted are None when they
-    are not — `sensor_bus`, `tof_interrupt`, `ir_emitter`, `ir_receiver`, `shunt_adc`,
-    `limit_switch`.
+    The bin's devices.
+
+    Which of them exist depends on which parts are fitted, so these are None when they are not:
+    `sensor_bus`, `rangefinder`, `rangefinder_interrupt`, `ir_emitter`, `ir_receiver`,
+    `current_sense`, `limit_switch`.
     """
 
     def __init__(self, config):
         self.config = config
 
-        self.sensor_bus = None
-        self.tof_interrupt = None
-        self.ir_emitter = None
-        self.ir_receiver = None
-        self.shunt_adc = None
-        self.limit_switch = None
-
+        # Always fitted.
         self.motor = self._build_motor(config)
         self.button_open, self.button_mode, self.led = self._build_controls(config)
         self.player = self._build_player(config)
-        self._build_sensor_pins(config)
-        self._build_close_detection_pins(config)
+
+        # Fitted only in some configurations; see the class docstring.
+        self.sensor_bus = None
+        self.rangefinder = None
+        self.rangefinder_interrupt = None
+        self.ir_emitter = None
+        self.ir_receiver = None
+        self.current_sense = None
+        self.limit_switch = None
+        self._build_proximity_devices(config)
+        self._build_close_detection_devices(config)
 
     # ----------------------------------------------------------------- construction
     def _build_motor(self, config):
@@ -50,7 +63,7 @@ class Hardware:
         return motor.L9110MotorDriver(self.motor_pwm_a, self.motor_pwm_b)
 
     def _build_controls(self, config):
-        """Buttons wire to ground and use the internal pull-ups, so pressed reads 0."""
+        """Buttons wire to ground and use the internal pull-ups, so a pressed button reads 0."""
         button_open = ui.Button(
             Pin(config.PIN_BUTTON_OPEN, Pin.IN, Pin.PULL_UP), config.BUTTON_DEBOUNCE_MS
         )
@@ -74,10 +87,10 @@ class Hardware:
         )
         return audio.Dfr0534Player(uart, config.VOLUME)
 
-    def _build_sensor_pins(self, config):
+    def _build_proximity_devices(self, config):
         """
-        The ToF and IR wirings share D4/D5 physically, so only one can be fitted at a time —
-        which is why config.py gives those pins two names and this builds only one of them.
+        The rangefinder or the IR pair — never both. They share D4/D5 physically, which is why
+        config.py gives those pins two names and only one set is ever constructed.
         """
         if config.SENSOR_STRATEGY in ("tof", "tof_interrupt"):
             self.sensor_bus = I2C(
@@ -86,33 +99,45 @@ class Hardware:
                 scl=Pin(config.PIN_I2C_SCL),
                 freq=config.I2C_FREQ_HZ,
             )
+            self.rangefinder = self._build_rangefinder(config)
             if config.SENSOR_STRATEGY == "tof_interrupt":
                 # No internal pull: the breakout pulls its interrupt pin to its own 2.8 V, and a
                 # pull the other way would fight it.
-                self.tof_interrupt = Pin(config.PIN_TOF_INTERRUPT, Pin.IN)
+                self.rangefinder_interrupt = Pin(config.PIN_TOF_INTERRUPT, Pin.IN)
         elif config.SENSOR_STRATEGY == "ir":
             self.ir_emitter = PWM(
                 Pin(config.PIN_IR_EMITTER), freq=config.IR_CARRIER_HZ, duty_u16=0
             )
             self.ir_receiver = Pin(config.PIN_IR_RECEIVER, Pin.IN)
 
-    def _build_close_detection_pins(self, config):
+    def _build_rangefinder(self, config):
+        """The VL6180X, with whatever this particular bin has been calibrated to."""
+        from .vl6180x import VL6180X
+
+        rangefinder = VL6180X(self.sensor_bus, offset=config.TOF_OFFSET_MM)
+        if config.TOF_CROSSTALK:
+            rangefinder.crosstalk = config.TOF_CROSSTALK
+        if config.TOF_RANGE_IGNORE:
+            rangefinder.set_range_ignore(config.TOF_RANGE_IGNORE)
+        return rangefinder
+
+    def _build_close_detection_devices(self, config):
         if config.CLOSE_DETECTOR == "stall":
-            self.shunt_adc = ADC(Pin(config.PIN_SHUNT_ADC))
-            self.shunt_adc.atten(ADC.ATTN_11DB)  # the full ~0-3.1 V span
+            self.current_sense = ADC(Pin(config.PIN_SHUNT_ADC))
+            self.current_sense.atten(ADC.ATTN_11DB)  # the full ~0-3.1 V span
         elif config.CLOSE_DETECTOR == "limit":
             self.limit_switch = Pin(config.PIN_LIMIT_SWITCH, Pin.IN, Pin.PULL_UP)
 
     # ----------------------------------------------------------------- bench helpers
     def scan_i2c(self):
-        """`b.hardware.scan_i2c()` should list 0x29 when the ToF sensor is wired."""
+        """`b.hardware.scan_i2c()` should list 0x29 when the rangefinder is wired."""
         if self.sensor_bus is None:
             log.warn("no I2C bus in %s sensor configuration", self.config.SENSOR_STRATEGY)
             return []
         return [hex(address) for address in self.sensor_bus.scan()]
 
     def enter_safe_state(self):
-        """Motor stopped, LED dark, IR emitter off. Called on shutdown, before sleep, and by hand."""
+        """Motor stopped, LED dark, IR emitter off. On shutdown, before sleep, and by hand."""
         self.motor.stop()
         self.led.set(ui.OFF)
         if self.ir_emitter is not None:

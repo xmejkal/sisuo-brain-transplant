@@ -127,7 +127,7 @@ def tof_offset(smart_bin):
     ST's offset procedure: a white (88% reflectance) target at 50 mm from the *outside* of the
     window. Plain white paper is close enough.
     """
-    driver = _driver_of(smart_bin)
+    driver = _rangefinder_of(smart_bin)
     driver.offset = 0
     input("Place a white target %d mm from the window, then press Enter> "
           % WHITE_TARGET_DISTANCE_MM)
@@ -149,7 +149,7 @@ def tof_crosstalk(smart_bin):
 
     Also computes the range-ignore threshold, which is what actually suppresses that reflection.
     """
-    driver = _driver_of(smart_bin)
+    driver = _rangefinder_of(smart_bin)
     driver.crosstalk = 0
     input("Place a black target %d mm from the window, then press Enter> "
           % BLACK_TARGET_DISTANCE_MM)
@@ -186,7 +186,7 @@ def tof_window(smart_bin, seconds=20):
     Watch live distances so you can choose TOF_NEAR_MM and TOF_FAR_MM by waving at the bin the
     way you actually would.
     """
-    driver = _driver_of(smart_bin)
+    driver = _rangefinder_of(smart_bin)
     print("Wave at the sensor. Note the range at a comfortable distance.")
     deadline = time.ticks_add(time.ticks_ms(), seconds * 1000)
     while time.ticks_diff(deadline, time.ticks_ms()) > 0:
@@ -194,9 +194,9 @@ def tof_window(smart_bin, seconds=20):
         time.sleep_ms(200)
 
 
-def _driver_of(smart_bin):
-    driver = getattr(smart_bin.sensor, "_driver", None)
-    if driver is None:
-        raise RuntimeError("no ToF sensor in this configuration (SENSOR_STRATEGY = %r)"
+def _rangefinder_of(smart_bin):
+    rangefinder = smart_bin.hardware.rangefinder
+    if rangefinder is None:
+        raise RuntimeError("no rangefinder in this configuration (SENSOR_STRATEGY = %r)"
                            % config.SENSOR_STRATEGY)
-    return driver
+    return rangefinder

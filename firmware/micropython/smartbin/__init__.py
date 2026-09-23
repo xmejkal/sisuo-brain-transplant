@@ -5,26 +5,41 @@ READ THIS FILE FIRST. It is the tour: what the parts are, how they are assembled
 happens when someone waves a hand at the bin. Every other module is one chapter of it.
 
 ===============================================================================================
-WHAT THE PARTS ARE
+FIVE LAYERS, AND THE RULE THAT DECIDES WHERE A THING LIVES
 ===============================================================================================
 
-    hardware.py    the peripherals: motor pins, buttons, LED, I2C bus, MP3 UART
-    platform.py    facts about this chip: which pins can wake it, how to sleep, the watchdog
+The distinction that matters, because the obvious question is "why is the motor `hardware` but
+the sensor is not?": **a device is a thing you command; a strategy is a decision you make.**
 
-    sensors.py     "is a hand there?"          ProximitySensor  + four implementations
-    closing.py     "is the lid shut?"          CloseDetector    + three implementations
-    power.py       "what to do while idle?"    PowerPolicy      + stay awake / deep sleep
-    motor.py       "drive the lid"             MotorDriver      + the L9110S we use
-    audio.py       "make a noise"              Player           + the DFR0534 we use
+  1. BOARD      platform.py    facts about this chip: which pins can wake it, sleeping, the WDT
+                config.py      every pin and tunable; /config.json holds per-unit calibration
 
-    states.py      the behaviour, as data: states, triggers, and the transition table
-    fsm.py         the machine that walks that table and announces every move
-    lid.py         the hooks it calls, and the motor strokes they start
-    events.py      the announcements; feedback.py listens and lights LEDs / plays cues
+  2. DEVICES    hardware.py    everything physical, constructed in one place and opinion-free:
+                               the motor driver, the buttons, the LED, the MP3 module, the
+                               rangefinder chip, the limit switch, the current sense.
+                motor.py       MotorDriver  + L9110MotorDriver
+                audio.py       Player       + Dfr0534Player / SilentPlayer
+                ui.py          Button, StatusLed
+                vl6180x.py     the rangefinder's registers
 
-    factory.py     turns config strings into the objects above
-    smart_bin.py   the running application: three tasks, and the wiring between them
-    config.py      every tunable and every pin, with /config.json holding per-unit calibration
+  3. STRATEGIES the decisions made *with* those devices — each one a config string:
+                sensors.py     "is a hand there?"       ProximitySensor + four answers
+                closing.py     "is the lid shut?"       CloseDetector   + three answers
+                power.py       "what to do while idle?" PowerPolicy     + two answers
+                factory.py     picks which answer, from config
+
+  4. BEHAVIOUR  states.py      the product as data: states, triggers, the transition table
+                fsm.py         walks that table, runs hooks, announces every move
+                lid.py         the hooks, and the motor strokes they start
+                events.py      the announcements; feedback.py turns them into light and sound
+
+  5. APPLICATION
+                smart_bin.py   three tasks, and the messages between them
+                __init__.py    this tour, and build()/run()
+
+So the rangefinder *chip* sits in layer 2 beside the motor, while "is that a hand?" sits in
+layer 3 — because which judgement you want is a choice, and the chip is not. Each layer may use
+the one below it and never the one above.
 
 ===============================================================================================
 HOW THEY FIT TOGETHER
@@ -46,6 +61,10 @@ HOW THEY FIT TOGETHER
 The arrows only ever point that way. The lid knows nothing about sound, LEDs or WiFi; feedback
 cannot influence the lid; and what a trigger *means* is decided by the table in states.py rather
 than by the code that fires it.
+
+`SmartBin` holds one of each: the devices (`b.hardware`), the three strategies (`b.sensor`,
+`b.close_detector`, `b.power_policy`), the behaviour (`b.lid`) and the listeners
+(`b.listeners`). If you are unsure where something belongs, ask whether it *decides* anything.
 
 ===============================================================================================
 WHAT HAPPENS WHEN SOMEONE WAVES

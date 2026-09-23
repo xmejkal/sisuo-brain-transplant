@@ -1,8 +1,12 @@
 """
-Wiring: config strings in, constructed objects out.
+Wiring: config strings in, strategies out.
 
-All the "which implementation" decisions live here, so adding a strategy means one entry in one
-table in this file, and `smartbin/__init__.py` stays the two-entry-point module it advertises.
+A strategy is a decision the bin makes with the devices `hardware.py` provides — "is that a
+hand?", "is the lid shut?", "should we sleep?". The devices themselves are not built here; this
+file only chooses which judgement to apply to them.
+
+All the "which implementation" choices live here, so adding one means editing one function in
+one file, and `smartbin/__init__.py` stays the tour it advertises.
 
 Every choice fails loudly on an unknown name rather than silently degrading, because a typo in
 config that quietly disables the sensor is a bin that looks broken for no visible reason.
@@ -20,11 +24,10 @@ def build_sensor(config, hardware):
     strategy = config.SENSOR_STRATEGY
 
     if strategy in ("tof", "tof_interrupt"):
-        driver = _build_tof_driver(config, hardware)
         if strategy == "tof_interrupt":
             return sensors.SelfRangingTimeOfFlightSensor(
-                driver,
-                hardware.tof_interrupt,
+                hardware.rangefinder,
+                hardware.rangefinder_interrupt,
                 period_ms=config.TOF_INTERRUPT_PERIOD_MS,
                 interrupt_active_high=config.WAKE_ON_HIGH,
                 near_mm=config.TOF_NEAR_MM,
@@ -33,7 +36,7 @@ def build_sensor(config, hardware):
                 **debounce
             )
         return sensors.TimeOfFlightSensor(
-            driver,
+            hardware.rangefinder,
             near_mm=config.TOF_NEAR_MM,
             far_mm=config.TOF_FAR_MM,
             max_failures=config.TOF_MAX_FAILURES,
@@ -56,18 +59,6 @@ def build_sensor(config, hardware):
     return sensors.ButtonOnlySensor(**debounce)
 
 
-def _build_tof_driver(config, hardware):
-    """The VL6180X itself, with any calibration this particular bin has been given."""
-    from .vl6180x import VL6180X
-
-    driver = VL6180X(hardware.sensor_bus, offset=config.TOF_OFFSET_MM)
-    if config.TOF_CROSSTALK:
-        driver.crosstalk = config.TOF_CROSSTALK
-    if config.TOF_RANGE_IGNORE:
-        driver.set_range_ignore(config.TOF_RANGE_IGNORE)
-    return driver
-
-
 def build_close_detector(config, hardware):
     """The close detector named by `config.CLOSE_DETECTOR`."""
     choice = config.CLOSE_DETECTOR
@@ -77,7 +68,7 @@ def build_close_detector(config, hardware):
 
     if choice == "stall":
         return closing.MotorStallCloseDetector(
-            hardware.shunt_adc,
+            hardware.current_sense,
             config.STALL_COUNTS,
             blanking_ms=config.STALL_BLANKING_MS,
             samples=config.STALL_SAMPLES,

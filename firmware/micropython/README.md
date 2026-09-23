@@ -1,8 +1,11 @@
 # Smart Bin firmware — MicroPython
 
 **Start with [`smartbin/__init__.py`](smartbin/__init__.py)** — its module docstring is the tour:
-what each part is, how they connect, and what happens end to end when someone waves a hand at the
-bin. Everything else is one chapter of that.
+the five layers and the rule for where a thing belongs, how the parts connect, and what happens
+end to end when someone waves a hand at the bin. Everything else is one chapter of that.
+
+The rule in one line: **a device is a thing you command (`hardware.py`); a strategy is a decision
+you make with it (`sensors.py`, `closing.py`, `power.py`, chosen in `factory.py`).**
 
 Design and rationale: [`../../FIRMWARE_PLAN.md`](../../FIRMWARE_PLAN.md).
 The Arduino v1 sketch in `../arduino/` is kept only as a reference.
@@ -22,8 +25,8 @@ smartbin/            the firmware package
   power.py           PowerPolicy + stay-awake / deep-sleep
   audio.py           Player + DFR0534 / silent
   motor.py           MotorDriver + L9110S
-  factory.py         config strings -> constructed objects (all the wiring)
-  hardware.py        the only module that builds peripherals
+  factory.py         config strings -> which strategy (devices come from hardware.py)
+  hardware.py        every device: motor, buttons, LED, MP3, rangefinder, switches
   platform.py        ESP32-C6 facts: wake pins, deep sleep, watchdog
   smart_bin.py       the running application: three tasks and the wiring between them
   events.py feedback.py ui.py vl6180x.py compat.py log.py
@@ -69,9 +72,10 @@ written to flash by `mpremote run`.
 ```sh
 cd firmware/micropython && python3 -m unittest discover -s tests -t tests -v
 ```
-39 tests, no hardware, under a second: the safety cap, the open/hold/close cycle, obstruction
+46 tests, no hardware, under a second: the safety cap, the open/hold/close cycle, obstruction
 retries and the latched fault, transition-table reachability, sensor debounce and cooldown,
-button debounce, the LED, the event bus isolating broken listeners, the config invariants (the
+button debounce, the LED, the event bus isolating broken listeners, the factory building the
+strategy each config string names (and falling back safely on a typo), the config invariants (the
 cap exceeds both run times, wake pins are wake-capable, no pin is used twice), and one
 integration test that runs the real lid against **real asyncio** rather than the fakes — that
 last one exists because a task cancelling itself behaves differently on the device, and a model

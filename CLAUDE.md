@@ -57,8 +57,10 @@ bench/calibration/deploy: `firmware/micropython/README.md`. Arduino v1 kept only
   (TimeOfFlight / SelfRangingTimeOfFlight / InfraredBurst / ButtonOnly), `CloseDetector`
   (Timed / LimitSwitch / MotorStall), `PowerPolicy` (StayAwake / DeepSleep), `MotorDriver`
   (L9110), `Player` (Dfr0534 / Silent). Chosen by config strings, built in `smartbin/factory.py`.
-- `hardware.py` builds peripherals (the only `machine` importer besides `platform.py`);
-  `platform.py` holds ESP32-C6 facts (wake pins, deep sleep, watchdog).
+- **Layering rule: a DEVICE is a thing you command, a STRATEGY is a decision you make with it.**
+  `hardware.py` = every device (motor, buttons, LED, MP3, VL6180X chip, limit switch, current
+  sense) and the only `machine` importer besides `platform.py` (ESP32-C6 facts). `factory.py`
+  chooses strategies only. Layers: board -> devices -> strategies -> behaviour -> application.
 - Events = "entered:<state>", published by the FSM; `AudioFeedback`/`LedFeedback` are listeners.
   Sounds are data (`config.SOUND_PROFILES`), MODE button cycles profiles into `/config.json`.
 - `build()` constructs and starts nothing; `run()` starts the loop; `main.py` is 2 lines.
