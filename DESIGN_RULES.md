@@ -38,7 +38,7 @@ at this. Sources at the end.
 all bare-chip decoupling are **already done**. You're a pin-allocation + power-budget problem.
 
 - [ ] **Motor VM off battery/5 V, never the 3V3 LDO.** The 3V3 pad only feeds logic-level
-      peripherals (OLED, IR, amp logic, TB6612 *VCC*). Give VM its own bulk cap.
+      peripherals (OLED, IR, amp logic, L9110S *VCC*). Give VM its own bulk cap.
 - [ ] **0.1 µF at every peripheral** (OLED, amp, IR, driver) + the VM bulk cap.
 - [ ] **I2C pull-ups (4.7 kΩ)** on D4/SDA (GPIO22) and D5/SCL (GPIO23) — the module doesn't add them.
 - [ ] **Only use the 11 broken-out GPIOs**; none are strapping/flash/USB/antenna, so the

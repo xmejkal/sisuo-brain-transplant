@@ -1,8 +1,12 @@
 # Firmware v2 plan — MicroPython, OO, testable
 
-Status: **implemented** in `firmware/micropython/` (v2.1), reviewed by a four-way code audit on
-2026-09-23 and corrected — see the README for the current names and the notes at the end of this
-file for what the audit changed. Supersedes the v1 port in `firmware/micropython/main.py`
+Status: **implemented, and now historical.** This is the design note that led to the firmware —
+useful for *why* things are the way they are, not for *what* they are called today. Several
+names, the pin map and the file layout have moved since; the code is the reference, starting
+with the tour in `firmware/micropython/smartbin/__init__.py`, and `boards/xiao-esp32-c6.json`
+plus `config.py` are the only pin maps anyone should read.
+
+Two rounds of audit (2026-09-23) reshaped it; what they found is at the end of this file. Supersedes the v1 port in `firmware/micropython/main.py`
 (kept until v2 works). Reviewed by a MicroPython/ESP32 architecture pass and a digital-electronics
 pass on 2026-09-23; their hardware findings are folded into `DESIGN_RULES.md` and `SHOPPING.md`.
 
@@ -227,30 +231,6 @@ window. Full notes in `parts/SENSOR_OPTIONS.md`.
   nothing and is what makes the strategies clean; the tests worth writing are the safety-cap one and
   the state-machine one.
 
-## Pin map v2 (ESP32-C6 GPIO in brackets)
-| Signal | ToF config | IR config |
-| --- | --- | --- |
-| Motor IA (PWM) | D3 [21] | D3 [21] |
-| Motor IB | D8 [19] | D8 [19] |
-| I2C SDA / IR emitter | D4 [22] | D4 [22] → BC337 base |
-| I2C SCL / IR receiver | D5 [23] | D5 [23] ← CHQ1838 OUT |
-| Open button | D6 [16] | D6 [16] |
-| Mode button | D7 [17] | D7 [17] |
-| MP3 RXD (XIAO TX) | D9 [20] | D9 [20] |
-| Status LED red | D10 [18] | D10 [18] |
-| Status LED green | D0 [0] | D0 [0] |
-| **free, ADC-capable** | **D1 [1], D2 [2]** | same |
-
-Changes from v1 and why:
-- **MP3 RX dropped.** The DFR0534 is command-only, so we don't read it. This frees a pin — and it
-  avoids a real hazard: powered from the LiPo its TXD idles at 3.7–4.2 V and C6 pins are not 5 V
-  tolerant. Leave it unconnected (or divide 10k/20k if we ever want replies).
-- **Only GPIO0/1/2 have an ADC** on this chip, so D1/D2 are reserved for stall sensing. The map must
-  not creep onto them.
-- **Nothing sits on a strapping pin.** ESP32-C6 straps are GPIO4/5/8/9/15, and the XIAO's D8/D9/D10
-  are GPIO19/20/18 — the trap this board invites, avoided.
-- **GPIO16 (D6) is the ROM console TX**: the bootloader prints there on every reset. A button is
-  harmless; the MP3 module must never go there or boot-log bytes would read as commands.
 
 ## Hardware follow-ups (now in SHOPPING.md)
 100 nF across the motor brushes (brush arcing, not inductive kickback, is what upsets I2C and IR) ·

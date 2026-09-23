@@ -7,13 +7,13 @@ names, named constants, docstrings, focused functions; honest capability assessm
 
 ## Where things are (this folder = ~/Development/smartbin-local)
 - `board.tsx` ............ the PCB, all REAL footprints, fully routed (tscircuit).
-- `board-REAL-XIAO.tsx` .. backup copy of the same.
+- `board-v1-tb6612.tsx` .. the superseded v1 design, kept for reference.
 - `XIAO-ESP32-C6-SMD.kicad_mod` .. real Seeed XIAO footprint (imported via `tsci convert`).
 - `board-gerbers.zip` .... JLCPCB-ready fab package (Gerbers + drill + bom.csv + pick_and_place.csv).
 - `board-pcb-routed.svg`, `board.glb` .. routed PCB + 3D exports.
 - `firmware/micropython/` .. MicroPython firmware (main.py) + bringup/ test scripts. `firmware/arduino/` .. v1 Arduino reference.
 - `parts/` ............... module reference: XIAO datasheet+pinouts+footprint, real OBJ 3D for the
-  OLED & tactile button (from JLCPCB), datasheets, and PARTS.md (links to every module's 3D/datasheet).
+  tactile button (from JLCPCB), datasheets, and PARTS.md (links to every module's 3D/datasheet).
 - `board-viewer.html` .... self-contained schematic/PCB/3D viewer (open in any browser).
 - `SHOPPING.md` ........ what to buy, where, prices (CZ shops, checked 2026-09-23).
 - `parts/SENSOR_OPTIONS.md` .. wave-sensor research + VL6180X datasheet/mounting/driver notes.
@@ -23,12 +23,9 @@ names, named constants, docstrings, focused functions; honest capability assessm
 Board: **Seeed XIAO ESP32-C6** (3.3V logic; module handles USB/LDO/antenna/flash/straps).
 Power: logic+audio on a **LiPo** (XIAO BAT pads; amp on the VBAT rail, NOT the 5V pin which is
 USB-only). The lid motor keeps its own **6V AA pack** via the bin connector. Domains share only GND.
-Modules (all real, plug-in): TB6612 motor driver, DFRobot DFR0534 UART MP3 + speaker, SSD1306 I2C
-OLED, DFRobot SEN0239 digital IR, 2 tactile buttons, JST connectors, 0603/0805 passives.
-
-### Pin map v1 (board.tsx + Arduino sketch) — **the board is NOT yet updated to v2**
-D0 MotorIn1(AIN1) · D1 MotorIn2(AIN2) · D3 MotorPwm(PWMA) · D2 IR OUT · D4 SDA · D5 SCL ·
-D6 Open button · D7 Mode button · D9 MP3 TX→RXD · D10 MP3 RX←TXD · D8 spare. TB6612 STBY tied 3V3.
+Modules (all real, plug-in): **L9110S** motor driver, DFRobot DFR0534 UART MP3 + speaker,
+**VL6180X** time-of-flight rangefinder on I2C, 2 tactile buttons, a bicolour status LED, JST
+connectors, 0603/0805 passives. No OLED — the bin never had a screen.
 
 ## tscircuit — how to work with the board (runs locally; installed here)
 ```
@@ -90,7 +87,7 @@ LED red D7[17] · Motor IB D8[19] · MP3 TX D9[20] (module TXD NOT wired — not
 LED green D10[18].
 
 ### Power (firmware/micropython/smartbin/power.py)
-`config.POWER`: `always_on` (bench/USB) | `deep_sleep`. Deep sleep needs `SENSOR="tof_interrupt"`:
+`config.POWER_POLICY`: `always_on` (bench/USB) | `deep_sleep`. Deep sleep needs `SENSOR_STRATEGY="tof_interrupt"`:
 the VL6180X ranges continuously by itself and pulls its INT pin below a threshold. Verified:
 `esp32.wake_on_ext0` does NOT exist on C6 and `Pin.irq(wake=DEEPSLEEP)` silently no-ops — use
 `esp32.wake_on_ext1`, ACTIVE-HIGH (low-level wake bug micropython#17334). Wake = full reset, only
@@ -109,10 +106,11 @@ bytes against its datasheet (parts/datasheets).
 **Read `STATUS.md` first** — it is the handover note: what is blocked on Petr, the ordered next
 steps, the locked decisions and what remains unverified.
 
-DONE: routed v1 board + fab package (TB6612/OLED — now superseded); **firmware v2 written + 15 tests passing**;
+DONE: routed **v2** board + fab package; firmware **63 tests**, 13-check MicroPython run, four
+Wokwi scenarios;
 sensor + supplier research (SENSOR_OPTIONS.md, SHOPPING.md).
 NEXT: order parts (SHOPPING.md); breadboard bring-up (bringup/, in order) BEFORE any PCB; calibrate;
-then REDO board.tsx for v2 (L9110S, VL6180X, no OLED, new pin map); measure the bin connector + motor stall current;
+measure the bin connector + **the motor's real current** (the one number that could still change the driver choice);
 optionally add stall-sensing (see LID_CLOSE_DETECTION.md); pull DFRobot module STEP for the Fusion enclosure.
 
 ## The `spark` plugin

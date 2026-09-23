@@ -48,7 +48,8 @@ CHIP_BINARIES   := $(CHIP_SOURCES:.chip.c=.chip.wasm)
 
 DERIVED := $(BOARD_SPEC) $(CIRCUIT) $(DIAGRAM) $(FLASH_IMAGE) $(GERBERS) $(PCB_SVG) $(SCHEMATIC_SVG) $(MODEL_3D) $(CHIP_BINARIES)
 
-.PHONY: all check clean install-hooks flash-image simulate simulate-all board-spec-current firmware-tests firmware-compiles firmware-simulates \
+.PHONY: all check clean install-hooks flash-image simulate simulate-all board-spec-current \
+        diagram-current firmware-tests firmware-compiles firmware-simulates \
         board-builds pins-agree simulation-matches
 
 all: $(DERIVED)
@@ -144,13 +145,17 @@ $(MODEL_3D): $(CIRCUIT)
 
 # --- verification: changes nothing, fails if anything disagrees -----------------------------
 
-check: board-spec-current firmware-tests firmware-compiles firmware-simulates board-builds \
+check: board-spec-current diagram-current firmware-tests firmware-compiles firmware-simulates board-builds \
        pins-agree simulation-matches
 	@echo "\neverything is in step."
 
 board-spec-current:
 	@echo "==> the firmware's board facts match the board definition"
 	@python3 tools/generate-board-spec.py --check
+
+diagram-current:
+	@echo "==> the state diagram in the docs matches the code"
+	@cd $(FIRMWARE) && python3 tools/fsm_diagram.py --check README.md
 
 firmware-tests:
 	@echo "==> firmware logic (CPython)"

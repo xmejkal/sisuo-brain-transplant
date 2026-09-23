@@ -109,11 +109,14 @@ already in the file. Layout is edited once, in the Wokwi editor, and kept.
 
 ```
 tools/circuit-to-wokwi/
-  netlist.ts     circuit.json  -> logical netlist          (shared by every future emitter)
-  mapping.ts     the part/pin table above                  (data)
-  emit.ts        logical netlist -> diagram.json           (~100 lines)
-  merge.ts       keep hand-tuned positions                 
-  cli.ts         tsci build && convert && lint
+  lib/netlist.ts          circuit.json -> logical netlist   (shared by every future emitter)
+  lib/mapping.ts          the part/pin table above          (data)
+  lib/board.ts            reads boards/<id>.json            (which board this is)
+  lib/emitters/wokwi.ts   logical netlist -> diagram.json
+  lib/merge.ts            keep hand-tuned positions
+  lib/validate.ts         lint, net coverage, nothing-vanished
+  lib/checks/             firmware pin map vs the board
+  cli.ts                  generate, or --check for CI
 ```
 
 TypeScript rather than Python, because the tscircuit and Wokwi tooling is all npm and we get
@@ -159,10 +162,11 @@ where they are — or draw blocks by hand.
 3. DXF outline for the enclosure, when the v2 board exists.
 4. SPICE, only if the stall-sense divider needs proving on paper before it is built.
 
-## Known blocker
+## Built and running
 
-`tsci` will not currently run here: `node_modules/.bin/bun` fails with "cannot execute binary
-file", so the toolchain needs reinstalling (`npm ci`) before any of this can be wired up.
+All of the above is in place: `make` regenerates the chain and `make check` verifies it. The
+KiCad leg (STEP for Fusion, DXF outlines, headless ERC/DRC) is still the plan rather than the
+practice — it becomes worth doing when the board is about to be fabricated.
 
 ---
 

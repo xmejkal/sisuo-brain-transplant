@@ -5,10 +5,10 @@ for the project map and `firmware/micropython/smartbin/__init__.py` for how the 
 
 ## In one paragraph
 
-The firmware is written, restructured after a four-way code audit, and passes 60 tests plus a
-twelve-check simulation on a real MicroPython runtime. **No part of it has ever run on
-hardware.** The v1 PCB is routed and has a fab package, but the parts decisions have moved on,
-so it must be redone before anything is ordered. The immediate blocker is a small parts order,
+The firmware is written, twice audited, and passes 63 tests, a 13-check simulation on a real
+MicroPython runtime, and four scenarios on a simulated ESP32-C6 in Wokwi. The v2 board is drawn
+and routed (45 traces, no errors) and matches the firmware pin for pin, checked mechanically.
+**No part of it has ever run on hardware.** The immediate blocker is a small parts order,
 which is waiting on two measurements only Petr can take.
 
 ## Waiting on Petr (everything else is blocked behind these)
@@ -26,8 +26,7 @@ which is waiting on two measurements only Petr can take.
 5. **A name for the `spark` plugin** (in `~/Development/spark`, not a git repo, never installed).
    Asked several times; still unanswered, so the rename and install never happened.
 6. **GitHub**: run `gh auth login`, then the repo gets created and pushed (see below).
-7. **Optional: a Wokwi token** (wokwi.com/dashboard/ci, 50 free CI minutes) to run the `sim/`
-   Wokwi project, which has never been run.
+7. ~~A Wokwi token~~ — done; `make simulate` runs, and four scenarios pass.
 
 ## Next steps, in order
 
@@ -39,8 +38,8 @@ which is waiting on two measurements only Petr can take.
 4. **Calibrate** — `tools/calibrate.py` runs each procedure and saves to `/config.json`:
    stroke times, the distance window, then the ToF offset and crosstalk *through the real lid
    window*.
-5. **Redo the PCB for v2** — `board.tsx` is still the v1 design: TB6612, an OLED and the old pin
-   map, none of which survive. See "decisions" below for what it must become.
+5. **Fabricate the board** once the motor current is known — `board.tsx` is the v2 design and
+   `make` produces the fab package, but nothing has been ordered.
 6. **Enclosure** — pull the DFRobot module STEP files for Fusion.
 
 ## Decisions locked in, and why
@@ -61,10 +60,10 @@ which is waiting on two measurements only Petr can take.
 * **Nothing has run on hardware.** All green results come from tests and simulation.
 * The DFR0534 command bytes are from the v1 Arduino sketch and still need checking against
   `parts/datasheets/DFR0534_mp3.pdf`.
-* Deep sleep and wake-on-pin have never been executed — not on hardware, and unverified in Wokwi
-  under MicroPython.
-* The `sim/` Wokwi project (diagram, scenario) is written from documentation, not from a run.
-  Expect to fix part IDs and the pushbutton control name on first use.
+
+* Deep sleep and wake-on-pin: the firmware reaches sleep and arms the right pins, but **Wokwi
+  does not wake an ESP32-C6 from a GPIO** (established by experiment — timer wake works), so
+  waking on a hand is a bench test.
 * Lid run times, the distance window and any ToF calibration are all placeholders.
 
 ## Changing the microcontroller
@@ -100,16 +99,9 @@ for f in smartbin/*.py; do mpy-cross -o /tmp/o.mpy "$f" || echo "FAIL $f"; done
 mpremote repl                                    # then: import smartbin; b = smartbin.build()
 ```
 
-## Publishing
+## Published
 
-Repository decided: **public**, named **sisuo-brain-transplant**. Branch renamed to `main`, MIT
-licence added, README written, `.gitignore` covers firmware binaries and token files. A scan
-found no secrets and no personal email in the committed files. Remaining:
-
-```sh
-gh auth login    # Petr: GitHub.com -> HTTPS -> browser
-gh repo create sisuo-brain-transplant --public --source=. --remote=origin --push
-```
+<https://github.com/xmejkal/sisuo-brain-transplant> — public, MIT, CI green on every push.
 
 ## The two bugs worth not reintroducing
 

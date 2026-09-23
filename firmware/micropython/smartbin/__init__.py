@@ -19,7 +19,8 @@ the sensor is not?": **a device is a thing you command; a strategy is a decision
                                rangefinder chip, the limit switch, the current sense.
                 motor.py       MotorDriver  + L9110MotorDriver
                 audio.py       Player       + Dfr0534Player / SilentPlayer
-                ui.py          Button, StatusLed
+                buttons.py     Button
+                status_led.py  StatusLed
                 vl6180x.py     the rangefinder's registers
 
   3. STRATEGIES the decisions made *with* those devices — each one a config string:
@@ -29,7 +30,7 @@ the sensor is not?": **a device is a thing you command; a strategy is a decision
                 assembly.py     picks which answer, from config
 
   4. BEHAVIOUR  states.py      the product as data: states, triggers, the transition table
-                fsm.py         walks that table, runs hooks, announces every move
+                state_machine.py  walks that table, runs hooks, announces every move
                 lid.py         the hooks, and the motor strokes they start
                 events.py      the announcements; feedback.py turns them into light and sound
 

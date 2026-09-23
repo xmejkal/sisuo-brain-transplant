@@ -24,7 +24,28 @@ def mermaid():
     return "\n".join(lines)
 
 
+def check(markdown_path):
+    """
+    Is the diagram embedded in a document still the one the table produces?
+
+    The README claimed the picture could not drift because it was generated. It had drifted, for
+    weeks, through five trigger renames — a claim nobody checked is just a claim.
+    """
+    text = open(markdown_path).read()
+    expected = mermaid()
+    if expected in text:
+        print("   the diagram in %s matches states.py" % path.basename(markdown_path))
+        return 0
+    print("%s contains a state diagram that no longer matches states.py." % markdown_path)
+    print("Regenerate it:  python3 tools/fsm_diagram.py")
+    return 1
+
+
 if __name__ == "__main__":
+    if "--check" in sys.argv:
+        target = sys.argv[sys.argv.index("--check") + 1]
+        sys.exit(check(target))
+
     print("```mermaid")
     print(mermaid())
     print("```")

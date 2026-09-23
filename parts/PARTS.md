@@ -14,16 +14,33 @@ bodies come from the vendor STEP files linked below (ideal for the Fusion 360 en
 - Wiki: https://wiki.dfrobot.com/DFR0534  ·  Product (STEP + schematic under Download tab): https://www.dfrobot.com/product-1121.html
 - Interface: UART (RXD/TXD), VCC 3.3-5V, SPK+/SPK- to the speaker.
 
-## DFRobot motor driver  (H-bridge breakout — confirm your SKU)
+## L9110S motor driver  (the one in the design)
+- The blue two-channel module (also sold as HG7881): two SOP-8 chips, green screw terminals
+  marked MOTOR A / MOTOR B, 6-pin header B-IA/B-IB/GND/VCC/A-IA/A-IB.
+- 2.5-12 V, ~0.8 A per channel, 3.3 V logic. Only channel A is used.
+- No enable or PWM pin: direction and speed both live on the two inputs. See
+  `firmware/micropython/smartbin/motor.py` for what that means in code.
+- Datasheet: <https://www.elecrow.com/download/datasheet-l9110.pdf>
+
+## VL6180X time-of-flight rangefinder  (the wave sensor in the design)
+- I2C at 0x29, 0-100 mm guaranteed, 850 nm. Reports millimetres, so the trigger distance is a
+  number in `config.py` rather than a trimpot.
+- **The die is a 2.8 V part.** Adafruit 3316 and Pololu 2489 carry a regulator and level shifter
+  and are safe on 3.3 V; a bare board may not be.
+- Mounting and calibration behind the lid window are the hard part — see
+  `parts/SENSOR_OPTIONS.md`, which has ST's procedures and the numbers.
+- Datasheet: <https://www.st.com/resource/en/datasheet/vl6180x.pdf>
+
+## Superseded: DFRobot motor driver  (v1 design only)
 - If DRI0044 (TB6612, 2x1.2A): https://wiki.dfrobot.com/2x1.2A_DC_Motor_Driver__TB6612FNG__SKU__DRI0044
 - If DRI0040 (HR8833): https://wiki.dfrobot.com/Dual_1.5A_Motor_Driver_-_HR8833_SKU__DRI0040
 - STEP + schematic on the product page Download tab.
 
-## IR proximity  (wave-to-open)
+## Fallback: IR proximity  (only if the rangefinder will not fit the lid)
 - DFRobot SEN0239 (Gravity digital, adjustable): https://wiki.dfrobot.com/sen0239
 - Interface: VCC/GND/OUT (digital).
 
-## OLED 0.96" I2C (SSD1306)
+## Superseded: OLED 0.96" I2C (SSD1306) — dropped, the bin never had a screen
 - Generic SSD1306 module; LCSC C5248081 (0.91" 128x32) / C-number varies — JLCPCB has a real 3D model.
 - Interface: VCC/GND/SDA/SCL, addr 0x3C.
 

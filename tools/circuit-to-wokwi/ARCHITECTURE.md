@@ -126,12 +126,12 @@ making you fix them one at a time.
 
 ## Status
 
-Built and working against the real board:
+Generating the simulation for the real board:
 
 ```
-$ bun run cli.ts
-board: 19 components, 18 nets
-diagram: 8 parts, 17 wires, 9/18 nets wired
+$ bun run generate
+board: 22 components, 21 nets
+diagram: 8 parts, 17 wires, 14/21 nets wired
 
 not simulated, on purpose:
   Mp3Player: no Wokwi part; cues are visible in the serial log
@@ -139,19 +139,21 @@ not simulated, on purpose:
   ...
 ```
 
-23 tests (`bun test`), typechecked (`bun run typecheck`), and the output passes **Wokwi's own**
-`wokwi-cli lint` as well as the in-process linter.
+24 tests (`bun test`), typechecked, and the output passes **Wokwi's own** `wokwi-cli lint` as
+well as the in-process linter — and, since the token arrived, actually runs: see
+`firmware/micropython/sim/README.md`.
 
-The nine unwired nets are the skip rules working: they connect capacitors, the connector and the
-MP3 module, none of which the simulation has parts for.
+The seven unwired nets are the skip rules working: they connect capacitors, the connector, the
+shunt and the MP3 module, none of which the simulation has parts for.
 
-### What it caught while being written
+### What it has caught
 
-* `board-ssd1306` uses pins `SDA`/`SCL`, not `DATA`/`CLK` — the pin oracle rejected the wrong
-  names before anything ran.
-* A wire to `motordriver:PWMA`, which passes `wokwi-cli lint` because it cannot resolve custom
-  chips. The L9110S standing in for the board's TB6612 has no PWM pin, and now `mapping.ts` says
-  so explicitly and the oracle reads our own `chip.json` files.
+* `board-ssd1306` uses pins `SDA`/`SCL`, not `DATA`/`CLK` — rejected before anything ran.
+* A wire to `motordriver:PWMA`, which passes `wokwi-cli lint` because that tool cannot resolve
+  custom chips. The oracle now reads our own `chip.json` files too.
+* A component renamed from `StatusLed` to `PowerLed` vanishing into an unanchored skip rule. The
+  skip patterns are anchored now, and a separate check requires every component to become a
+  part, a stated omission, or a reported problem.
 
 ### Using it
 
@@ -163,7 +165,4 @@ bun run check       # fail if the committed diagram is out of date  <- the CI ga
 bun test
 ```
 
-The output goes to `firmware/micropython/sim/diagram.generated.json`, beside the hand-written
-`diagram.json`. They differ on purpose right now: the hand-written one describes the **v2** design
-(L9110S, rangefinder, no OLED) while `board.tsx` is still **v1**. When the board is redone for v2,
-the generated file becomes the only one, and `bun run check` becomes the thing that keeps it true.
+Normally you do not: `make` runs it when the board changes, and `make check` verifies it.
