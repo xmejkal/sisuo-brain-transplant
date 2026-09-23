@@ -1,0 +1,173 @@
+{
+  "version": 1,
+  "author": "generated from board.tsx",
+  "editor": "wokwi",
+  "parts": [
+    {
+      "type": "board-xiao-esp32-c6",
+      "id": "xiao",
+      "top": 0,
+      "left": 0,
+      "attrs": {}
+    },
+    {
+      "type": "chip-l9110s",
+      "id": "motordriver",
+      "top": 0,
+      "left": -268.8,
+      "attrs": {}
+    },
+    {
+      "type": "board-ssd1306",
+      "id": "oleddisplay",
+      "top": 0,
+      "left": 182.4,
+      "attrs": {}
+    },
+    {
+      "type": "chip-vl6180x",
+      "id": "irsensor",
+      "top": 163.2,
+      "left": 182.4,
+      "attrs": {
+        "distance": "200"
+      }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btnopen",
+      "top": 96,
+      "left": -268.8,
+      "attrs": {
+        "color": "green"
+      }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btnmode",
+      "top": 172.79999999999998,
+      "left": -268.8,
+      "attrs": {
+        "color": "green"
+      }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "pullupsda",
+      "top": 259.2,
+      "left": 182.4,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "pullupscl",
+      "top": 316.8,
+      "left": 182.4,
+      "attrs": {}
+    }
+  ],
+  "connections": [
+    [
+      "xiao:D0",
+      "motordriver:IA",
+      "green",
+      []
+    ],
+    [
+      "xiao:D1",
+      "motordriver:IB",
+      "green",
+      []
+    ],
+    [
+      "xiao:D4",
+      "pullupsda:1",
+      "green",
+      []
+    ],
+    [
+      "xiao:D4",
+      "oleddisplay:SDA",
+      "green",
+      []
+    ],
+    [
+      "xiao:D5",
+      "pullupscl:1",
+      "green",
+      []
+    ],
+    [
+      "xiao:D5",
+      "oleddisplay:SCL",
+      "green",
+      []
+    ],
+    [
+      "xiao:D2",
+      "irsensor:INT",
+      "green",
+      []
+    ],
+    [
+      "xiao:D6",
+      "btnopen:1.l",
+      "green",
+      []
+    ],
+    [
+      "xiao:D7",
+      "btnmode:1.l",
+      "green",
+      []
+    ],
+    [
+      "xiao:3V3",
+      "pullupscl:2",
+      "red",
+      []
+    ],
+    [
+      "xiao:3V3",
+      "pullupsda:2",
+      "red",
+      []
+    ],
+    [
+      "xiao:3V3",
+      "irsensor:VIN",
+      "red",
+      []
+    ],
+    [
+      "xiao:3V3",
+      "oleddisplay:VCC",
+      "red",
+      []
+    ],
+    [
+      "xiao:GND",
+      "btnmode:2.l",
+      "black",
+      []
+    ],
+    [
+      "xiao:GND",
+      "btnopen:2.l",
+      "black",
+      []
+    ],
+    [
+      "xiao:GND",
+      "irsensor:GND",
+      "black",
+      []
+    ],
+    [
+      "xiao:GND",
+      "oleddisplay:GND",
+      "black",
+      []
+    ]
+  ]
+}

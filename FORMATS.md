@@ -163,3 +163,22 @@ where they are — or draw blocks by hand.
 
 `tsci` will not currently run here: `node_modules/.bin/bun` fails with "cannot execute binary
 file", so the toolchain needs reinstalling (`npm ci`) before any of this can be wired up.
+
+---
+
+## Built: `tools/circuit-to-wokwi`
+
+The Wokwi converter described above now exists — see `tools/circuit-to-wokwi/ARCHITECTURE.md`.
+Design as planned: `circuit.json` → a thin `Netlist` → emitter, with the mapping table as data,
+connectivity read only through `circuit-json-to-connectivity-map`, and `@wokwi/diagram-lint` used
+twice (as the offline pin-name oracle and as the validator). 23 tests; `--check` is the CI gate.
+
+The research changed three things from the plan:
+
+1. **`@wokwi/diagram-lint` bundles Wokwi's part registry** — 137 parts with real pin lists — so
+   pin names are validated offline instead of guessed. It caught two wrong pin names immediately.
+2. **Custom chips are not in that registry**, and `wokwi-cli lint` cannot resolve them either, so
+   the oracle also reads our own `chip.json` files. That hole had already let a bad wire through.
+3. **A stand-in part can lack a pin the real one has** (the L9110S has no PWM input where the
+   TB6612 does). The mapping table can now say so with `null`, which records a decision instead of
+   emitting an invalid wire.

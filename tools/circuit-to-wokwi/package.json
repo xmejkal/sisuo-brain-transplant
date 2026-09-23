@@ -1,0 +1,22 @@
+{
+  "name": "circuit-to-wokwi",
+  "private": true,
+  "type": "module",
+  "description": "Generate a Wokwi simulator project from the tscircuit board design",
+  "scripts": {
+    "generate": "bun run cli.ts",
+    "check": "bun run cli.ts --check",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@tscircuit/circuit-json-util": "0.0.116",
+    "@wokwi/diagram-lint": "0.1.1",
+    "circuit-json": "0.0.500",
+    "circuit-json-to-connectivity-map": "0.0.31"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5"
+  }
+}
