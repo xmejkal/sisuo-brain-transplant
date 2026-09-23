@@ -12,6 +12,12 @@
 # Make is used rather than a script because the dependencies are real files: change `board.tsx`
 # and only the things downstream of it are rebuilt, in order, and `make -n` explains the plan.
 
+# No check here may end in a pipe. A shell reports only the *last* command's status, so
+# `cmd | tail -1` reports tail's success and a failing check passes silently — which is exactly
+# what happened here: the two checks that compare the firmware, the board and the simulation
+# could not fail at all. `.SHELLFLAGS := -o pipefail` would fix it on GNU make 3.82+, but macOS
+# ships 3.81, which ignores it. So: run the command bare, keep its output, and print from the
+# file afterwards.
 SHELL := /bin/sh
 export PATH := $(CURDIR)/node_modules/.bin:$(HOME)/.local/bin:$(PATH)
 
@@ -40,7 +46,7 @@ MICROPYTHON_BIN := $(SIM)/micropython-c6.bin
 CHIP_SOURCES    := $(wildcard $(SIM)/chips/*.chip.c)
 CHIP_BINARIES   := $(CHIP_SOURCES:.chip.c=.chip.wasm)
 
-DERIVED := $(BOARD_SPEC) $(CIRCUIT) $(DIAGRAM) $(GERBERS) $(PCB_SVG) $(SCHEMATIC_SVG) $(MODEL_3D) $(CHIP_BINARIES)
+DERIVED := $(BOARD_SPEC) $(CIRCUIT) $(DIAGRAM) $(FLASH_IMAGE) $(GERBERS) $(PCB_SVG) $(SCHEMATIC_SVG) $(MODEL_3D) $(CHIP_BINARIES)
 
 .PHONY: all check clean install-hooks flash-image simulate simulate-all board-spec-current firmware-tests firmware-compiles firmware-simulates \
         board-builds pins-agree simulation-matches
@@ -67,14 +73,18 @@ $(CIRCUIT): $(BOARD_SOURCES)
 # The simulation is generated from the board, so it cannot describe a different bin.
 $(DIAGRAM): $(CIRCUIT) $(BOARD_DEFINITION) $(CONVERTER_SRC) $(wildcard $(SIM)/chips/*.chip.json)
 	@echo "==> generating the Wokwi diagram from the board"
-	@cd $(CONVERTER) && bun run cli.ts | sed 's/^/   /'
+	@cd $(CONVERTER) && bun run cli.ts > /tmp/smartbin-diagram.log 2>&1 \
+	  || { cat /tmp/smartbin-diagram.log; exit 1; }
+	@sed 's/^/   /' /tmp/smartbin-diagram.log | tail -3
 
 # A flash image holding MicroPython and our code, which is what a headless simulation runs.
 # Skipped with a message when the MicroPython build has not been downloaded.
 $(FLASH_IMAGE): $(FIRMWARE_SOURCES) tools/build-flash-image.py
 	@if [ -f $(MICROPYTHON_BIN) ]; then \
 	   echo "==> building the flash image (MicroPython + our firmware)"; \
-	   python3 tools/build-flash-image.py | tail -2 | sed 's/^/   /'; \
+	   python3 tools/build-flash-image.py > /tmp/smartbin-image.log 2>&1 \
+	     || { cat /tmp/smartbin-image.log; exit 1; }; \
+	   tail -2 /tmp/smartbin-image.log | sed 's/^/   /'; \
 	 else \
 	   echo "==> flash image skipped: download $(MICROPYTHON_BIN) from"; \
 	   echo "    https://micropython.org/download/ESP32_GENERIC_C6/"; \
@@ -112,7 +122,9 @@ simulate-all: $(FLASH_IMAGE) $(DIAGRAM) $(CHIP_BINARIES)
 # Custom chips: C compiled to WASM, only when their source changes.
 $(SIM)/%.chip.wasm: $(SIM)/%.chip.c $(SIM)/%.chip.json
 	@echo "==> compiling custom chip $*"
-	@cd $(SIM) && wokwi-cli chip compile $*.chip.c | tail -2 | sed 's/^/   /'
+	@cd $(SIM) && wokwi-cli chip compile $*.chip.c > /tmp/smartbin-chip.log 2>&1 \
+	  || { cat /tmp/smartbin-chip.log; exit 1; }
+	@tail -2 /tmp/smartbin-chip.log | sed 's/^/   /'
 
 $(GERBERS): $(CIRCUIT)
 	@echo "==> exporting fab package"
@@ -164,13 +176,17 @@ board-builds: $(CIRCUIT)
 
 pins-agree: $(CIRCUIT)
 	@echo "==> firmware and board agree on every pin"
-	@cd $(CONVERTER) && bun run check-consistency.ts | tail -1 | sed 's/^/   /'
+	@cd $(CONVERTER) && bun run check-consistency.ts > /tmp/smartbin-pins.log 2>&1 \
+	  || { cat /tmp/smartbin-pins.log; exit 1; }
+	@tail -1 /tmp/smartbin-pins.log | sed 's/^/   /'
 
 simulation-matches: $(CIRCUIT)
 	@echo "==> the simulation matches the board"
 	@cd $(CONVERTER) && bun test > /tmp/make-bun.txt 2>&1 || { tail -20 /tmp/make-bun.txt; exit 1; }
 	@grep -E "^ *[0-9]+ pass" /tmp/make-bun.txt | sed 's/^/  /'
-	@cd $(CONVERTER) && bun run cli.ts --check | tail -1 | sed 's/^/   /'
+	@cd $(CONVERTER) && bun run cli.ts --check > /tmp/smartbin-check.log 2>&1 \
+	  || { cat /tmp/smartbin-check.log; exit 1; }
+	@tail -1 /tmp/smartbin-check.log | sed 's/^/   /'
 
 # Refuse to commit a repository whose derived files disagree with the design. One-off, opt-in,
 # and skippable with --no-verify; CI is the backstop that cannot be skipped.

@@ -7,7 +7,10 @@ __pycache__/
 *.pyc
 
 # Wokwi: firmware binaries and anything holding a token
-firmware/micropython/sim/*.bin   # the MicroPython build and the flash image we derive from it
+# The MicroPython build (not ours, megabytes) and the flash images derived from it.
+# NOTE: .gitignore has no trailing comments — a comment after a pattern makes the pattern
+# match nothing, which is how three 4 MB binaries ended up committed.
+firmware/micropython/sim/*.bin
 .env
 *.token
 firmware/micropython/sim/chips/*.wasm
