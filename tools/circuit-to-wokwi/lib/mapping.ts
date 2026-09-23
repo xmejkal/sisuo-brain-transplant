@@ -45,19 +45,19 @@ export const BOARD: PartMapping = {
   match: "XIAO",
   wokwiType: "board-xiao-esp32-c6",
   // The design names pins by function; Wokwi names them by silkscreen. This table is the pin map
-  // from config.py, read the other way round.
+  // in config.py, read the other way round — and the reason all three stay in step.
   pins: {
-    MA_IN1: "D0",
-    MA_IN2: "D1",
-    IR_RX: "D2",
-    MA_PWM: "D3",
+    TOF_INT: "D0",
+    BTN_OPEN: "D1",
+    MOTOR_SENSE: "D2",
+    MOTOR_IA: "D3",
     SDA: "D4",
     SCL: "D5",
-    BTN_OPEN: "D6",
-    BTN_MODE: "D7",
-    SPARE: "D8",
+    BTN_MODE: "D6",
+    LED_RED: "D7",
+    MOTOR_IB: "D8",
     MP3_TX: "D9",
-    MP3_RX: "D10",
+    LED_GREEN: "D10",
     V33: "3V3",
     V5: "5V",
     GND: "GND",
@@ -83,11 +83,12 @@ export const PARTS: PartMapping[] = [
     side: "right",
   },
   {
-    match: /Ir(Sensor)?/,
+    // The board carries a 5-pin header; what plugs into it is the rangefinder breakout (or the
+    // IR pair, in the fallback build). Either way the simulation wants "something that reports a
+    // distance over I2C", which is the custom chip in sim/chips/.
+    match: /SensorHeader|Ir(Sensor)?|Tof|Rangefinder/,
     wokwiType: "chip-vl6180x",
-    // Our own chip: the board's IR module and the v2 rangefinder both stand in as this, because
-    // what the simulation needs is "something that reports a distance over I2C".
-    pins: { VCC: "VIN", GND: "GND", OUT: "INT", SDA: "SDA", SCL: "SCL" },
+    pins: { VIN: "VIN", VCC: "VIN", GND: "GND", SDA: "SDA", SCL: "SCL", INT: "INT", OUT: "INT" },
     attrs: { distance: "200" },
     side: "right",
   },
@@ -95,13 +96,20 @@ export const PARTS: PartMapping[] = [
     match: "MotorDriver",
     wokwiType: "chip-l9110s",
     pins: {
+      // v2 names the module's own pins; the v1 board's TB6612 names are kept so the old design
+      // still converts.
+      AIA: "IA",
+      AIB: "IB",
       AIN1: "IA",
       AIN2: "IB",
       AO1: "OA",
       AO2: "OB",
       GND: "GND",
-      // The board's TB6612 has a separate PWM input and a standby pin; the L9110S standing in for
-      // it has neither, because its two inputs carry direction and speed together.
+      // Pins the stand-in genuinely lacks. The L9110S carries direction and speed on its two
+      // inputs, so there is no PWM or standby pin; its second channel is unused; and the
+      // simulator powers the chip itself, so VCC is not wired.
+      BIA: null,
+      BIB: null,
       PWMA: null,
       STBY: null,
       VM: null,
@@ -110,7 +118,15 @@ export const PARTS: PartMapping[] = [
     side: "left",
   },
   {
-    match: /^Led|StatusLed/,
+    // A bicolour LED is two dies sharing a cathode, and Wokwi's nearest part is the RGB LED:
+    // wire red and green, leave blue unused, and the colours read the same in the simulator.
+    match: /StatusLed/,
+    wokwiType: "wokwi-rgb-led",
+    pins: { RED: "R", GREEN: "G", CATHODE: "COM", BLUE: "B" },
+    side: "right",
+  },
+  {
+    match: /^Led/,
     wokwiType: "wokwi-led",
     pins: { anode: "A", cathode: "C", pin1: "A", pin2: "C" },
     attrs: { color: "red" },
@@ -138,6 +154,11 @@ export const SKIP: SkipRule[] = [
   },
   { match: /Connector|JST|BinConnector/, reason: "a connector is wiring, not a part to simulate" },
   { match: /Speaker/, reason: "no Wokwi part; the firmware's log says which cue it played" },
+  {
+    match: /MotorOut|CurrentShunt|Pulldown/,
+    reason: "hardware that has no behaviour to simulate: an output terminal, a sense shunt, and "
+      + "the pulldowns that hold the motor still while the board boots",
+  },
   { match: /Mp3Player|DFR0534/, reason: "no Wokwi part; cues are visible in the serial log" },
   { match: /Battery|Lipo|Power/, reason: "the simulator powers the board itself" },
 ];

@@ -26,11 +26,20 @@ describe("the real board", () => {
   });
 
   test("the pin map in the diagram is the pin map in the firmware", () => {
-    // config.py says the motor driver's first input is on D0; the design calls that pin MA_IN1.
+    // config.py drives the motor from D3 and D8, and the design labels those MOTOR_IA/MOTOR_IB.
     // If these ever disagree, the simulation is not simulating the firmware's board.
     const motorWires = emitted.diagram.connections.filter(([, to]) => to.startsWith("motordriver:"));
-    expect(motorWires).toContainEqual(["xiao:D0", "motordriver:IA", "green", []]);
-    expect(motorWires).toContainEqual(["xiao:D1", "motordriver:IB", "green", []]);
+    expect(motorWires).toContainEqual(["xiao:D3", "motordriver:IA", "green", []]);
+    expect(motorWires).toContainEqual(["xiao:D8", "motordriver:IB", "green", []]);
+  });
+
+  test("the sensor interrupt is on a pin that can wake the chip", () => {
+    // Only GPIO0-7 can wake an ESP32-C6, which on this board is D0, D1 and D2. A sensor
+    // interrupt anywhere else would make deep sleep impossible, silently.
+    const wakeCapable = ["D0", "D1", "D2"];
+    const interrupt = emitted.diagram.connections.find(([, to]) => to === "sensorheader:INT");
+    expect(interrupt).toBeDefined();
+    expect(wakeCapable).toContain(interrupt![0].replace("xiao:", ""));
   });
 
   test("it passes Wokwi's own linter and loses no net", () => {
@@ -42,8 +51,9 @@ describe("the real board", () => {
 
   test("the parts that are missing are missing on purpose", () => {
     const skippedNames = emitted.skipped.map((skip) => skip.component);
-    expect(skippedNames).toContain("Mp3Player");   // no Wokwi part; the log shows the cue
-    expect(skippedNames).toContain("BinConnector"); // a connector is wiring, not a part
+    expect(skippedNames).toContain("Mp3Player");    // no Wokwi part; the log shows the cue
+    expect(skippedNames).toContain("BinConnector");  // a connector is wiring, not a part
+    expect(skippedNames).toContain("CurrentShunt");  // a resistor with no behaviour to simulate
 
     for (const skip of emitted.skipped) {
       expect(skip.reason.length).toBeGreaterThan(10); // every omission carries a reason

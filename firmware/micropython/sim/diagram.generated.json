@@ -18,20 +18,34 @@
       "attrs": {}
     },
     {
-      "type": "board-ssd1306",
-      "id": "oleddisplay",
-      "top": 0,
-      "left": 182.4,
-      "attrs": {}
-    },
-    {
       "type": "chip-vl6180x",
-      "id": "irsensor",
-      "top": 163.2,
+      "id": "sensorheader",
+      "top": 0,
       "left": 182.4,
       "attrs": {
         "distance": "200"
       }
+    },
+    {
+      "type": "wokwi-rgb-led",
+      "id": "statusled",
+      "top": 96,
+      "left": 182.4,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "redresistor",
+      "top": 201.6,
+      "left": 182.4,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "greenresistor",
+      "top": 259.2,
+      "left": 182.4,
+      "attrs": {}
     },
     {
       "type": "wokwi-pushbutton",
@@ -50,99 +64,91 @@
       "attrs": {
         "color": "green"
       }
-    },
-    {
-      "type": "wokwi-resistor",
-      "id": "pullupsda",
-      "top": 259.2,
-      "left": 182.4,
-      "attrs": {}
-    },
-    {
-      "type": "wokwi-resistor",
-      "id": "pullupscl",
-      "top": 316.8,
-      "left": 182.4,
-      "attrs": {}
     }
   ],
   "connections": [
     [
-      "xiao:D0",
+      "xiao:D3",
       "motordriver:IA",
       "green",
       []
     ],
     [
-      "xiao:D1",
+      "xiao:D8",
       "motordriver:IB",
       "green",
       []
     ],
     [
-      "xiao:D4",
-      "pullupsda:1",
-      "green",
-      []
-    ],
-    [
-      "xiao:D4",
-      "oleddisplay:SDA",
-      "green",
-      []
-    ],
-    [
-      "xiao:D5",
-      "pullupscl:1",
-      "green",
-      []
-    ],
-    [
-      "xiao:D5",
-      "oleddisplay:SCL",
-      "green",
-      []
-    ],
-    [
       "xiao:D2",
-      "irsensor:INT",
+      "motordriver:GND",
       "green",
       []
     ],
     [
-      "xiao:D6",
+      "xiao:D4",
+      "sensorheader:SDA",
+      "green",
+      []
+    ],
+    [
+      "xiao:D5",
+      "sensorheader:SCL",
+      "green",
+      []
+    ],
+    [
+      "xiao:D0",
+      "sensorheader:INT",
+      "green",
+      []
+    ],
+    [
+      "xiao:3V3",
+      "sensorheader:VIN",
+      "red",
+      []
+    ],
+    [
+      "xiao:D1",
       "btnopen:1.l",
       "green",
       []
     ],
     [
-      "xiao:D7",
+      "xiao:D6",
       "btnmode:1.l",
       "green",
       []
     ],
     [
-      "xiao:3V3",
-      "pullupscl:2",
-      "red",
+      "xiao:D7",
+      "redresistor:1",
+      "green",
       []
     ],
     [
-      "xiao:3V3",
-      "pullupsda:2",
-      "red",
+      "redresistor:2",
+      "statusled:R",
+      "green",
       []
     ],
     [
-      "xiao:3V3",
-      "irsensor:VIN",
-      "red",
+      "xiao:D10",
+      "greenresistor:1",
+      "green",
       []
     ],
     [
-      "xiao:3V3",
-      "oleddisplay:VCC",
-      "red",
+      "greenresistor:2",
+      "statusled:G",
+      "green",
+      []
+    ],
+    [
+      "xiao:GND",
+      "statusled:COM",
+      "black",
       []
     ],
     [
@@ -159,13 +165,7 @@
     ],
     [
       "xiao:GND",
-      "irsensor:GND",
-      "black",
-      []
-    ],
-    [
-      "xiao:GND",
-      "oleddisplay:GND",
+      "sensorheader:GND",
       "black",
       []
     ]
