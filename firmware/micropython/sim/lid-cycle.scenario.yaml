@@ -3,6 +3,9 @@
 # Part ids come from the board design (a component called BtnOpen becomes the part `btnopen`),
 # because diagram.json is generated from it — see tools/circuit-to-wokwi.
 #
+# `name:` is the current field for set-control; the docs still show `control:`, which the CLI
+# accepts as a deprecated alias (packages/cli/src/scenario/SetControlCommand.ts).
+#
 #   wokwi-cli . --scenario lid-cycle.scenario.yaml
 #
 # The firmware logs every state transition ("lid: idle --open_pressed--> opening"), which makes
@@ -17,12 +20,12 @@ steps:
   # Press OPEN. The button is wired to ground, so pressing pulls the pin low.
   - set-control:
       part-id: btnopen
-      control: pressed
+      name: pressed
       value: 1
   - delay: 100ms
   - set-control:
       part-id: btnopen
-      control: pressed
+      name: pressed
       value: 0
 
   - wait-serial: "idle --open_pressed--> opening"

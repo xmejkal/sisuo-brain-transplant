@@ -33,8 +33,10 @@ FLASH_SIZE = 4 * 1024 * 1024        # the XIAO ESP32-C6 has 4 MB
 FILESYSTEM_OFFSET = 0x200000        # where MicroPython looks, per partitions-4MiBplus.csv
 BLOCK_SIZE = 4096
 
-# MicroPython's littlefs2 settings (extmod/vfs_lfs.c). These must match or the board cannot
-# mount what we wrote.
+# MicroPython's own littlefs2 settings, read from its source rather than guessed:
+#   extmod/vfs_lfs.c   readsize / progsize / lookahead all default to 32
+#   extmod/vfs_lfsx.c  cache_size = min(block_size, 4 * max(read, prog)) = 128, block_cycles = 100
+# These must match or the board mounts nothing, boots to a bare REPL, and never runs main.py.
 LITTLEFS_SETTINGS = dict(
     block_size=BLOCK_SIZE,
     read_size=32,
