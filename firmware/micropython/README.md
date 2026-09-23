@@ -68,12 +68,18 @@ written to flash by `mpremote run`.
 | 3 | VL6180X on D4/D5 (+ INT to D0) | `./deploy.sh` first, then `mpremote run bringup/03_tof.py` (it imports the driver from the device) |
 | 4 | DFR0534 on D9, speaker | `mpremote run bringup/04_mp3.py` |
 | 5 | L9110S + motor + 6V pack | `mpremote run bringup/05_motor.py` |
-| 6 | everything | deploy, then `mpremote repl` and `smartbin.build()` |
+| 6 | **everything at once** | `./deploy.sh` first, then `mpremote run bringup/06_all_together.py` |
+
+Step 6 is the acceptance test: it runs the real firmware, does a roll call of every fitted
+device, then asks you to wave, press OPEN and press MODE, and says which of the three ways in
+worked. **The lid must be free to move** — it drives real strokes, not pulses. It is also the
+one bench script that is itself checked off the bench: `tests/test_bringup.py` runs it against
+the fake chip with a stand-in for the person, so it cannot call a method that no longer exists.
 
 ## Testing, in four layers
 1. **`tests/` on the Mac** — the state machine, timings and strategies, plus device construction
    and the VL6180X's register conversation via `tests/fake_machine.py`, a stand-in for MicroPython's
-   `machine` module. Free, about a second.
+   `machine` module. Free, about a second. Includes the step 6 bench script itself.
 2. **`sim/run_on_micropython.py`** — the whole firmware on a real MicroPython runtime with a fake
    chip under it (`brew install micropython`, then `micropython sim/run_on_micropython.py`).
    Catches what only MicroPython does: its asyncio, its compiler, its ticks. This is where the

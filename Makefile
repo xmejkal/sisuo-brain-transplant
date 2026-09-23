@@ -164,10 +164,11 @@ firmware-tests:
 
 firmware-compiles:
 	@echo "==> firmware compiles under MicroPython's own compiler"
-	@for source in $(FIRMWARE)/smartbin/*.py $(FIRMWARE)/config.py $(FIRMWARE)/main.py $(FIRMWARE)/boot.py; do \
+	@for source in $(FIRMWARE)/smartbin/*.py $(FIRMWARE)/config.py $(FIRMWARE)/main.py $(FIRMWARE)/boot.py \
+	               $(FIRMWARE)/bringup/*.py $(FIRMWARE)/tools/*.py; do \
 	   mpy-cross -o /tmp/make-check.mpy $$source || exit 1; \
 	 done
-	@echo "   all modules compile"
+	@echo "   all modules and bench scripts compile"
 
 firmware-simulates:
 	@echo "==> firmware behaves, on a real MicroPython runtime"

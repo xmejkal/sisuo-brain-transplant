@@ -12,18 +12,35 @@
  *   board.tsx  ->  itself           (the design builds and routes without errors)
  */
 
+import { readdirSync } from "node:fs";
+
 import { board, canWake, hasAdc, labelForGpio } from "./lib/board";
+import { checkBringUpPins } from "./lib/checks/bringup-pins";
 import { checkFirmwarePins } from "./lib/checks/firmware-pins";
 import { buildNetlist } from "./lib/netlist";
 
 const CIRCUIT = "../../dist/board/circuit.json";
 const CONFIG = "../../firmware/micropython/config.py";
+const BRINGUP = "../../firmware/micropython/bringup";
 
 const circuitJson = await Bun.file(CIRCUIT).json();
 const { netlist } = buildNetlist(circuitJson);
 const configPython = await Bun.file(CONFIG).text();
 
 const { problems, compared } = checkFirmwarePins(configPython, netlist);
+
+// The bench scripts repeat their pin numbers on purpose (they run before the firmware is
+// installed), so they are the one place the pin map can rot unnoticed.
+const bringUpScripts = readdirSync(BRINGUP)
+  .filter((name) => name.endsWith(".py"))
+  .sort()
+  .map((name) => ({ name: `bringup/${name}`, source: Bun.file(`${BRINGUP}/${name}`) }));
+const bringUp = checkBringUpPins(
+  configPython,
+  await Promise.all(
+    bringUpScripts.map(async (script) => ({ name: script.name, source: await script.source.text() })),
+  ),
+);
 
 // The board definition also says what each pin *can do*, so a setting on an impossible pin is
 // caught here rather than on a bench: a wake source that cannot wake, an ADC that is not one.
@@ -64,11 +81,15 @@ if (designErrors.length) {
   for (const error of designErrors.slice(0, 5)) console.error(`  ${error.message}`);
 }
 
-if (problems.length || capabilityProblems.length) {
+if (problems.length || capabilityProblems.length || bringUp.problems.length) {
   console.error("\nout of step:");
   for (const problem of problems) console.error(`  - ${problem.message}`);
   for (const problem of capabilityProblems) console.error(`  - ${problem}`);
+  for (const problem of bringUp.problems) console.error(`  - ${problem.message}`);
 }
 
-if (problems.length || capabilityProblems.length || designErrors.length) process.exit(1);
-console.log("\nfirmware, board and simulation all describe the same bin");
+if (problems.length || capabilityProblems.length || bringUp.problems.length || designErrors.length) {
+  process.exit(1);
+}
+console.log(`bench scripts <-> firmware: ${bringUp.compared.length} pins compared`);
+console.log("\nfirmware, board, bench scripts and simulation all describe the same bin");
