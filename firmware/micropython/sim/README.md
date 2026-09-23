@@ -103,17 +103,49 @@ for it, and concatenates the two.
 `lid-cycle.scenario.yaml` presses OPEN and then waits for each state transition in the serial log
 — the firmware logs every one, so the state machine is directly observable with no extra harness.
 
-## Honest limits
+## It runs
 
-**Nothing here has been run yet.** Everything is prepared and checked as far as it can be
-without a token: the diagram is generated from the board and passes Wokwi's linter, both custom
-chips compile, and the flash image was verified by mounting its filesystem back out and reading
-all 23 files. What has never happened is a simulation actually executing.
+```
+$ make simulate
+[chip-l9110s] L9110S: ready
+[chip-vl6180x] VL6180X: ready at 0x29
+ESP-ROM:esp32c6-20220919
+I smartbin ready: sensor=tof close=timed power=always_on
+[lid cycle] Expected text matched: "smartbin ready"
+I lid: idle --open_pressed--> opening
+[chip-l9110s] MOTOR: opening
+I lid: opening --stroke_finished--> open       (elapsed_ms: 912)
+[chip-l9110s] MOTOR: stopped
+I lid: open --hold_expired--> closing
+[chip-l9110s] MOTOR: closing
+I lid: closing --close_confirmed--> idle       (elapsed_ms: 951)
+[lid cycle] Scenario completed successfully
+```
 
-Expect the first run to need fixing. The likely candidates: the littlefs parameters (if they are
-wrong the board boots to a bare REPL with no `main.py` — that is the symptom), the exact control
-name for pressing a pushbutton in the scenario, and whether `machine.deepsleep` behaves at all
-under MicroPython in Wokwi, which nobody has confirmed.
+A simulated button press drives our firmware through a whole lid cycle, and the motor driver
+chip reports the motor turning one way and then the other. The strokes measured 912 ms and
+951 ms against the 900 and 950 configured — the firmware's timing is real, on a simulated chip.
+
+### What the first runs taught, at one run each
+
+* **The littlefs parameters were right** — the board mounted the filesystem we built and ran
+  `main.py` from it.
+* **A press must outlast the debounce.** 100 ms looked generous and was not enough; 500 ms is.
+* **`wait-serial` watches the MCU's serial only.** A custom chip's `printf` goes to a separate
+  stream, shown prefixed as `[chip-l9110s] ...`, and will never match a `wait-serial`. Two runs
+  died on that before it was obvious.
+* **A wait only sees what arrives after its step starts.** Waiting for a transition that already
+  went past is indistinguishable from it never happening — so each wait has to be registered
+  before the event it waits for.
+* **The motor chip needed to understand PWM.** Its first version reported every edge, so a
+  PWM-driven input produced thousands of "stopped/closing" lines a second. It now reports a
+  direction immediately but only calls the motor stopped after the inputs have been quiet for
+  longer than a PWM period — which is exactly what a real motor's inertia does.
+
+### Still unverified
+
+`machine.deepsleep` and wake-on-pin under MicroPython in Wokwi. The firmware defaults to
+`POWER_POLICY = "always_on"`, so this scenario never exercises them.
 
 
 ## What this layer has already caught

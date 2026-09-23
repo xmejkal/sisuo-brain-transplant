@@ -1,4 +1,6 @@
-# A full lid cycle, asserted from the serial log.
+# A full lid cycle, driven through the buttons and asserted from the serial log.
+#
+#   make simulate
 #
 # Part ids come from the board design (a component called BtnOpen becomes the part `btnopen`),
 # because diagram.json is generated from it — see tools/circuit-to-wokwi.
@@ -6,10 +8,15 @@
 # `name:` is the current field for set-control; the docs still show `control:`, which the CLI
 # accepts as a deprecated alias (packages/cli/src/scenario/SetControlCommand.ts).
 #
-#   wokwi-cli . --scenario lid-cycle.scenario.yaml
+# The firmware logs every state transition, so the state machine is directly observable and this
+# file needs no test harness of its own.
 #
-# The firmware logs every state transition ("lid: idle --open_pressed--> opening"), which makes
-# the state machine directly observable without any extra test harness.
+# Two things learned the hard way, both of which cost a run each:
+#  - `wait-serial` watches the MCU's serial only. A custom chip's printf goes to a separate
+#    stream (shown prefixed, e.g. "[chip-l9110s] MOTOR: opening") and will never match here.
+#  - a wait only sees text arriving *after* its step begins, so each wait must be registered
+#    before the thing it waits for happens. Waiting for something that already went past is
+#    indistinguishable from it never happening.
 name: lid cycle
 version: 1
 author: smartbin
@@ -17,19 +24,30 @@ author: smartbin
 steps:
   - wait-serial: "smartbin ready"
 
-  # Press OPEN. The button is wired to ground, so pressing pulls the pin low.
+  # `wait-serial` only matches text that arrives *after* the step begins, so each wait has to be
+  # in place before the thing it waits for happens. Waiting for a transition that already flew
+  # past during a delay is how this scenario first failed.
+  - delay: 500ms
+
+  # A press has to outlast the firmware's 40 ms debounce and its 20 ms polling, with room for the
+  # simulator's own timing. 100 ms was not enough in practice; 500 ms is.
   - set-control:
       part-id: btnopen
       name: pressed
       value: 1
-  - delay: 100ms
+
+  - wait-serial: "idle --open_pressed--> opening"
   - set-control:
       part-id: btnopen
       name: pressed
       value: 0
 
-  - wait-serial: "idle --open_pressed--> opening"
+  # 900 ms later, the calibrated open stroke ends.
   - wait-serial: "opening --stroke_finished--> open"
+
+  # 4 s later, the hold expires and the lid closes itself.
   - wait-serial: "open --hold_expired--> closing"
-  - wait-serial: "closing"
-  - delay: 500ms
+
+  # ~950 ms later the close stroke ends and the lid is back at rest.
+  - wait-serial: "closing --close_confirmed--> idle"
+  - delay: 200ms
