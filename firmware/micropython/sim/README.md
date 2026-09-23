@@ -86,22 +86,34 @@ mpremote connect port:rfc2217://localhost:4000 fs cp -r smartbin :
 mpremote connect port:rfc2217://localhost:4000 fs cp config.py main.py boot.py :
 ```
 
-Headless, for CI ([wokwi-cli](https://docs.wokwi.com/wokwi-ci/cli-usage)):
+Headless ([wokwi-cli](https://docs.wokwi.com/wokwi-ci/cli-usage)), which is one command:
 
 ```sh
-export WOKWI_CLI_TOKEN=wok_...      # from https://wokwi.com/dashboard/ci
-wokwi-cli sim --scenario sim/lid-cycle.scenario.yaml --timeout 20000
+export WOKWI_CLI_TOKEN=wok_...      # from https://wokwi.com/dashboard/ci, 50 free CI minutes
+make simulate
 ```
+
+`make` builds what that needs first: the diagram from the board, the custom chips from their C
+sources, and **a 4 MB flash image containing MicroPython plus our own .py files**. That last one
+matters more than it sounds: Wokwi simulates a flash image, and on real hardware you copy your
+code over USB *after* flashing — a headless simulator has no "after". So
+`tools/build-flash-image.py` writes a littlefs filesystem at 0x200000, where MicroPython looks
+for it, and concatenates the two.
 
 `lid-cycle.scenario.yaml` presses OPEN and then waits for each state transition in the serial log
 — the firmware logs every one, so the state machine is directly observable with no extra harness.
 
 ## Honest limits
 
-Nothing here has been run yet: the scenario file and diagram are written from the documented
-formats, not from a passing run. The first run will need fixing up, most likely the part IDs in
-`diagram.json` and the exact control name for a pushbutton. CI minutes may also need a paid plan
-— the free allowance is not documented.
+**Nothing here has been run yet.** Everything is prepared and checked as far as it can be
+without a token: the diagram is generated from the board and passes Wokwi's linter, both custom
+chips compile, and the flash image was verified by mounting its filesystem back out and reading
+all 23 files. What has never happened is a simulation actually executing.
+
+Expect the first run to need fixing. The likely candidates: the littlefs parameters (if they are
+wrong the board boots to a bare REPL with no `main.py` — that is the symptom), the exact control
+name for pressing a pushbutton in the scenario, and whether `machine.deepsleep` behaves at all
+under MicroPython in Wokwi, which nobody has confirmed.
 
 
 ## What this layer has already caught

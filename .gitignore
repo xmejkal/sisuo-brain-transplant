@@ -7,7 +7,7 @@ __pycache__/
 *.pyc
 
 # Wokwi: firmware binaries and anything holding a token
-firmware/micropython/sim/*.bin
+firmware/micropython/sim/*.bin   # the MicroPython build and the flash image we derive from it
 .env
 *.token
 firmware/micropython/sim/chips/*.wasm

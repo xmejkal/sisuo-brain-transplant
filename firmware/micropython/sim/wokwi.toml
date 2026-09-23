@@ -1,15 +1,21 @@
 # Wokwi simulation of the smart bin.
 #
-# `firmware` must point at a MicroPython build for the ESP32-C6. Download one from
-# https://micropython.org/download/ESP32_GENERIC_C6/ and drop it here as micropython-c6.bin —
-# it is deliberately not committed (several MB, and it is not ours).
+# `firmware` is a full 4 MB flash image: MicroPython, plus our own .py files in the filesystem
+# where MicroPython expects them. `make flash-image` builds it from micropython-c6.bin (download
+# one from https://micropython.org/download/ESP32_GENERIC_C6/) and the firmware sources.
 #
-# The RFC2217 port lets mpremote push code into the running simulation exactly as it does over
-# USB: mpremote connect port:rfc2217://localhost:4000 fs cp main.py :main.py
+# It has to be an image rather than just the interpreter: on real hardware you copy your code
+# over USB afterwards, and a headless simulator has no afterwards.
+#
+# Neither .bin is committed - one is several megabytes and not ours, the other is derived.
+#
+# The RFC2217 port is for interactive use from VS Code, where mpremote pushes code into the
+# running simulation exactly as it does over USB:
+#   mpremote connect port:rfc2217://localhost:4000 fs cp -r ../smartbin :
 [wokwi]
 version = 1
-firmware = "micropython-c6.bin"
-elf = "micropython-c6.bin"
+firmware = "flash-with-firmware.bin"
+elf = "flash-with-firmware.bin"
 rfc2217ServerPort = 4000
 
 # Custom chips stand in for the parts Wokwi has no model of — we wrote them. See chips/README.md.

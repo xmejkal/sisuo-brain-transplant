@@ -13,7 +13,7 @@
 # and only the things downstream of it are rebuilt, in order, and `make -n` explains the plan.
 
 SHELL := /bin/sh
-export PATH := $(CURDIR)/node_modules/.bin:$(PATH)
+export PATH := $(CURDIR)/node_modules/.bin:$(HOME)/.local/bin:$(PATH)
 
 FIRMWARE   := firmware/micropython
 SIM        := $(FIRMWARE)/sim
@@ -30,12 +30,16 @@ PCB_SVG         := board-pcb-routed.svg
 SCHEMATIC_SVG   := board-sch.svg
 MODEL_3D        := board.glb
 CONVERTER_SRC   := $(wildcard $(CONVERTER)/lib/*.ts $(CONVERTER)/lib/**/*.ts) $(CONVERTER)/cli.ts
+FIRMWARE_SOURCES := $(wildcard $(FIRMWARE)/smartbin/*.py) $(FIRMWARE)/config.py \
+                    $(FIRMWARE)/main.py $(FIRMWARE)/boot.py
+FLASH_IMAGE     := $(SIM)/flash-with-firmware.bin
+MICROPYTHON_BIN := $(SIM)/micropython-c6.bin
 CHIP_SOURCES    := $(wildcard $(SIM)/chips/*.chip.c)
 CHIP_BINARIES   := $(CHIP_SOURCES:.chip.c=.chip.wasm)
 
 DERIVED := $(CIRCUIT) $(DIAGRAM) $(GERBERS) $(PCB_SVG) $(SCHEMATIC_SVG) $(MODEL_3D) $(CHIP_BINARIES)
 
-.PHONY: all check clean install-hooks firmware-tests firmware-compiles firmware-simulates \
+.PHONY: all check clean install-hooks flash-image simulate firmware-tests firmware-compiles firmware-simulates \
         board-builds pins-agree simulation-matches
 
 all: $(DERIVED)
@@ -56,6 +60,32 @@ $(CIRCUIT): $(BOARD_SOURCES)
 $(DIAGRAM): $(CIRCUIT) $(CONVERTER_SRC) $(wildcard $(SIM)/chips/*.chip.json)
 	@echo "==> generating the Wokwi diagram from the board"
 	@cd $(CONVERTER) && bun run cli.ts | sed 's/^/   /'
+
+# A flash image holding MicroPython and our code, which is what a headless simulation runs.
+# Skipped with a message when the MicroPython build has not been downloaded.
+$(FLASH_IMAGE): $(FIRMWARE_SOURCES) tools/build-flash-image.py
+	@if [ -f $(MICROPYTHON_BIN) ]; then \
+	   echo "==> building the flash image (MicroPython + our firmware)"; \
+	   python3 tools/build-flash-image.py | tail -2 | sed 's/^/   /'; \
+	 else \
+	   echo "==> flash image skipped: download $(MICROPYTHON_BIN) from"; \
+	   echo "    https://micropython.org/download/ESP32_GENERIC_C6/"; \
+	 fi
+
+flash-image: $(FLASH_IMAGE)
+
+# Run the simulation itself. Needs WOKWI_CLI_TOKEN from https://wokwi.com/dashboard/ci.
+simulate: $(FLASH_IMAGE) $(DIAGRAM) $(CHIP_BINARIES)
+	@command -v wokwi-cli > /dev/null || { \
+	   echo "wokwi-cli not found. Install it with:"; \
+	   echo "  curl -sL -o ~/.local/bin/wokwi-cli \\"; \
+	   echo "    https://github.com/wokwi/wokwi-cli/releases/latest/download/wokwi-cli-macos-arm64"; \
+	   echo "  chmod +x ~/.local/bin/wokwi-cli"; exit 1; }
+	@[ -n "$$WOKWI_CLI_TOKEN" ] || { \
+	   echo "WOKWI_CLI_TOKEN is not set. Get one (50 free CI minutes) at"; \
+	   echo "  https://wokwi.com/dashboard/ci"; \
+	   echo "then: echo 'export WOKWI_CLI_TOKEN=wok_...' >> ~/.zshrc"; exit 1; }
+	@cd $(SIM) && wokwi-cli . --scenario lid-cycle.scenario.yaml --timeout 30000
 
 # Custom chips: C compiled to WASM, only when their source changes.
 $(SIM)/%.chip.wasm: $(SIM)/%.chip.c $(SIM)/%.chip.json
