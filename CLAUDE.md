@@ -106,6 +106,9 @@ and the **XIAO ESP32-C6** board. TODO: calibrate `LID_OPEN/CLOSE_RUN_MS`; verify
 bytes against its datasheet (parts/datasheets).
 
 ## Status / next
+**Read `STATUS.md` first** — it is the handover note: what is blocked on Petr, the ordered next
+steps, the locked decisions and what remains unverified.
+
 DONE: routed v1 board + fab package (TB6612/OLED — now superseded); **firmware v2 written + 15 tests passing**;
 sensor + supplier research (SENSOR_OPTIONS.md, SHOPPING.md).
 NEXT: order parts (SHOPPING.md); breadboard bring-up (bringup/, in order) BEFORE any PCB; calibrate;
