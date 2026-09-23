@@ -10,7 +10,7 @@ PCB designed in code.
 
 | Part | State |
 | --- | --- |
-| Firmware | Written, 79 tests passing, **simulated end to end** on a real MicroPython runtime and on a simulated ESP32-C6 in Wokwi |
+| Firmware | Written, 80 tests passing, **simulated end to end** on a real MicroPython runtime and on a simulated ESP32-C6 in Wokwi |
 | PCB | v2 drawn and routed: 45 traces, 0 errors, fab package generated. Never fabricated |
 | Hardware | **Nothing has been run on a bench yet.** Parts are still being ordered |
 
@@ -70,7 +70,7 @@ Just the firmware tests, with none of that:
 
 ```sh
 cd firmware/micropython
-python3 -m unittest discover -s tests -t tests   # 79 tests, ~1 s, no hardware
+python3 -m unittest discover -s tests -t tests   # 80 tests, ~2 s, no hardware
 ```
 
 The second one matters: MicroPython's asyncio is not CPython's — a task cannot cancel itself —

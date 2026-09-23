@@ -68,7 +68,7 @@ bench/calibration/deploy: `firmware/micropython/README.md`. Arduino v1 kept only
   Tests: `python3 -m unittest discover -s tests -t tests` (60; incl. real asyncio + a fake
   `machine` module in tests/fake_machine.py, so device construction and the VL6180X driver run
   on the Mac). **Simulate: `micropython sim/run_on_micropython.py`** (brew install micropython) —
-  the whole firmware on a real MicroPython runtime, 12 checks, exit code = pass/fail. Also
+  the whole firmware on a real MicroPython runtime, 13 checks, exit code = pass/fail. Also
   `mpy-cross` every module to catch on-device compile errors. Wokwi setup in `sim/` (XIAO C6 is
   a stock part; needs a token for CI; nothing there has been run yet).
 - Safety: hard `MOTOR_MAX_RUN_MS` inside the motion loop, motor stop in `finally` + on every
@@ -106,7 +106,7 @@ bytes against its datasheet (parts/datasheets).
 **Read `STATUS.md` first** — it is the handover note: what is blocked on Petr, the ordered next
 steps, the locked decisions and what remains unverified.
 
-DONE: routed **v2** board + fab package; firmware **79 tests**, 13-check MicroPython run, four
+DONE: routed **v2** board + fab package; firmware **80 tests**, 13-check MicroPython run, four
 Wokwi scenarios;
 sensor + supplier research (SENSOR_OPTIONS.md, SHOPPING.md).
 NEXT: order parts (SHOPPING.md); breadboard bring-up (bringup/, in order) BEFORE any PCB; calibrate;

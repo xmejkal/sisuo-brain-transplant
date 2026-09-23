@@ -5,9 +5,11 @@ for the project map and `firmware/micropython/smartbin/__init__.py` for how the 
 
 ## In one paragraph
 
-The firmware is written, twice audited, and passes 79 tests, a 13-check simulation on a real
+The firmware is written, twice audited, and passes 80 tests, a 13-check simulation on a real
 MicroPython runtime, and four scenarios on a simulated ESP32-C6 in Wokwi. The v2 board is drawn
-and routed (45 traces, no errors) and matches the firmware pin for pin, checked mechanically.
+and routed (48 traces, no errors) and matches the firmware pin for pin, checked mechanically.
+Every module now carries its real 3D body, which is how the layout's collisions were found and
+why the rangefinder and speaker moved onto ribbons instead of onto the board.
 **No part of it has ever run on hardware.** The immediate blocker is a small parts order,
 which is waiting on two measurements only Petr can take.
 
@@ -33,7 +35,10 @@ which is waiting on two measurements only Petr can take.
 1. **Order parts** — `SHOPPING.md` has the cart: Hadex, about 145 Kc including spares, plus the
    IR fallback set. Finalise once 1 and 2 above are known.
 2. **Breadboard bring-up** — `firmware/micropython/README.md` has the order: board alive,
-   buttons and LED, rangefinder, MP3, motor. One script per step, each prints PASS.
+   buttons and LED, rangefinder, MP3, motor. One script per step, each prints PASS. Then
+   **step 6, `bringup/06_all_together.py`**: the whole firmware, a roll call of every device,
+   and a prompted wave / OPEN / MODE, judged per phase. That is the acceptance test — when it
+   prints PASS the bin works, and everything before it is only a way of getting there.
 3. **Measure the motor current** while the motor is on the bench (item 4 above).
 4. **Calibrate** — `tools/calibrate.py` runs each procedure and saves to `/config.json`:
    stroke times, the distance window, then the ToF offset and crosstalk *through the real lid
@@ -93,7 +98,7 @@ Code hook from the spark plugin, a git pre-commit hook (`make install-hooks`), a
 ```sh
 cd firmware/micropython
 python3 -m unittest discover -s tests -t tests   # 60 tests, ~1 s
-micropython sim/run_on_micropython.py            # 12 checks on a real MicroPython runtime
+micropython sim/run_on_micropython.py            # 13 checks on a real MicroPython runtime
 for f in smartbin/*.py; do mpy-cross -o /tmp/o.mpy "$f" || echo "FAIL $f"; done
 ./deploy.sh                                      # copy to the board (--mpy to cross-compile)
 mpremote repl                                    # then: import smartbin; b = smartbin.build()
