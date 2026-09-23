@@ -106,7 +106,7 @@ bytes against its datasheet (parts/datasheets).
 **Read `STATUS.md` first** — it is the handover note: what is blocked on Petr, the ordered next
 steps, the locked decisions and what remains unverified.
 
-DONE: routed **v2** board + fab package; firmware **63 tests**, 13-check MicroPython run, four
+DONE: routed **v2** board + fab package; firmware **79 tests**, 13-check MicroPython run, four
 Wokwi scenarios;
 sensor + supplier research (SENSOR_OPTIONS.md, SHOPPING.md).
 NEXT: order parts (SHOPPING.md); breadboard bring-up (bringup/, in order) BEFORE any PCB; calibrate;

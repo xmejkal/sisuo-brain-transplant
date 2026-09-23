@@ -88,8 +88,9 @@ cd firmware/micropython && python3 -m unittest discover -s tests -t tests -v
 ```
 60 tests, no hardware, under two seconds: the safety cap, the open/hold/close cycle, obstruction
 retries and the latched fault, transition-table reachability, sensor debounce and cooldown,
-button debounce, the LED, the event bus isolating broken listeners, the factory building the
-strategy each config string names (and falling back safely on a typo), the config invariants (the
+button debounce, the LED and sound-profile mapping, the DFR0534's frame bytes, the difference
+between an empty room and a dead sensor, the event bus isolating broken listeners, the assembly
+building the strategy each config string names (and falling back safely on a typo), the config invariants (the
 cap exceeds both run times, wake pins are wake-capable, no pin is used twice), and one
 integration test that runs the real lid against **real asyncio** rather than the fakes — that
 last one exists because a task cancelling itself behaves differently on the device, and a model

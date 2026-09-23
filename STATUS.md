@@ -5,7 +5,7 @@ for the project map and `firmware/micropython/smartbin/__init__.py` for how the 
 
 ## In one paragraph
 
-The firmware is written, twice audited, and passes 63 tests, a 13-check simulation on a real
+The firmware is written, twice audited, and passes 79 tests, a 13-check simulation on a real
 MicroPython runtime, and four scenarios on a simulated ESP32-C6 in Wokwi. The v2 board is drawn
 and routed (45 traces, no errors) and matches the firmware pin for pin, checked mechanically.
 **No part of it has ever run on hardware.** The immediate blocker is a small parts order,

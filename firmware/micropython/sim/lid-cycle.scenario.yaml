@@ -45,9 +45,27 @@ steps:
   # 900 ms later, the calibrated open stroke ends.
   - wait-serial: "opening --stroke_finished--> open"
 
+  # And the green half of the status LED is lit — a real pin, read from the simulated board.
+  # Every other assertion here is the firmware's own account of itself: it would all pass if the
+  # code logged perfectly while driving nothing.
+  - expect-pin:
+      part-id: xiao
+      name: D10
+      value: 1
+
   # 4 s later, the hold expires and the lid closes itself.
   - wait-serial: "open --hold_expired--> closing"
 
   # ~950 ms later the close stroke ends and the lid is back at rest.
   - wait-serial: "closing --close_confirmed--> idle"
   - delay: 200ms
+
+  # A bin at rest draws nothing: both halves of the LED dark.
+  - expect-pin:
+      part-id: xiao
+      name: D10
+      value: 0
+  - expect-pin:
+      part-id: xiao
+      name: D7
+      value: 0

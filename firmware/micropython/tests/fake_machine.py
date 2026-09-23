@@ -89,6 +89,10 @@ class FakeUART:
         return None
 
 
+class BusSilent(Exception):
+    """Raised by a fake device that has stopped answering, to model a knocked-loose cable."""
+
+
 class FakeI2C:
     """
     Dispatches to fake devices by address. Registers are 16-bit, as the VL6180X uses them.
@@ -120,6 +124,8 @@ class FakeI2C:
         device = FakeI2C.devices.get(address)
         if device is None:
             raise OSError("no fake I2C device at 0x%02X" % address)
+        if getattr(device, "unplugged", False):
+            raise OSError("fake I2C device at 0x%02X is not answering" % address)
         return device
 
 
@@ -237,9 +243,13 @@ class FakeVL6180X:
 
     def __init__(self, distance_mm=50, status=0):
         self.distance_mm = distance_mm
+        #: Range status, as the real chip reports it: 0 is a good reading, 7 is "could not
+        #: converge", which is what an empty field of view produces.
         self.status = status
         self.writes = {}
         self.fresh_out_of_reset = 1
+        #: Set True to model the cable coming out: every transaction then raises OSError.
+        self.unplugged = False
 
     def read_register(self, register, length):
         if register == self.MODEL_ID_REGISTER:

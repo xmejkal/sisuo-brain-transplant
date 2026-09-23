@@ -11,9 +11,16 @@ and a bare on/off sensor be swapped without the lid noticing.
 from . import timing, log
 from .vl6180x import RangeError
 
-# A reading can fail because the bus is unhappy (OSError) or because the sensor says the
-# measurement is untrustworthy (RangeError) — for the lid these mean the same thing: no answer.
-UNREADABLE = (OSError, RangeError)
+# Two different kinds of "no answer", and conflating them faults a working bin.
+#
+#   RangeError  the sensor answered and said it could not measure. An empty field of view does
+#               this every time, so it is the *normal* reading for a bin nobody is using.
+#   OSError     the bus did not answer at all: a loose cable, a dead sensor.
+#
+# Only the second is evidence of a broken sensor. Counting the first toward failure faulted the
+# bin after ten polls of an empty room — about six hundred milliseconds.
+NO_MEASUREMENT = RangeError
+BUS_FAILURE = OSError
 
 
 class SensorFailure(Exception):
@@ -88,9 +95,10 @@ class TimeOfFlightSensor(ProximitySensor):
     guaranteed range falls to about 60-70 mm, so the default is deliberately not optimistic. The
     near limit keeps the lid itself, or a dirty window, from reading as a hand.
 
-    I2C is a cable that can be knocked loose, and a measurement error is routine (an empty field
-    of view reports one), so both are treated as "no hand" until they persist — at which point
-    `SensorFailure` tells the app to fault rather than silently stop noticing hands.
+    A measurement error is routine — an empty field of view reports one every time — so it means
+    "no hand" and nothing more. A bus failure is different: I2C is a cable that can be knocked
+    loose, and when it stops answering entirely `SensorFailure` tells the app to fault rather
+    than silently stop noticing hands.
     """
 
     def __init__(self, driver, near_mm=30, far_mm=100, max_failures=10, **kwargs):
@@ -104,24 +112,26 @@ class TimeOfFlightSensor(ProximitySensor):
     def read_distance_mm(self):
         try:
             distance_mm = self._driver.range()
-        except UNREADABLE as exception:
-            return self._note_failure(exception)
+        except NO_MEASUREMENT as exception:
+            # The sensor is alive and saying "nothing in range". That is not a fault; it is what
+            # an empty room looks like.
+            log.debug("tof: no measurement (%s)", exception)
+            self._failures = 0
+            return None
+        except BUS_FAILURE as exception:
+            return self._note_bus_failure(exception)
         self._failures = 0
         return distance_mm
 
-    def _note_failure(self, exception):
+    def _note_bus_failure(self, exception):
         """
-        A failed reading is only alarming if it keeps happening.
-
-        `RangeError` is ordinary — it is what the sensor reports with nothing in front of it, and
-        what the range-ignore calibration deliberately causes for reflections off the lid window.
-        `OSError` means the bus itself is unhappy. Either way, count and carry on until the count
-        says the sensor is really gone.
+        The bus did not answer. That is only alarming if it keeps happening — I2C is a cable, and
+        one bad transaction is not a dead sensor.
         """
         self._failures += 1
-        log.debug("tof read failed (%d/%d): %s", self._failures, self._max_failures, exception)
+        log.warn("tof: bus failure (%d/%d): %s", self._failures, self._max_failures, exception)
         if self._failures >= self._max_failures:
-            raise SensorFailure("VL6180X unreadable after %d attempts" % self._failures)
+            raise SensorFailure("VL6180X unreachable after %d attempts" % self._failures)
         return None
 
     def _senses_hand(self):
