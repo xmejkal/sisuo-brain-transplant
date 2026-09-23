@@ -158,15 +158,15 @@ config.json              # per-unit bench calibration only (run times, threshold
 lib/                     # mip installs (aiorepl); never edited
 smartbin/
   __init__.py            # build(), run(), VERSION
-  compat.py              # ticks_ms/ticks_diff/sleep_ms shims so logic runs under CPython
+  timing.py              # ticks_ms/ticks_diff/sleep_ms shims so logic runs under CPython
   log.py                 # leveled logger, lazy % formatting, LEVEL flippable from the REPL
   hw.py                  # Hardware: owns every Pin/PWM/UART/I2C; the injection seam
   motor.py               # L9110Driver: drive(direction, speed), stop(), brake()
   lid.py                 # Lid: on_enter/on_exit hooks, motion tasks, the safety cap
-  sensors.py             # ProximitySensor strategies
-  closing.py             # CloseDetector strategies
-  fsm.py                 # StateMachine: table, guards, history, event emission
-  ui.py                  # Button (debounced), StatusLed (red/green/blink)
+  proximity.py           # ProximitySensor strategies
+  close_detection.py     # CloseDetector strategies
+  state_machine.py       # StateMachine: table, hooks, history, event emission
+  buttons.py status_led.py   # Button (debounced), StatusLed (red/green/amber)
   audio.py               # Dfr0534: play(track), volume(v) — write-only UART frames
   vl6180x.py             # our port of Adafruit's driver (see below)
   app.py                 # SmartBin: wires tasks together
@@ -283,3 +283,25 @@ implementation. The findings worth remembering:
   `PowerPolicy` / `MotorDriver` / `Player` are the contracts; `L9110MotorDriver`,
   `SelfRangingTimeOfFlightSensor`, `Dfr0534Player` and friends are the details underneath.
 * **Calibration existed only as a procedure in prose.** `tools/calibrate.py` now runs it.
+
+
+## Module naming (settled 2026-09-23)
+Names say the job, not the pattern or the acronym, and the file tree stays flat: at this size the
+architecture belongs in the code and its tests, not in nested directories. Five layers
+(board -> devices -> strategies -> behaviour -> application) are documented in the tour and
+enforced by `tests/test_assembly.py`, which can only build strategies against fake devices
+because no strategy touches a pin.
+
+| Was | Is | Why |
+| --- | --- | --- |
+| `factory.py` | `assembly.py` | names the job; it is now also the composition root (build/run) |
+| `fsm.py` | `state_machine.py` | no acronyms |
+| `ui.py` | `buttons.py` + `status_led.py` | there is no UI, and two devices are two files |
+| `closing.py` | `close_detection.py` | a gerund that read like shutdown |
+| `compat.py` | `timing.py` | it is ticks, clocks and sleeps, not miscellany |
+| `platform.py` | `board.py` | `platform` shadows a Python standard-library module |
+| `sensors.py` | `proximity.py` | says what it senses |
+
+Considered and rejected: nested packages per layer (ceremony for ~2,300 lines, and more files to
+deploy), and vertical feature slices (they hide the dependency direction that currently prevents
+mistakes). Revisit if the module count passes about 25.

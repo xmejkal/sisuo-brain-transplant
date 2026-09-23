@@ -8,7 +8,7 @@ Keeping the *decision* inside the sensor, rather than in the lid, is what lets a
 and a bare on/off sensor be swapped without the lid noticing.
 """
 
-from . import compat, log
+from . import timing, log
 from .vl6180x import RangeError
 
 # A reading can fail because the bus is unhappy (OSError) or because the sensor says the
@@ -40,7 +40,7 @@ class ProximitySensor:
     def __init__(self, consecutive_hits=2, cooldown_ms=1500, clock=None):
         self._consecutive_hits = consecutive_hits
         self._cooldown_ms = cooldown_ms
-        self._clock = clock or compat.Clock()
+        self._clock = clock or timing.Clock()
         self._hits = 0
         self._last_detection_at = None
 
@@ -211,7 +211,7 @@ class InfraredBurstSensor(ProximitySensor):
 
     def _senses_hand(self):
         self._emitter.duty_u16(self.CARRIER_DUTY)
-        compat.sleep_us(self._burst_us)
+        timing.sleep_us(self._burst_us)
         heard_reflection = self._receiver.value() == 0
         self._emitter.duty_u16(0)
         return heard_reflection

@@ -10,11 +10,11 @@ Three tasks, each doing one thing and firing triggers at the lid's state machine
   * the fault blinker -> visible evidence that the bin needs a human
 
 None of them contains lid logic; what a trigger *means* is decided by the table in states.py.
-Composition happens in factory.py, so adding a listener never means editing this file.
+Composition happens in assembly.py, so adding a listener never means editing this file.
 """
 
-from . import events, log, platform, sensors, states, ui
-from .compat import async_sleep_ms
+from . import board, events, log, proximity, states
+from .timing import async_sleep_ms
 from .lid import Lid
 
 try:
@@ -51,7 +51,7 @@ class SmartBin:
             try:
                 if self.sensor.hand_detected():
                     self.lid.fire(states.HAND_DETECTED)
-            except sensors.SensorFailure as failure:
+            except proximity.SensorFailure as failure:
                 self._report_sensor_failure(failure)
                 return
             except Exception as exception:  # noqa: BLE001 - a task dying silently is worse
@@ -170,7 +170,7 @@ class SmartBin:
         """
         watchdog = None
         if self.config.WATCHDOG_MS:
-            watchdog = platform.start_watchdog(self.config.WATCHDOG_MS)
+            watchdog = board.start_watchdog(self.config.WATCHDOG_MS)
 
         while True:
             if watchdog is not None:
@@ -190,6 +190,6 @@ class SmartBin:
             log.warn("aiorepl not installed; no live REPL (mpremote mip install aiorepl)")
             return None
         namespace = {"b": self, "bin": self, "lid": self.lid, "hardware": self.hardware,
-                     "config": self.config, "states": states, "ui": ui}
+                     "config": self.config, "states": states, "states": states}
         log.info("live REPL available; the bin is `b`")
         return asyncio.create_task(aiorepl.task(namespace))

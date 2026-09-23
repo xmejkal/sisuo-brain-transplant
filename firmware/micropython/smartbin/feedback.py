@@ -9,7 +9,7 @@ Sounds and colours are *data* — profiles in config, not code — so re-voicing
 editing config.py or /config.json, never this file.
 """
 
-from . import events, log, states, ui
+from . import events, log, states, status_led
 
 
 class AudioFeedback:
@@ -88,10 +88,10 @@ class LogFeedback:
 # Green while the lid is doing something wanted, amber while it is working through a problem, red
 # when it needs a human. IDLE is dark so a bin at rest draws nothing.
 DEFAULT_LED_COLOURS = {
-    states.IDLE: ui.OFF,
-    states.OPENING: ui.GREEN,
-    states.OPEN: ui.GREEN,
-    states.CLOSING: ui.AMBER,
-    states.OBSTRUCTED: ui.AMBER,
-    states.FAULT: ui.RED,
+    states.IDLE: status_led.OFF,
+    states.OPENING: status_led.GREEN,
+    states.OPEN: status_led.GREEN,
+    states.CLOSING: status_led.AMBER,
+    states.OBSTRUCTED: status_led.AMBER,
+    states.FAULT: status_led.RED,
 }

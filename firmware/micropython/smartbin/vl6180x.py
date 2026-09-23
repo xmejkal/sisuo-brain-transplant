@@ -18,7 +18,7 @@ safe on 3.3 V; a bare board may not be.
 """
 
 from . import log
-from .compat import sleep_ms
+from .timing import sleep_ms
 
 DEFAULT_ADDRESS = 0x29
 MODEL_ID = 0xB4

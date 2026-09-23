@@ -6,10 +6,10 @@ so "waking" means booting, asking why, and acting on the answer. All of that is 
 behind `PowerPolicy`, and `config.POWER_POLICY` picks one. Nothing else in the firmware knows
 which is in use — the lid, the state machine and the sensors are identical either way.
 
-Board and port specifics (wake pins, sleep, watchdog) live in platform.py.
+Board and port specifics (wake pins, sleep, watchdog) live in board.py.
 """
 
-from . import compat, log, platform, states
+from . import board, log, states, timing
 
 
 class PowerPolicy:
@@ -46,7 +46,7 @@ class StayAwakePolicy(PowerPolicy):
     name = "always_on"
 
     async def tick_while_idle(self, smart_bin):
-        await compat.async_sleep_ms(smart_bin.config.IDLE_TICK_MS)
+        await timing.async_sleep_ms(smart_bin.config.IDLE_TICK_MS)
 
 
 class DeepSleepPolicy(PowerPolicy):
@@ -71,16 +71,16 @@ class DeepSleepPolicy(PowerPolicy):
 
     def __init__(self, clock=None):
         self._idle_since_ms = None
-        self._clock = clock or compat.Clock()
+        self._clock = clock or timing.Clock()
 
     # ----------------------------------------------------------------- waking
     def trigger_for_wake(self, smart_bin):
         """Turn the reason we booted into a trigger, so a wake acts immediately."""
-        if not platform.woke_from_sleep():
+        if not board.woke_from_sleep():
             log.info("power: cold boot")
             return None
 
-        gpio_numbers = platform.wake_gpio_numbers()
+        gpio_numbers = board.wake_gpio_numbers()
         log.info("power: woken by GPIO %s", gpio_numbers or "(port cannot say)")
 
         if not gpio_numbers:
@@ -105,7 +105,7 @@ class DeepSleepPolicy(PowerPolicy):
 
     # ----------------------------------------------------------------- sleeping
     async def tick_while_idle(self, smart_bin):
-        await compat.async_sleep_ms(smart_bin.config.IDLE_TICK_MS)
+        await timing.async_sleep_ms(smart_bin.config.IDLE_TICK_MS)
 
         if not self._may_sleep(smart_bin):
             self._idle_since_ms = None
@@ -144,7 +144,7 @@ class DeepSleepPolicy(PowerPolicy):
 
         wake_gpio = self.wake_gpio_numbers(config, smart_bin.sensor)
         log.info("power: sleeping, wake on GPIO %s", wake_gpio)
-        platform.deep_sleep(wake_gpio, wake_on_high=config.WAKE_ON_HIGH)
+        board.deep_sleep(wake_gpio, wake_on_high=config.WAKE_ON_HIGH)
         return True
 
     @staticmethod
@@ -153,7 +153,7 @@ class DeepSleepPolicy(PowerPolicy):
         numbers = [config.PIN_BUTTON_OPEN]
         if sensor.watches_while_asleep:
             numbers.append(config.PIN_TOF_INTERRUPT)
-        platform.assert_wake_capable(numbers)
+        board.assert_wake_capable(numbers)
         return numbers
 
 

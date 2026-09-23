@@ -2,7 +2,7 @@
 The wiring: does a config string produce the strategy it names?
 
 These run on a PC against fake devices, which is only possible because `hardware.py` owns the
-devices and `factory.py` owns nothing but the choices. If someone later constructs a peripheral
+devices and `assembly.py` owns nothing but the choices. If someone later constructs a peripheral
 inside a strategy, these tests stop compiling — which is the point.
 """
 
@@ -10,7 +10,7 @@ import unittest
 
 from fakes import FakePin
 
-from smartbin import closing, factory, power, sensors
+from smartbin import assembly, close_detection, power, proximity
 
 
 class FakeRangefinder:
@@ -77,27 +77,27 @@ class FakeConfig:
 def build_sensor(strategy):
     config = FakeConfig()
     config.SENSOR_STRATEGY = strategy
-    return factory.build_sensor(config, FakeHardware())
+    return assembly.build_sensor(config, FakeHardware())
 
 
 def build_close_detector(choice):
     config = FakeConfig()
     config.CLOSE_DETECTOR = choice
-    return factory.build_close_detector(config, FakeHardware())
+    return assembly.build_close_detector(config, FakeHardware())
 
 
 class TestSensorChoice(unittest.TestCase):
     def test_each_name_builds_its_strategy(self):
-        self.assertIsInstance(build_sensor("tof"), sensors.TimeOfFlightSensor)
+        self.assertIsInstance(build_sensor("tof"), proximity.TimeOfFlightSensor)
         self.assertIsInstance(
-            build_sensor("tof_interrupt"), sensors.SelfRangingTimeOfFlightSensor
+            build_sensor("tof_interrupt"), proximity.SelfRangingTimeOfFlightSensor
         )
-        self.assertIsInstance(build_sensor("ir"), sensors.InfraredBurstSensor)
-        self.assertIsInstance(build_sensor("none"), sensors.ButtonOnlySensor)
+        self.assertIsInstance(build_sensor("ir"), proximity.InfraredBurstSensor)
+        self.assertIsInstance(build_sensor("none"), proximity.ButtonOnlySensor)
 
     def test_a_typo_falls_back_to_buttons_rather_than_crashing(self):
         """A misspelled strategy must leave a usable bin, not a dead one."""
-        self.assertIsInstance(build_sensor("toff"), sensors.ButtonOnlySensor)
+        self.assertIsInstance(build_sensor("toff"), proximity.ButtonOnlySensor)
 
     def test_only_the_self_ranging_sensor_can_watch_while_asleep(self):
         """The deep-sleep policy asks this question before it dares sleep."""
@@ -108,26 +108,26 @@ class TestSensorChoice(unittest.TestCase):
 
 class TestCloseDetectorChoice(unittest.TestCase):
     def test_each_name_builds_its_detector(self):
-        self.assertIsInstance(build_close_detector("timed"), closing.TimedCloseDetector)
-        self.assertIsInstance(build_close_detector("limit"), closing.LimitSwitchCloseDetector)
-        self.assertIsInstance(build_close_detector("stall"), closing.MotorStallCloseDetector)
+        self.assertIsInstance(build_close_detector("timed"), close_detection.TimedCloseDetector)
+        self.assertIsInstance(build_close_detector("limit"), close_detection.LimitSwitchCloseDetector)
+        self.assertIsInstance(build_close_detector("stall"), close_detection.MotorStallCloseDetector)
 
     def test_a_typo_falls_back_to_timed(self):
-        self.assertIsInstance(build_close_detector("limitt"), closing.TimedCloseDetector)
+        self.assertIsInstance(build_close_detector("limitt"), close_detection.TimedCloseDetector)
 
 
 class TestPowerPolicyChoice(unittest.TestCase):
     def test_each_name_builds_its_policy(self):
         config = FakeConfig()
-        self.assertIsInstance(factory.build_power_policy(config), power.StayAwakePolicy)
+        self.assertIsInstance(assembly.build_power_policy(config), power.StayAwakePolicy)
         config.POWER_POLICY = "deep_sleep"
-        self.assertIsInstance(factory.build_power_policy(config), power.DeepSleepPolicy)
+        self.assertIsInstance(assembly.build_power_policy(config), power.DeepSleepPolicy)
 
     def test_a_typo_stays_awake(self):
         """Falling back to sleeping could strand a bin; falling back to awake cannot."""
         config = FakeConfig()
         config.POWER_POLICY = "deep_sleeep"
-        self.assertIsInstance(factory.build_power_policy(config), power.StayAwakePolicy)
+        self.assertIsInstance(assembly.build_power_policy(config), power.StayAwakePolicy)
 
 
 class _RecordingPwm:

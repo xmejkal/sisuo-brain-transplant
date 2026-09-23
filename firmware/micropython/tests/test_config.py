@@ -9,7 +9,7 @@ import unittest
 import fakes  # noqa: F401 - puts the firmware on sys.path
 
 import config
-from smartbin import feedback, platform, states
+from smartbin import board, feedback, states
 
 
 class TestSafetyInvariants(unittest.TestCase):
@@ -33,7 +33,7 @@ class TestPinMap(unittest.TestCase):
     def test_wake_sources_are_on_wake_capable_pins(self):
         """Only GPIO0-7 can wake this chip; anything else silently never wakes the bin."""
         for pin in (config.PIN_BUTTON_OPEN, config.PIN_TOF_INTERRUPT):
-            self.assertTrue(platform.supports_wake(pin), "GPIO%d cannot wake the chip" % pin)
+            self.assertTrue(board.supports_wake(pin), "GPIO%d cannot wake the chip" % pin)
 
     def test_no_two_signals_share_a_pin_in_one_configuration(self):
         """Pins are deliberately reused *between* configurations, never within one."""

@@ -11,7 +11,7 @@ FIVE LAYERS, AND THE RULE THAT DECIDES WHERE A THING LIVES
 The distinction that matters, because the obvious question is "why is the motor `hardware` but
 the sensor is not?": **a device is a thing you command; a strategy is a decision you make.**
 
-  1. BOARD      platform.py    facts about this chip: which pins can wake it, sleeping, the WDT
+  1. BOARD      board.py    facts about this chip: which pins can wake it, sleeping, the WDT
                 config.py      every pin and tunable; /config.json holds per-unit calibration
 
   2. DEVICES    hardware.py    everything physical, constructed in one place and opinion-free:
@@ -23,10 +23,10 @@ the sensor is not?": **a device is a thing you command; a strategy is a decision
                 vl6180x.py     the rangefinder's registers
 
   3. STRATEGIES the decisions made *with* those devices — each one a config string:
-                sensors.py     "is a hand there?"       ProximitySensor + four answers
-                closing.py     "is the lid shut?"       CloseDetector   + three answers
+                proximity.py     "is a hand there?"       ProximitySensor + four answers
+                close_detection.py     "is the lid shut?"       CloseDetector   + three answers
                 power.py       "what to do while idle?" PowerPolicy     + two answers
-                factory.py     picks which answer, from config
+                assembly.py     picks which answer, from config
 
   4. BEHAVIOUR  states.py      the product as data: states, triggers, the transition table
                 fsm.py         walks that table, runs hooks, announces every move
@@ -35,7 +35,8 @@ the sensor is not?": **a device is a thing you command; a strategy is a decision
 
   5. APPLICATION
                 smart_bin.py   three tasks, and the messages between them
-                __init__.py    this tour, and build()/run()
+                assembly.py    build() and run(): how one bin is put together
+                __init__.py    this tour
 
 So the rangefinder *chip* sits in layer 2 beside the motor, while "is that a hand?" sits in
 layer 3 — because which judgement you want is a choice, and the chip is not. Each layer may use
@@ -101,67 +102,8 @@ BENCH
 With `aiorepl` installed it all works while the bin is running, where the bin is `b`.
 """
 
-import config as _default_config
+from .assembly import build, run
 
-from . import factory, log
-from .events import EventBus
-from .smart_bin import SmartBin
+VERSION = "2.2.0-dev"
 
-try:
-    import asyncio
-except ImportError:
-    import uasyncio as asyncio
-
-VERSION = "2.1.0-dev"
-
-
-def build(config=_default_config, hardware=None):
-    """
-    Assemble the bin from the configuration, and start nothing.
-
-    Read top to bottom, this is the whole product: peripherals, then the three decisions that
-    depend on which parts are fitted, then the things that react, then the object that runs it.
-
-    `hardware` can be supplied to run the logic against fakes; otherwise the real peripherals
-    are constructed from the pin numbers in config.py.
-    """
-    if hardware is None:
-        from .hardware import Hardware
-
-        hardware = Hardware(config)
-
-    # The three swappable decisions. Each is one config string; factory.py holds the choices.
-    sensor = factory.build_sensor(config, hardware)              # how a hand is noticed
-    close_detector = factory.build_close_detector(config, hardware)  # how "shut" is known
-    power_policy = factory.build_power_policy(config)            # what idling costs
-
-    # Everything that reacts to the lid without being able to affect it.
-    listeners = factory.build_feedback_listeners(config, hardware)
-
-    return SmartBin(
-        hardware=hardware,
-        config=config,
-        bus=EventBus(),
-        sensor=sensor,
-        close_detector=close_detector,
-        power_policy=power_policy,
-        listeners=listeners,
-        save_setting=config.save,   # how the MODE button remembers its choice
-    )
-
-
-def run(config=_default_config):
-    """
-    Build the bin and run it. The only caller is main.py.
-
-    Whatever happens — a crash, Ctrl-C, a cancelled task — the hardware is left safe on the way
-    out. That `finally` is the last line of defence behind the safety cap inside every stroke.
-    """
-    smart_bin = build(config)
-    log.info("smartbin %s starting", VERSION)
-    try:
-        asyncio.run(smart_bin.main())
-    except KeyboardInterrupt:
-        log.info("interrupted")
-    finally:
-        smart_bin.hardware.enter_safe_state()
+__all__ = ("build", "run", "VERSION")

@@ -6,13 +6,13 @@ THE RULE, because it was not obvious before: **hardware owns devices, not decisi
     a device      knows how to talk to a physical thing: the motor driver, the LED, a button,
                   the MP3 module, the rangefinder chip. It has no opinion about the lid.
     a strategy    makes a decision using devices: "is that a hand?", "is the lid shut?",
-                  "should we sleep?" Those live in sensors.py, closing.py and power.py, and are
-                  assembled in factory.py.
+                  "should we sleep?" Those live in proximity.py, close_detection.py and power.py, and are
+                  assembled in assembly.py.
 
 So the rangefinder *chip* is here next to the motor, while "is a hand there?" is not — that is a
 judgement, and which judgement you want is a config choice.
 
-With platform.py this is the only module that touches `machine`, which is what lets everything
+With board.py this is the only module that touches `machine`, which is what lets everything
 else be tested on a PC. Constructing it moves nothing: pins go to their resting state, no more.
 
 Pin numbers are ESP32-C6 GPIO numbers, not XIAO D-numbers; config.py maps between them.
@@ -20,7 +20,7 @@ Pin numbers are ESP32-C6 GPIO numbers, not XIAO D-numbers; config.py maps betwee
 
 from machine import ADC, I2C, PWM, Pin, UART
 
-from . import audio, log, motor, ui
+from . import audio, buttons, log, motor, status_led
 
 
 class Hardware:
@@ -64,13 +64,13 @@ class Hardware:
 
     def _build_controls(self, config):
         """Buttons wire to ground and use the internal pull-ups, so a pressed button reads 0."""
-        button_open = ui.Button(
+        button_open = buttons.Button(
             Pin(config.PIN_BUTTON_OPEN, Pin.IN, Pin.PULL_UP), config.BUTTON_DEBOUNCE_MS
         )
-        button_mode = ui.Button(
+        button_mode = buttons.Button(
             Pin(config.PIN_BUTTON_MODE, Pin.IN, Pin.PULL_UP), config.BUTTON_DEBOUNCE_MS
         )
-        led = ui.StatusLed(
+        led = status_led.StatusLed(
             Pin(config.PIN_LED_RED, Pin.OUT, value=0),
             Pin(config.PIN_LED_GREEN, Pin.OUT, value=0),
         )
@@ -139,6 +139,6 @@ class Hardware:
     def enter_safe_state(self):
         """Motor stopped, LED dark, IR emitter off. On shutdown, before sleep, and by hand."""
         self.motor.stop()
-        self.led.set(ui.OFF)
+        self.led.set(status_led.OFF)
         if self.ir_emitter is not None:
             self.ir_emitter.duty_u16(0)

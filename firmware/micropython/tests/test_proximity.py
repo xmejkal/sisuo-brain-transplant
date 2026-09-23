@@ -4,10 +4,10 @@ import unittest
 
 from fakes import FakeClock, FakePin
 
-from smartbin import sensors
+from smartbin import proximity
 
 
-class StubSensor(sensors.ProximitySensor):
+class StubSensor(proximity.ProximitySensor):
     """Raw detection is whatever the test sets, so only the base class's logic is under test."""
 
     def __init__(self, **kwargs):
@@ -58,14 +58,14 @@ class TestDebounce(unittest.TestCase):
 
 class TestButtonOnlySensor(unittest.TestCase):
     def test_never_detects_a_hand(self):
-        sensor = sensors.ButtonOnlySensor()
+        sensor = proximity.ButtonOnlySensor()
         self.assertFalse(sensor.hand_detected())
         self.assertIsNone(sensor.read_distance_mm())
 
     def test_cannot_watch_while_asleep(self):
         """Only a self-ranging sensor can; the power policy relies on this answer."""
-        self.assertFalse(sensors.ButtonOnlySensor().watches_while_asleep)
-        self.assertFalse(sensors.ButtonOnlySensor().arm_for_sleep())
+        self.assertFalse(proximity.ButtonOnlySensor().watches_while_asleep)
+        self.assertFalse(proximity.ButtonOnlySensor().arm_for_sleep())
 
 
 class TestInfraredBurstSensor(unittest.TestCase):
@@ -73,12 +73,12 @@ class TestInfraredBurstSensor(unittest.TestCase):
         """The receiver pulls its output low while it hears the carrier."""
         emitter = _RecordingPwm()
         receiver = FakePin(level=0)
-        sensor = sensors.InfraredBurstSensor(emitter, receiver, consecutive_hits=1)
+        sensor = proximity.InfraredBurstSensor(emitter, receiver, consecutive_hits=1)
         self.assertTrue(sensor.hand_detected())
 
     def test_the_emitter_is_left_off_after_a_burst(self):
         emitter = _RecordingPwm()
-        sensor = sensors.InfraredBurstSensor(emitter, FakePin(level=1), consecutive_hits=1)
+        sensor = proximity.InfraredBurstSensor(emitter, FakePin(level=1), consecutive_hits=1)
         sensor.hand_detected()
         self.assertEqual(emitter.duty, 0)
 

@@ -6,7 +6,7 @@ import fakes  # noqa: F401 - puts the firmware on sys.path
 
 from smartbin import events, states
 from smartbin.events import EventBus
-from smartbin.fsm import StateMachine
+from smartbin.state_machine import StateMachine
 
 
 def build_machine():

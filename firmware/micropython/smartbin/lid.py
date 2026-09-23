@@ -11,8 +11,9 @@ a policy a detector can override: whatever the sensors say, the motor stops afte
 `MOTOR_MAX_RUN_MS`. The `finally` stops it again if the stroke is cancelled or raises.
 """
 
-from . import compat, fsm, log, states
-from .compat import async_sleep_ms
+from . import log, states, timing
+from .state_machine import StateMachine
+from .timing import async_sleep_ms
 
 
 class Lid:
@@ -28,14 +29,14 @@ class Lid:
         self._motor = motor
         self._close_detector = close_detector
         self._config = config
-        self._clock = clock or compat.Clock()
-        self._spawn = spawn or compat.asyncio.create_task
+        self._clock = clock or timing.Clock()
+        self._spawn = spawn or timing.asyncio.create_task
         self._sleep = sleep or async_sleep_ms
         self._motion_task = None
         self._hold_task = None
         self._failed_close_attempts = 0
 
-        self.machine = fsm.StateMachine(
+        self.machine = StateMachine(
             states.TRANSITIONS, states.IDLE, bus=bus, clock=self._clock, name="lid"
         )
         self._register_hooks()

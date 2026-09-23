@@ -4,7 +4,7 @@ import unittest
 
 from fakes import FakeClock, FakePin
 
-from smartbin import ui
+from smartbin import buttons, status_led
 
 PRESSED = 0
 RELEASED = 1
@@ -13,7 +13,7 @@ RELEASED = 1
 def build_button(debounce_ms=40):
     pin = FakePin(level=RELEASED)
     clock = FakeClock()
-    return ui.Button(pin, debounce_ms=debounce_ms, clock=clock), pin, clock
+    return buttons.Button(pin, debounce_ms=debounce_ms, clock=clock), pin, clock
 
 
 def poll(button, clock, times=4, step_ms=20):
@@ -62,25 +62,25 @@ class TestButton(unittest.TestCase):
 class TestStatusLed(unittest.TestCase):
     def test_colours_drive_the_expected_pins(self):
         red, green = FakePin(0), FakePin(0)
-        led = ui.StatusLed(red, green)
+        led = status_led.StatusLed(red, green)
 
-        led.set(ui.RED)
+        led.set(status_led.RED)
         self.assertEqual((red.level, green.level), (1, 0))
 
-        led.set(ui.GREEN)
+        led.set(status_led.GREEN)
         self.assertEqual((red.level, green.level), (0, 1))
 
-        led.set(ui.AMBER)
+        led.set(status_led.AMBER)
         self.assertEqual((red.level, green.level), (1, 1))
 
-        led.set(ui.OFF)
+        led.set(status_led.OFF)
         self.assertEqual((red.level, green.level), (0, 0))
 
     def test_toggle_restores_the_previous_colour(self):
         """The fault blinker relies on this: off, then back to red, not to some default."""
         red, green = FakePin(0), FakePin(0)
-        led = ui.StatusLed(red, green)
-        led.set(ui.RED)
+        led = status_led.StatusLed(red, green)
+        led.set(status_led.RED)
 
         led.toggle()
         self.assertEqual((red.level, green.level), (0, 0))

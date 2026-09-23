@@ -1,5 +1,8 @@
 """
-Wiring: config strings in, strategies out.
+How a bin is put together: the composition root.
+
+`build()` assembles one and starts nothing; `run()` starts it. Everything they decide is in this
+file, so "how is this bin assembled?" has exactly one answer.
 
 A strategy is a decision the bin makes with the devices `hardware.py` provides — "is that a
 hand?", "is the lid shut?", "should we sleep?". The devices themselves are not built here; this
@@ -12,7 +15,60 @@ Every choice fails loudly on an unknown name rather than silently degrading, bec
 config that quietly disables the sensor is a bin that looks broken for no visible reason.
 """
 
-from . import closing, feedback, log, power, sensors
+import config as _default_config
+
+from . import close_detection, feedback, log, power, proximity
+from .events import EventBus
+from .smart_bin import SmartBin
+
+try:
+    import asyncio
+except ImportError:
+    import uasyncio as asyncio
+
+
+def build(config=_default_config, hardware=None):
+    """
+    Assemble the bin from the configuration, and start nothing.
+
+    Read top to bottom, this is the whole product: devices, then the three decisions that depend
+    on which parts are fitted, then the things that react, then the object that runs it.
+
+    `hardware` can be supplied to run the logic against fakes; otherwise the real devices are
+    constructed from the pin numbers in config.py.
+    """
+    if hardware is None:
+        from .hardware import Hardware
+
+        hardware = Hardware(config)
+
+    return SmartBin(
+        hardware=hardware,
+        config=config,
+        bus=EventBus(),
+        sensor=build_sensor(config, hardware),                  # how a hand is noticed
+        close_detector=build_close_detector(config, hardware),  # how "shut" is known
+        power_policy=build_power_policy(config),                # what idling costs
+        listeners=build_feedback_listeners(config, hardware),   # what reacts, without deciding
+        save_setting=config.save,  # how the MODE button remembers its choice
+    )
+
+
+def run(config=_default_config):
+    """
+    Build the bin and run it. The only caller is main.py.
+
+    Whatever happens — a crash, Ctrl-C, a cancelled task — the hardware is left safe on the way
+    out. That `finally` is the last line of defence behind the safety cap inside every stroke.
+    """
+    smart_bin = build(config)
+    log.info("smartbin starting")
+    try:
+        asyncio.run(smart_bin.main())
+    except KeyboardInterrupt:
+        log.info("interrupted")
+    finally:
+        smart_bin.hardware.enter_safe_state()
 
 
 def build_sensor(config, hardware):
@@ -25,7 +81,7 @@ def build_sensor(config, hardware):
 
     if strategy in ("tof", "tof_interrupt"):
         if strategy == "tof_interrupt":
-            return sensors.SelfRangingTimeOfFlightSensor(
+            return proximity.SelfRangingTimeOfFlightSensor(
                 hardware.rangefinder,
                 hardware.rangefinder_interrupt,
                 period_ms=config.TOF_INTERRUPT_PERIOD_MS,
@@ -35,7 +91,7 @@ def build_sensor(config, hardware):
                 max_failures=config.TOF_MAX_FAILURES,
                 **debounce
             )
-        return sensors.TimeOfFlightSensor(
+        return proximity.TimeOfFlightSensor(
             hardware.rangefinder,
             near_mm=config.TOF_NEAR_MM,
             far_mm=config.TOF_FAR_MM,
@@ -44,7 +100,7 @@ def build_sensor(config, hardware):
         )
 
     if strategy == "ir":
-        return sensors.InfraredBurstSensor(
+        return proximity.InfraredBurstSensor(
             hardware.ir_emitter,
             hardware.ir_receiver,
             burst_us=config.IR_BURST_US,
@@ -56,7 +112,7 @@ def build_sensor(config, hardware):
         log.error("unknown SENSOR_STRATEGY %r; falling back to buttons only", strategy)
     else:
         log.info("no proximity sensor fitted; buttons only")
-    return sensors.ButtonOnlySensor(**debounce)
+    return proximity.ButtonOnlySensor(**debounce)
 
 
 def build_close_detector(config, hardware):
@@ -64,10 +120,10 @@ def build_close_detector(config, hardware):
     choice = config.CLOSE_DETECTOR
 
     if choice == "limit":
-        return closing.LimitSwitchCloseDetector(hardware.limit_switch)
+        return close_detection.LimitSwitchCloseDetector(hardware.limit_switch)
 
     if choice == "stall":
-        return closing.MotorStallCloseDetector(
+        return close_detection.MotorStallCloseDetector(
             hardware.current_sense,
             config.STALL_COUNTS,
             blanking_ms=config.STALL_BLANKING_MS,
@@ -77,7 +133,7 @@ def build_close_detector(config, hardware):
 
     if choice != "timed":
         log.error("unknown CLOSE_DETECTOR %r; falling back to timed", choice)
-    return closing.TimedCloseDetector(config.LID_CLOSE_RUN_MS)
+    return close_detection.TimedCloseDetector(config.LID_CLOSE_RUN_MS)
 
 
 def build_power_policy(config):

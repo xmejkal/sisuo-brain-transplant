@@ -5,7 +5,7 @@ the five layers and the rule for where a thing belongs, how the parts connect, a
 end to end when someone waves a hand at the bin. Everything else is one chapter of that.
 
 The rule in one line: **a device is a thing you command (`hardware.py`); a strategy is a decision
-you make with it (`sensors.py`, `closing.py`, `power.py`, chosen in `factory.py`).**
+you make with it (`proximity.py`, `close_detection.py`, `power.py`, chosen in `assembly.py`).**
 
 Design and rationale: [`../../FIRMWARE_PLAN.md`](../../FIRMWARE_PLAN.md).
 The Arduino v1 sketch in `../arduino/` is kept only as a reference.
@@ -16,20 +16,21 @@ boot.py              deliberately empty (see its docstring for why)
 main.py              two lines; hold MODE at boot to skip auto-start
 config.py            every tunable + pin map; /config.json overrides per unit
 smartbin/            the firmware package
-  __init__.py        START HERE: the tour, plus build() and run()
+  __init__.py        START HERE: the tour (and re-exports build/run)
+  assembly.py        the composition root: build(), run(), and every "which one" choice
   states.py          states, triggers and the transition table — the product, as data
-  fsm.py             the state machine: hooks, history, event publishing
+  state_machine.py   walks that table: hooks, history, event publishing
   lid.py             motion strokes + the hard safety cap
-  sensors.py         ProximitySensor + ToF / self-ranging ToF / IR burst / button-only
-  closing.py         CloseDetector + timed / limit-switch / motor-stall
+  proximity.py       ProximitySensor + ToF / self-ranging ToF / IR burst / button-only
+  close_detection.py CloseDetector + timed / limit-switch / motor-stall
   power.py           PowerPolicy + stay-awake / deep-sleep
   audio.py           Player + DFR0534 / silent
   motor.py           MotorDriver + L9110S
-  factory.py         config strings -> which strategy (devices come from hardware.py)
+  buttons.py status_led.py   the two buttons and the bicolour LED
   hardware.py        every device: motor, buttons, LED, MP3, rangefinder, switches
-  platform.py        ESP32-C6 facts: wake pins, deep sleep, watchdog
+  board.py           ESP32-C6 facts: wake pins, deep sleep, watchdog
   smart_bin.py       the running application: three tasks and the wiring between them
-  events.py feedback.py ui.py vl6180x.py compat.py log.py
+  events.py feedback.py vl6180x.py timing.py log.py
 bringup/             one script per module, run in order on the bench
 tools/               fsm_diagram.py (the diagram below) and calibrate.py (bench procedures)
 tests/               runs on the Mac, no hardware

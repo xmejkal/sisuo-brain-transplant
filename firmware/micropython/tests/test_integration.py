@@ -11,7 +11,7 @@ import unittest
 
 from fakes import FakeCloseDetector, FakeMotor
 
-from smartbin import compat, events, states
+from smartbin import events, states, timing
 from smartbin.events import EventBus
 from smartbin.lid import Lid
 
@@ -31,7 +31,7 @@ class FastConfig:
 
 def build_lid(close_detector=None):
     """A lid wired to real asyncio: the defaults for `spawn` and `sleep`, not the fakes."""
-    clock = compat.Clock()
+    clock = timing.Clock()
     motor = FakeMotor(clock)
     bus = EventBus()
     seen = []
