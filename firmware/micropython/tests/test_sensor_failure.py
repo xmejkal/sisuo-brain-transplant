@@ -22,6 +22,12 @@ class Settings:
         for name in dir(config):
             if name.isupper():
                 setattr(self, name, getattr(config, name))
+        # Pin the configuration this file is about, rather than inheriting whatever config.py
+        # currently says. These tests describe the rangefinder build; switching the shipped
+        # default to the IR sensor should not make them fail — it should make them irrelevant.
+        self.SENSOR_STRATEGY = "tof"
+        self.CLOSE_DETECTOR = "timed"
+        self.POWER_POLICY = "always_on"
         self.SENSOR_CONSECUTIVE_HITS = 1
         self.SENSOR_COOLDOWN_MS = 0
         self.WATCHDOG_MS = 0

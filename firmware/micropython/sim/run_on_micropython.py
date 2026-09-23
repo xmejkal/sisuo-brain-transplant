@@ -56,6 +56,12 @@ class Settings:
         # which is what makes the obstruction check below mean anything.
         self.SENSOR_COOLDOWN_MS = 80
         self.MAX_CLOSE_RETRIES = 2
+        # This scenario waves a hand at the rangefinder, so it pins that configuration rather
+        # than inheriting whatever config.py ships with. Changing the shipped default should not
+        # break a harness that is about a different build.
+        self.SENSOR_STRATEGY = "tof"
+        self.CLOSE_DETECTOR = "timed"
+        self.POWER_POLICY = "always_on"
 
     def save(self, values):
         return True
