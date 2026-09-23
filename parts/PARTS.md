@@ -1,7 +1,17 @@
 # Smart-bin parts reference (real modules Petr owns)
 
-Design keeps the real MODULES (plugged into headers/JST). Footprints are real; the module 3D
-bodies come from the vendor STEP files linked below (ideal for the Fusion 360 enclosure).
+Design keeps the real MODULES. Footprints are real; the module 3D bodies come from the vendor
+STEP files linked below (ideal for the Fusion 360 enclosure).
+
+Two ways a module reaches the board, and the difference decides the board size:
+
+- **On the board**, plugged onto a header: the XIAO, the L9110S driver, the DFR0534 MP3 module.
+  These take real board area — 21 x 17.5, 29 x 23 and 30 x 22 mm — which is why the outline is
+  70 x 45 mm and why `tools/check-module-clearance.py` exists.
+- **On a ribbon**, because the part has to be somewhere else in the bin: the rangefinder looks
+  out through the lid, and the speaker sits behind a grille. Both carry 2.54 mm headers of their
+  own, so a flat multi-way cable plugs straight on. The board carries only the mating header or
+  JST, and no body is drawn for them — they are not on the board.
 
 ## Seeed XIAO ESP32-C6  (the brain)   [reference DOWNLOADED -> ./xiao/]
 - Footprint: XIAO-ESP32-C6-SMD.kicad_mod (real, in ./xiao/ and used in board.tsx)

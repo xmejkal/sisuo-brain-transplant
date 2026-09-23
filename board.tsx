@@ -19,10 +19,28 @@ import { XiaoRealFootprint } from "./XIAO-ESP32-C6-SMD"
  *    exceeds what this chip tolerates, and nothing reads it.
  *
  * Pin map (D-pin = GPIO): D0=0 D1=1 D2=2 D3=21 D4=22 D5=23 D6=16 D7=17 D8=19 D9=20 D10=18.
+ *
+ * The outline is 70 x 45 mm, and it is set by what sits on it. Only three things do: the XIAO,
+ * the motor driver and the MP3 module. The rangefinder has to look out through the lid and the
+ * speaker sits behind a grille, so both are on ribbons to their own 2.54 mm headers and take no
+ * board area at all — modelling them as plug-in modules is what made an earlier layout collide
+ * with itself. `tools/check-module-clearance.py` reads the 3D bodies back out of the build and
+ * reports anything that overlaps or hangs off the edge.
+ *
+ * The outline still has to be checked against the bin's own cavity before anything is ordered.
  */
 export default () => (
   <board width="70mm" height="45mm" autorouter="auto">
-    <XiaoRealFootprint name="XIAO" pcbX={-8.9} pcbY={-10.5}
+    <XiaoRealFootprint name="XIAO" pcbX={-30.92} pcbY={-22.94}
+      cadModel={{
+        // Seeed publish no 3D model for the C6 (the S3's is a different board), so this is the
+        // module's own outline: 21 x 17.5 mm, and 3.5 mm tall over the shield can.
+        jscad: {
+          type: "colorize",
+          color: [0.09, 0.09, 0.1],
+          shape: { type: "roundedCuboid", size: [21, 17.5, 3.5], roundRadius: 0.8, segments: 16 },
+        },
+      }}
       pinLabels={{
         pin1: "TOF_INT",    // D0  - wake-capable
         pin2: "BTN_OPEN",   // D1  - wake-capable
@@ -39,32 +57,70 @@ export default () => (
       }} />
 
     {/* L9110S module on a 6-pin header. Its two motor terminals are screw terminals on the
-        module itself, wired to MotorOut below with short leads. */}
-    <chip name="MotorDriver" footprint="headermodule6" pcbX={-24} pcbY={6}
+        module itself, wired to MotorOut below with short leads.
+
+        The 3D body is a real model of this module (CC0), so the render shows what actually
+        plugs in rather than a bare header. */}
+    <chip name="MotorDriver" footprint="headermodule6" pcbX={-19} pcbY={10.5}
+      cadModel={{
+        stepUrl: "https://raw.githubusercontent.com/fox7524/MEB-Robotik/main/7-Ortak%20Tasar%C4%B1m/mini_sumo-l9110_driver.step",
+        rotationOffset: { x: 0, y: 0, z: 90 },
+      }}
       pinLabels={{ pin1:"BIA", pin2:"BIB", pin3:"GND", pin4:"VCC", pin5:"AIA", pin6:"AIB" }} />
 
     {/* The rangefinder breakout: VIN/GND/SDA/SCL and its interrupt. The same header takes the
-        IR LED + receiver fallback, which is why it carries five pins rather than four. */}
-    <chip name="SensorHeader" footprint="pinrow5" pcbX={0} pcbY={-17}
+        IR LED + receiver fallback, which is why it carries five pins rather than four.
+
+        No 3D body here on purpose: the sensor has to look out through the lid, tens of
+        millimetres away from wherever the board is screwed down, so it is never on the board.
+        The module carries a 2.54 mm header of its own, and a five-way ribbon reaches it. What
+        is on the board is this header — and only this header needs the space. */}
+    <chip name="SensorHeader" footprint="pinrow5" pcbX={-3} pcbY={-3}
       pinLabels={{ pin1:"VIN", pin2:"GND", pin3:"SDA", pin4:"SCL", pin5:"INT" }} />
 
-    <chip name="Mp3Player" footprint="headermodule6" pcbX={24} pcbY={6}
+    {/* DFRobot publishes no 3D model for this module, only a dimension drawing — so the body is
+        built from it: 30.00 x 22.00 mm, which is what that drawing says. */}
+    <chip name="Mp3Player" footprint="headermodule6" pcbX={18} pcbY={11}
+      cadModel={{
+        jscad: {
+          type: "colorize",
+          color: [0.06, 0.29, 0.53],
+          shape: { type: "cuboid", size: [30, 22, 3.2] },
+        },
+      }}
       pinLabels={{ pin1:"VCC", pin2:"GND", pin3:"RXD", pin4:"TXD", pin5:"SPKP", pin6:"SPKN" }} />
-    <chip name="Speaker" footprint="jst_ph_2" pcbX={28} pcbY={15} pinLabels={{ pin1:"P", pin2:"N" }} />
+    {/* The speaker is a 30 mm driver behind a grille on its own flying lead, so what the board
+        carries is this two-way JST and nothing else. Its size still has to be checked against
+        the bin — see the enclosure notes, not this file. */}
+    <chip name="Speaker" footprint="jst_ph_2" pcbX={8} pcbY={-4} pinLabels={{ pin1:"P", pin2:"N" }} />
 
     {/* Bicolour LED, common cathode: two anodes and one shared return. */}
-    <chip name="StatusLed" footprint="pinrow3" pcbX={0} pcbY={17}
+    <chip name="StatusLed" footprint="pinrow3" pcbX={17} pcbY={-17}
+      cadModel={{
+        jscad: {
+          type: "colorize",
+          color: [0.85, 0.85, 0.88],
+          shape: { type: "cylinder", radius: 2.5, height: 8.6, resolution: 32 },
+        },
+      }}
       pinLabels={{ pin1:"RED", pin2:"CATHODE", pin3:"GREEN" }} />
-    <resistor name="RedResistor" resistance="330" footprint="0603" pcbX={-5} pcbY={13} />
-    <resistor name="GreenResistor" resistance="330" footprint="0603" pcbX={5} pcbY={13} />
+    <resistor name="RedResistor" resistance="330" footprint="0603" pcbX={17} pcbY={-13} />
+    <resistor name="GreenResistor" resistance="330" footprint="0603" pcbX={21} pcbY={-13} />
 
-    <chip name="BtnOpen" footprint="pushbutton" pcbX={-13} pcbY={-17} pinLabels={{ pin1:"A", pin4:"B" }} />
-    <chip name="BtnMode" footprint="pushbutton" pcbX={13} pcbY={-17} pinLabels={{ pin1:"A", pin4:"B" }} />
+    {/* Real bodies from the part library, by LCSC number — a 6x6 tactile switch and JST PH
+        shells. These are the parts the shopping list actually names. */}
+    <chip name="BtnOpen" footprint="pushbutton" pcbX={-3} pcbY={-17} pinLabels={{ pin1:"A", pin4:"B" }}
+      cadModel={{ objUrl: "https://modelcdn.tscircuit.com/easyeda_models/download?pn=C110153#ext=obj" }} />
+    <chip name="BtnMode" footprint="pushbutton" pcbX={7} pcbY={-17} pinLabels={{ pin1:"A", pin4:"B" }}
+      cadModel={{ objUrl: "https://modelcdn.tscircuit.com/easyeda_models/download?pn=C110153#ext=obj" }} />
 
-    <chip name="BinConnector" footprint="jst_ph_4" pcbX={-27} pcbY={-6}
+    <chip name="BinConnector" footprint="jst_ph_4" pcbX={30} pcbY={-4}
+      cadModel={{ objUrl: "https://modelcdn.tscircuit.com/easyeda_models/download?pn=C131334#ext=obj" }}
       pinLabels={{ pin1:"BATP", pin2:"BATN", pin3:"MOTA", pin4:"MOTB" }} />
-    <chip name="MotorOut" footprint="jst_ph_2" pcbX={-27} pcbY={13} pinLabels={{ pin1:"OA", pin2:"OB" }} />
-    <chip name="LipoBattery" footprint="jst_ph_2" pcbX={28} pcbY={-6} pinLabels={{ pin1:"POS", pin2:"NEG" }} />
+    <chip name="MotorOut" footprint="jst_ph_2" pcbX={31} pcbY={-11} pinLabels={{ pin1:"OA", pin2:"OB" }}
+      cadModel={{ objUrl: "https://modelcdn.tscircuit.com/easyeda_models/download?pn=C131337#ext=obj" }} />
+    <chip name="LipoBattery" footprint="jst_ph_2" pcbX={31} pcbY={-18} pinLabels={{ pin1:"POS", pin2:"NEG" }}
+      cadModel={{ objUrl: "https://modelcdn.tscircuit.com/easyeda_models/download?pn=C131337#ext=obj" }} />
 
     {/* The pins float for ~300 ms between reset and the firmware running. These are what keep the
         motor still in that window, and through any crash or reflash.
@@ -73,8 +129,8 @@ export default () => (
         ground above system ground while the motor runs, so a pulldown to system ground would
         hold the inputs *below* the driver's idea of zero — outside its input range, and an
         injection path into the chip. */}
-    <resistor name="PulldownIa" resistance="10k" footprint="0603" pcbX={-17} pcbY={9} />
-    <resistor name="PulldownIb" resistance="10k" footprint="0603" pcbX={-17} pcbY={12} />
+    <resistor name="PulldownIa" resistance="10k" footprint="0603" pcbX={-1} pcbY={13} />
+    <resistor name="PulldownIb" resistance="10k" footprint="0603" pcbX={-1} pcbY={17} />
 
     {/* Low-side shunt: the driver's ground returns through it, and D2 reads the voltage across
         it. 0.33 ohm gives ~23 mV running and ~76 mV stalled — above the C6 ADC's noise, while
@@ -83,17 +139,17 @@ export default () => (
         The sense line reaches the ADC through a series resistor and a capacitor: the resistor
         limits the current into the pin if the motor ever stalls hard enough to lift this node
         toward the rail, and the capacitor averages the PWM chopping the reading. */}
-    <resistor name="CurrentShunt" resistance="0.33" footprint="0805" pcbX={-21} pcbY={-1} />
-    <resistor name="SenseResistor" resistance="1k" footprint="0603" pcbX={-13} pcbY={-1} />
-    <capacitor name="SenseFilterCap" capacitance="100nF" footprint="0603" pcbX={-13} pcbY={2} />
+    <resistor name="CurrentShunt" resistance="0.33" footprint="0805" pcbX={-1} pcbY={1} />
+    <resistor name="SenseResistor" resistance="1k" footprint="0603" pcbX={-6} pcbY={-9} />
+    <capacitor name="SenseFilterCap" capacitance="100nF" footprint="0603" pcbX={-6} pcbY={-11} />
 
-    <capacitor name="MotorBulkCap" capacitance="220uF" footprint="0805" pcbX={-19} pcbY={-8} />
-    <capacitor name="Mp3ReservoirCap" capacitance="470uF" footprint="0805" pcbX={19} pcbY={-8} />
-    <capacitor name="DecoupMotor" capacitance="100nF" footprint="0603" pcbX={-17} pcbY={3} />
-    <capacitor name="DecoupMp3" capacitance="100nF" footprint="0603" pcbX={17} pcbY={3} />
-    <capacitor name="DecoupSensor" capacitance="100nF" footprint="0603" pcbX={7} pcbY={-13} />
+    <capacitor name="MotorBulkCap" capacitance="220uF" footprint="0805" pcbX={-1} pcbY={5} />
+    <capacitor name="Mp3ReservoirCap" capacitance="470uF" footprint="0805" pcbX={14} pcbY={-2} />
+    <capacitor name="DecoupMotor" capacitance="100nF" footprint="0603" pcbX={-1} pcbY={9} />
+    <capacitor name="DecoupMp3" capacitance="100nF" footprint="0603" pcbX={19} pcbY={-2} />
+    <capacitor name="DecoupSensor" capacitance="100nF" footprint="0603" pcbX={-6} pcbY={-6} />
     {/* Across the motor terminals: brush arcing, not inductive kickback, is what upsets I2C. */}
-    <capacitor name="MotorBrushCap" capacitance="100nF" footprint="0603" pcbX={-19} pcbY={17} />
+    <capacitor name="MotorBrushCap" capacitance="100nF" footprint="0603" pcbX={24} pcbY={-14.5} />
 
     {/* ---- power ---------------------------------------------------------------------- */}
     <trace from=".BinConnector > .BATP" to="net.MOTOR6V" />
