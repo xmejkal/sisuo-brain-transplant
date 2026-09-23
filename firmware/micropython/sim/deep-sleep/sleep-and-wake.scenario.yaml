@@ -1,0 +1,21 @@
+# The bin, configured for battery use: does it sleep, and does it arm the right pins?
+#
+# It asserts only what a simulator can prove. **Wokwi does not wake an ESP32-C6 from a GPIO** —
+# established by experiment, not assumption: a bare MicroPython script that deep-sleeps on a
+# timer wakes reliably (rst:0x5 SLEEP_WAKEUP, wake_reason 4), and the same script arming
+# `esp32.wake_on_ext1` or `esp32.wake_on_gpio` on GPIO0 never wakes when that pin is driven
+# high. The sensor's interrupt pin was verified to go HIGH while the chip slept, and nothing
+# happened.
+#
+# So waking on a hand is a bench test, not a simulator test. What this does prove is that the
+# firmware reaches sleep, and arms the two pins that can wake this chip: GPIO1 (the OPEN button)
+# and GPIO0 (the rangefinder's interrupt).
+name: sleeps and arms the right pins
+version: 1
+author: smartbin
+
+steps:
+  - wait-serial: "power=deep_sleep"
+  - wait-serial: "power: cold boot"
+  - wait-serial: "power: sleeping, wake on GPIO [1, 0]"
+  - delay: 200ms

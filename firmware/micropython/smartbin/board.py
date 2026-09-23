@@ -1,18 +1,22 @@
 """
-The facts that are true of this chip and this board, in one place.
+What this chip can do, and how to ask it.
 
-Everything here is ESP32-C6 specific. Keeping it separate means a port to another board (an
-ESP32-S3, say) is this file plus the pin block in config.py, and it keeps `machine`/`esp32` out
-of the policy code so that code stays readable and testable.
+The *facts* — which pins exist, which can wake it, which have an ADC — come from
+`boards/<id>.json` via the generated `board_spec.py`. This module is the behaviour built on
+them: sleeping, waking, the watchdog. Together they are the only board-specific code in the
+firmware, which is what makes changing board a bounded job (see boards/README.md).
 
 `machine` is imported lazily inside the functions so this module can be imported on a PC.
 """
 
 from . import log
+from .board_spec import ADC_GPIO, CHIP, NAME, PINS, WAKE_CAPABLE_GPIO, label_for
 
-# Only these GPIOs can wake an ESP32-C6 from deep sleep. On the XIAO that is D0, D1 and D2 —
-# every other D-pin maps to a GPIO above 7. MicroPython raises ValueError for the rest.
-WAKE_CAPABLE_GPIO = tuple(range(8))
+# The facts about which board this is live in boards/<id>.json and reach the firmware through
+# board_spec.py, which is generated from it. This module is the behaviour built on them.
+__all__ = ["ADC_GPIO", "CHIP", "NAME", "PINS", "WAKE_CAPABLE_GPIO", "label_for",
+           "supports_wake", "assert_wake_capable", "woke_from_sleep", "wake_gpio_numbers",
+           "deep_sleep", "start_watchdog", "HAS_USABLE_COPROCESSOR"]
 
 # The chip has a second RISC-V core, but it is a 20 MHz low-power coprocessor, not an application
 # core, and MicroPython exposes no way to run code on it. Noted here so nobody goes looking.
@@ -27,9 +31,11 @@ def assert_wake_capable(gpio_numbers):
     """Fail loudly at configuration time rather than mysteriously failing to ever wake."""
     for number in gpio_numbers:
         if not supports_wake(number):
+            wake_labels = ", ".join(label_for(gpio) for gpio in WAKE_CAPABLE_GPIO if
+                                    gpio in PINS.values())
             raise ValueError(
-                "GPIO%d cannot wake an ESP32-C6; only GPIO0-7 can (XIAO pins D0, D1, D2)"
-                % number
+                "%s (GPIO%d) cannot wake this chip; only %s can"
+                % (label_for(number), number, wake_labels)
             )
 
 

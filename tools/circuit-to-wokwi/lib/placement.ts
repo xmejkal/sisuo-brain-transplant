@@ -12,6 +12,7 @@
  * noticing — and `merge.ts` means a human's own positions win over either of them.
  */
 
+import { board } from "./board";
 import { GRID_PX, sizeOf, snapToGrid } from "./geometry";
 
 export interface Placement {
@@ -34,7 +35,7 @@ const PART_GAP_PX = GRID_PX * 4;
 const COLUMN_GAP_PX = GRID_PX * 12;
 
 export class ColumnPlacer implements Placer {
-  constructor(private boardType = "board-xiao-esp32-c6") {}
+  constructor(private boardType = board.wokwi_part_type) {}
 
   place(parts: PlacedPart[]): Map<string, Placement> {
     const placements = new Map<string, Placement>();

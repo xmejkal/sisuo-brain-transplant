@@ -14,12 +14,19 @@ import { join } from "node:path";
 
 import { PartRegistry } from "@wokwi/diagram-lint";
 
+import { board } from "./board";
+
 /** Wokwi's grid: 0.1 inch at 96 dpi. Parts snapped to it line up with the editor's own. */
 export const GRID_PX = 9.6;
 
-/** Approximate part sizes in pixels, for stacking. Refine only if the layout gets cramped. */
+/**
+ * Approximate part sizes in pixels, for stacking. Refine only if the layout gets cramped.
+ *
+ * The board's own size comes from the board definition rather than this table, so a different
+ * board brings its own dimensions with it.
+ */
 const SIZES: Record<string, { width: number; height: number }> = {
-  "board-xiao-esp32-c6": { width: 70, height: 90 },
+  [board.wokwi_part_type]: board.physical.wokwi_size_px,
   "wokwi-pushbutton": { width: 70, height: 40 },
   "board-ssd1306": { width: 150, height: 120 },
   "wokwi-led": { width: 20, height: 40 },

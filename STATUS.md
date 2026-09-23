@@ -67,6 +67,17 @@ which is waiting on two measurements only Petr can take.
   Expect to fix part IDs and the pushbutton control name on first use.
 * Lid run times, the distance window and any ToF calibration are all placeholders.
 
+## Changing the microcontroller
+
+One file: `boards/xiao-esp32-c6.json`. It holds the silkscreen-to-GPIO map, which pins can wake
+the chip, which have an ADC, which have a second job, and what the board is physically. The
+firmware's copy (`smartbin/board_spec.py`) is generated from it, the converter reads it, the
+simulator's layout uses its dimensions, and `make check` fails if any of them drift.
+
+`boards/README.md` has the steps. The honest part: steps 1, 2, 4 and 5 are mechanical; step 3 —
+deciding which function sits on which pin — is real work, because a different board has
+different constraints. That is exactly the decision that should be revisited rather than copied.
+
 ## The one command that matters
 
 ```sh

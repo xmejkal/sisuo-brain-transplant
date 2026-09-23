@@ -22,6 +22,7 @@
 #define REG_IDENTIFICATION_MODEL_ID 0x000
 #define REG_SYSTEM_FRESH_OUT_OF_RESET 0x016
 #define REG_SYSRANGE_START 0x018
+#define REG_SYSRANGE_INTERMEASUREMENT_PERIOD 0x01B
 #define REG_SYSRANGE_THRESH_LOW 0x01A
 #define REG_RESULT_RANGE_STATUS 0x04D
 #define REG_RESULT_INTERRUPT_STATUS_GPIO 0x04F
@@ -35,15 +36,19 @@
 
 typedef struct {
   pin_t pin_int;
+  timer_t ranging_timer;
   uint32_t distance_control;
 
   uint16_t address;                // the 16-bit register address being addressed
   uint8_t address_bytes_seen;      // 0, 1 or 2 bytes of it received so far
   uint8_t fresh_out_of_reset;
+  bool interrupt_asserted;
   uint8_t registers[STORED_REGISTERS];
 } chip_state_t;
 
+static void on_ranging_tick(void *user_data);
 static bool on_i2c_connect(void *user_data, uint32_t address, bool read);
+static void update_interrupt(chip_state_t *chip);
 static uint8_t on_i2c_read(void *user_data);
 static bool on_i2c_write(void *user_data, uint8_t data);
 static void on_i2c_disconnect(void *user_data);
@@ -53,6 +58,16 @@ void chip_init(void) {
   chip->pin_int = pin_init("INT", OUTPUT_LOW);
   chip->distance_control = attr_init("distance", 200);
   chip->fresh_out_of_reset = 1;    // a freshly powered sensor, so the driver loads its tuning
+
+  // The real sensor ranges on its own clock once continuous mode is started, and keeps its
+  // interrupt pin up to date whether or not anyone is talking to it. That is the entire point
+  // of it: the host can sleep. Updating the pin only during I2C traffic — as this chip first
+  // did — makes a sleeping host unwakeable, which is a simulation that lies.
+  const timer_config_t ranging_timer = {
+    .callback = on_ranging_tick,
+    .user_data = chip,
+  };
+  chip->ranging_timer = timer_init(&ranging_timer);
 
   const i2c_config_t i2c_config = {
     .user_data = chip,
@@ -100,6 +115,22 @@ static void write_register(chip_state_t *chip, uint16_t address, uint8_t value) 
   if (address < STORED_REGISTERS) {
     chip->registers[address] = value;
   }
+
+  // Starting or stopping continuous ranging starts or stops our own clock with it.
+  if (address == REG_SYSRANGE_START) {
+    if (value & 0x02) {
+      uint32_t period_ms = (chip->registers[REG_SYSRANGE_INTERMEASUREMENT_PERIOD] + 1) * 10;
+      timer_start(chip->ranging_timer, period_ms * 1000, true);
+      printf("VL6180X: ranging every %u ms\n", period_ms);
+    } else {
+      timer_stop(chip->ranging_timer);
+    }
+  }
+}
+
+/** One measurement on the sensor's own clock, with the interrupt pin following the result. */
+static void on_ranging_tick(void *user_data) {
+  update_interrupt((chip_state_t *)user_data);
 }
 
 // The interrupt pin asserts while something is closer than the threshold the firmware set, which
@@ -108,7 +139,14 @@ static void update_interrupt(chip_state_t *chip) {
   uint8_t threshold = chip->registers[REG_SYSRANGE_THRESH_LOW];
   bool continuous = (chip->registers[REG_SYSRANGE_START] & 0x02) != 0;
   bool something_near = threshold > 0 && measured_distance(chip) < threshold;
-  pin_write(chip->pin_int, continuous && something_near ? HIGH : LOW);
+  bool assert_interrupt = continuous && something_near;
+
+  if (assert_interrupt != chip->interrupt_asserted) {
+    chip->interrupt_asserted = assert_interrupt;
+    printf("VL6180X: %u mm, threshold %u, INT -> %s\n", measured_distance(chip), threshold,
+           assert_interrupt ? "HIGH" : "LOW");
+  }
+  pin_write(chip->pin_int, assert_interrupt ? HIGH : LOW);
 }
 
 static bool on_i2c_connect(void *user_data, uint32_t address, bool read) {

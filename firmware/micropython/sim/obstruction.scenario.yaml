@@ -1,0 +1,50 @@
+# Something in the way while the lid closes: it reopens, retries, and eventually gives up safely.
+#
+# This is the behaviour the original bin got wrong — it retried a close forever, waiting for a
+# signal that never came. Here the hand is put back in the way on every attempt, so the lid
+# should reopen each time and then latch a fault rather than fight it.
+#
+# MAX_CLOSE_RETRIES is 3, so the fourth obstruction is the one that faults.
+name: obstruction
+version: 1
+author: smartbin
+
+steps:
+  - wait-serial: "smartbin ready"
+  - delay: 500ms
+
+  # Open it with a wave, then get out of the way.
+  - set-control: { part-id: sensorheader, name: distance, value: 60 }
+  - wait-serial: "idle --hand_detected--> opening"
+  - set-control: { part-id: sensorheader, name: distance, value: 200 }
+  - wait-serial: "open --hold_expired--> closing"
+
+  # Attempt 1: block it.
+  - set-control: { part-id: sensorheader, name: distance, value: 60 }
+  - wait-serial: "closing --hand_detected--> obstructed"
+  - set-control: { part-id: sensorheader, name: distance, value: 200 }
+  - wait-serial: "open --hold_expired--> closing"
+
+  # Attempt 2.
+  - set-control: { part-id: sensorheader, name: distance, value: 60 }
+  - wait-serial: "closing --hand_detected--> obstructed"
+  - set-control: { part-id: sensorheader, name: distance, value: 200 }
+  - wait-serial: "open --hold_expired--> closing"
+
+  # Attempt 3.
+  - set-control: { part-id: sensorheader, name: distance, value: 60 }
+  - wait-serial: "closing --hand_detected--> obstructed"
+  - set-control: { part-id: sensorheader, name: distance, value: 200 }
+  - wait-serial: "open --hold_expired--> closing"
+
+  # Attempt 4: out of patience. The lid stops trying and waits for a person.
+  - set-control: { part-id: sensorheader, name: distance, value: 60 }
+  - wait-serial: "obstructed --retry_limit_reached--> fault"
+  - set-control: { part-id: sensorheader, name: distance, value: 200 }
+
+  # A fault is latched: waving does not clear it, a button press does.
+  - delay: 2000ms
+  - set-control: { part-id: btnopen, name: pressed, value: 1 }
+  - wait-serial: "fault --open_pressed--> idle"
+  - set-control: { part-id: btnopen, name: pressed, value: 0 }
+  - delay: 200ms

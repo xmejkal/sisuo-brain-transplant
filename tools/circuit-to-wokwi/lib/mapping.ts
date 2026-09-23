@@ -12,6 +12,8 @@
  * simulation is a simulation quietly lying about the board.
  */
 
+import { board } from "./board";
+
 export interface PartMapping {
   /** Component name, or a pattern for a family of them. */
   match: string | RegExp;
@@ -43,7 +45,7 @@ export interface SkipRule {
  */
 export const BOARD: PartMapping = {
   match: "XIAO",
-  wokwiType: "board-xiao-esp32-c6",
+  wokwiType: board.wokwi_part_type,
   // The design names pins by function; Wokwi names them by silkscreen. This table is the pin map
   // in config.py, read the other way round — and the reason all three stay in step.
   pins: {

@@ -19,9 +19,12 @@ FIRMWARE   := firmware/micropython
 SIM        := $(FIRMWARE)/sim
 CONVERTER  := tools/circuit-to-wokwi
 
-# --- the source of truth -------------------------------------------------------------------
-BOARD_SOURCES   := board.tsx XIAO-ESP32-C6-SMD.tsx
+# --- the sources of truth ------------------------------------------------------------------
+# Which microcontroller this is, in one file. Everything else derives from it — see boards/.
+BOARD_DEFINITION := boards/xiao-esp32-c6.json
+BOARD_SOURCES   := board.tsx XIAO-ESP32-C6-SMD.tsx $(BOARD_DEFINITION)
 CIRCUIT         := dist/board/circuit.json
+BOARD_SPEC      := $(FIRMWARE)/smartbin/board_spec.py
 
 # --- everything derived from it ------------------------------------------------------------
 DIAGRAM         := $(SIM)/diagram.json
@@ -37,15 +40,20 @@ MICROPYTHON_BIN := $(SIM)/micropython-c6.bin
 CHIP_SOURCES    := $(wildcard $(SIM)/chips/*.chip.c)
 CHIP_BINARIES   := $(CHIP_SOURCES:.chip.c=.chip.wasm)
 
-DERIVED := $(CIRCUIT) $(DIAGRAM) $(GERBERS) $(PCB_SVG) $(SCHEMATIC_SVG) $(MODEL_3D) $(CHIP_BINARIES)
+DERIVED := $(BOARD_SPEC) $(CIRCUIT) $(DIAGRAM) $(GERBERS) $(PCB_SVG) $(SCHEMATIC_SVG) $(MODEL_3D) $(CHIP_BINARIES)
 
-.PHONY: all check clean install-hooks flash-image simulate firmware-tests firmware-compiles firmware-simulates \
+.PHONY: all check clean install-hooks flash-image simulate simulate-all board-spec-current firmware-tests firmware-compiles firmware-simulates \
         board-builds pins-agree simulation-matches
 
 all: $(DERIVED)
 	@echo "everything is up to date."
 
 # --- derivations ---------------------------------------------------------------------------
+
+# The firmware cannot read boards/*.json at runtime, so it gets a generated module.
+$(BOARD_SPEC): $(BOARD_DEFINITION) tools/generate-board-spec.py
+	@echo "==> generating the firmware's board facts"
+	@python3 tools/generate-board-spec.py
 
 # The board design is the root: every other artefact below comes from this one file.
 $(CIRCUIT): $(BOARD_SOURCES)
@@ -57,7 +65,7 @@ $(CIRCUIT): $(BOARD_SOURCES)
 	   [print('   -', x.get('message','')[:120]) for x in e[:5]]; sys.exit(1 if e else 0)"
 
 # The simulation is generated from the board, so it cannot describe a different bin.
-$(DIAGRAM): $(CIRCUIT) $(CONVERTER_SRC) $(wildcard $(SIM)/chips/*.chip.json)
+$(DIAGRAM): $(CIRCUIT) $(BOARD_DEFINITION) $(CONVERTER_SRC) $(wildcard $(SIM)/chips/*.chip.json)
 	@echo "==> generating the Wokwi diagram from the board"
 	@cd $(CONVERTER) && bun run cli.ts | sed 's/^/   /'
 
@@ -87,6 +95,20 @@ simulate: $(FLASH_IMAGE) $(DIAGRAM) $(CHIP_BINARIES)
 	   echo "then: echo 'export WOKWI_CLI_TOKEN=wok_...' >> ~/.zshrc"; exit 1; }
 	@cd $(SIM) && wokwi-cli . --scenario lid-cycle.scenario.yaml --timeout 30000
 
+# Every scenario, including the battery configuration, which needs its own flash image.
+simulate-all: $(FLASH_IMAGE) $(DIAGRAM) $(CHIP_BINARIES)
+	@python3 tools/build-flash-image.py --config \
+	  '{"POWER_POLICY":"deep_sleep","SENSOR_STRATEGY":"tof_interrupt","SLEEP_AFTER_MS":3000}' \
+	  flash-deep-sleep.bin > /dev/null
+	@for scenario in lid-cycle wave-to-open obstruction; do \
+	   printf "==> %s\n" "$$scenario"; \
+	   (cd $(SIM) && wokwi-cli . --scenario $$scenario.scenario.yaml --timeout 120000 \
+	      | grep -E "matched|completed|Timeout" | sed 's/^/   /') || exit 1; \
+	 done
+	@printf "==> deep sleep (battery configuration)\n"
+	@cd $(SIM)/deep-sleep && wokwi-cli . --scenario sleep-and-wake.scenario.yaml --timeout 60000 \
+	   | grep -E "matched|completed|Timeout" | sed 's/^/   /'
+
 # Custom chips: C compiled to WASM, only when their source changes.
 $(SIM)/%.chip.wasm: $(SIM)/%.chip.c $(SIM)/%.chip.json
 	@echo "==> compiling custom chip $*"
@@ -110,9 +132,13 @@ $(MODEL_3D): $(CIRCUIT)
 
 # --- verification: changes nothing, fails if anything disagrees -----------------------------
 
-check: firmware-tests firmware-compiles firmware-simulates board-builds pins-agree \
-       simulation-matches
+check: board-spec-current firmware-tests firmware-compiles firmware-simulates board-builds \
+       pins-agree simulation-matches
 	@echo "\neverything is in step."
+
+board-spec-current:
+	@echo "==> the firmware's board facts match the board definition"
+	@python3 tools/generate-board-spec.py --check
 
 firmware-tests:
 	@echo "==> firmware logic (CPython)"

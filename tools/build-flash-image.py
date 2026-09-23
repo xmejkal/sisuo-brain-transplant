@@ -12,11 +12,16 @@ starts at 0x200000 and runs to the end of a 4 MB flash. This writes a littlefs i
 firmware there and concatenates the two.
 
     python3 tools/build-flash-image.py
+    python3 tools/build-flash-image.py --config '{"POWER_POLICY": "deep_sleep"}' other.bin
+
+The second form writes a /config.json into the image, which is how a differently-configured bin
+is simulated without editing config.py.
 
 The littlefs parameters are the ones MicroPython's ESP32 port uses. If they are wrong the
 simulated board boots to a bare REPL with no main.py, which is the symptom to look for.
 """
 
+import json
 import sys
 from pathlib import Path
 
@@ -28,6 +33,11 @@ SIM = FIRMWARE / "sim"
 
 MICROPYTHON_IMAGE = SIM / "micropython-c6.bin"
 OUTPUT_IMAGE = SIM / "flash-with-firmware.bin"
+
+# Settings written into /config.json inside the image, for simulating a bin configured
+# differently from the default — deep sleep, say, which cannot be tested any other way.
+# Only keys in config.CALIBRATABLE are accepted by the firmware.
+CONFIG_OVERRIDES: dict = {}
 
 FLASH_SIZE = 4 * 1024 * 1024        # the XIAO ESP32-C6 has 4 MB
 FILESYSTEM_OFFSET = 0x200000        # where MicroPython looks, per partitions-4MiBplus.csv
@@ -55,7 +65,7 @@ def files_to_include():
     yield FIRMWARE / "boot.py"
 
 
-def build_filesystem() -> bytes:
+def build_filesystem(overrides: dict) -> bytes:
     block_count = (FLASH_SIZE - FILESYSTEM_OFFSET) // BLOCK_SIZE
     filesystem = LittleFS(block_count=block_count, **LITTLEFS_SETTINGS)
     filesystem.mkdir("/smartbin")
@@ -71,6 +81,13 @@ def build_filesystem() -> bytes:
         total += len(content)
         print(f"  {destination:<28} {len(content):>6} bytes")
 
+    if overrides:
+        content = json.dumps(overrides).encode()
+        with filesystem.open("/config.json", "wb") as handle:
+            handle.write(content)
+        total += len(content)
+        print(f"  {'/config.json':<28} {len(content):>6} bytes  {overrides}")
+
     print(f"  {'':<28} {total:>6} bytes in {block_count} blocks of {BLOCK_SIZE}")
     return filesystem.context.buffer
 
@@ -81,8 +98,16 @@ def main() -> int:
         print("download a build from https://micropython.org/download/ESP32_GENERIC_C6/")
         return 1
 
+    overrides = dict(CONFIG_OVERRIDES)
+    output = OUTPUT_IMAGE
+    arguments = sys.argv[1:]
+    if "--config" in arguments:
+        index = arguments.index("--config")
+        overrides = json.loads(arguments[index + 1])
+        output = SIM / arguments[index + 2] if len(arguments) > index + 2 else OUTPUT_IMAGE
+
     print("firmware files:")
-    filesystem = build_filesystem()
+    filesystem = build_filesystem(overrides)
 
     interpreter = MICROPYTHON_IMAGE.read_bytes()
     if len(interpreter) > FILESYSTEM_OFFSET:
@@ -92,10 +117,10 @@ def main() -> int:
     image = bytearray(b"\xff" * FLASH_SIZE)
     image[: len(interpreter)] = interpreter
     image[FILESYSTEM_OFFSET : FILESYSTEM_OFFSET + len(filesystem)] = filesystem
-    OUTPUT_IMAGE.write_bytes(image)
+    output.write_bytes(image)
 
     print(
-        f"\nwrote {OUTPUT_IMAGE.relative_to(REPO)}: "
+        f"\nwrote {output.relative_to(REPO)}: "
         f"{len(image) // 1024} KB "
         f"(MicroPython to {len(interpreter):#x}, filesystem at {FILESYSTEM_OFFSET:#x})"
     )

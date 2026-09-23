@@ -1,0 +1,31 @@
+# A hand waved at the rangefinder opens the lid.
+#
+# This is the path nothing else tests end to end: the firmware's I2C driver talking to the
+# VL6180X chip we wrote, through a simulated I2C bus. `distance` is that chip's control, in
+# millimetres, so waving a hand is one line.
+#
+# The firmware opens for anything between TOF_NEAR_MM and TOF_FAR_MM (30-100 mm by default) seen
+# on two consecutive polls, so 60 is a hand and 200 is an empty room.
+name: wave to open
+version: 1
+author: smartbin
+
+steps:
+  - wait-serial: "smartbin ready"
+  - delay: 500ms
+
+  - set-control:
+      part-id: sensorheader
+      name: distance
+      value: 60
+  - wait-serial: "idle --hand_detected--> opening"
+
+  # Hand withdrawn; the lid should finish opening, wait, and close by itself.
+  - set-control:
+      part-id: sensorheader
+      name: distance
+      value: 200
+  - wait-serial: "opening --stroke_finished--> open"
+  - wait-serial: "open --hold_expired--> closing"
+  - wait-serial: "closing --close_confirmed--> idle"
+  - delay: 200ms

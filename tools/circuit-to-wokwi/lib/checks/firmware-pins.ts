@@ -11,17 +11,9 @@
  * lid does not move.
  */
 
+import { board, labelForGpio } from "../board";
 import { BOARD } from "../mapping";
 import type { Netlist, Problem } from "../types";
-
-/**
- * The XIAO ESP32-C6's silkscreen pins, and the GPIO each one is. This table is the single
- * hardest thing to remember about this board and the easiest to get wrong, which is why it
- * appears once, here, and everything else derives from it.
- */
-export const GPIO_BY_DPIN: Record<string, number> = {
-  D0: 0, D1: 1, D2: 2, D3: 21, D4: 22, D5: 23, D6: 16, D7: 17, D8: 19, D9: 20, D10: 18,
-};
 
 /**
  * Which firmware setting corresponds to which label in the board design.
@@ -62,10 +54,10 @@ export function checkFirmwarePins(configPython: string, netlist: Netlist): Firmw
     const boardLabel = CORRESPONDENCE[setting];
     if (!boardLabel) continue; // a setting with no counterpart on the board
 
-    const dpin = dpinForGpio(gpio);
+    const dpin = labelForGpio(gpio);
     if (!dpin) {
       problems.push({
-        message: `${setting} = GPIO${gpio}, which is not a pin the XIAO brings out`,
+        message: `${setting} = GPIO${gpio}, which ${board.name} does not bring out`,
       });
       continue;
     }
@@ -111,6 +103,3 @@ function boardPinLabels(netlist: Netlist): Set<string> {
   return new Set(board?.pins.map((pin) => pin.name) ?? []);
 }
 
-function dpinForGpio(gpio: number): string | undefined {
-  return Object.entries(GPIO_BY_DPIN).find(([, number]) => number === gpio)?.[0];
-}

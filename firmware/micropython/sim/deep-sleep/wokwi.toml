@@ -1,0 +1,17 @@
+# The same bin, configured for battery use: the rangefinder watches by itself and the chip sleeps.
+#
+# A separate project only because wokwi.toml names one firmware image, and this one carries a
+# /config.json that switches POWER_POLICY to deep_sleep. Everything else — diagram, chips — is
+# the same files as the main simulation.
+[wokwi]
+version = 1
+firmware = "../flash-deep-sleep.bin"
+elf = "../flash-deep-sleep.bin"
+
+[[chip]]
+name = "vl6180x"
+binary = "../chips/vl6180x.chip.wasm"
+
+[[chip]]
+name = "l9110s"
+binary = "../chips/l9110s.chip.wasm"
