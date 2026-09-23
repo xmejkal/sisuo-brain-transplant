@@ -68,6 +68,10 @@ An agent can drive the simulator directly through Wokwi's MCP server, which is t
 
 ## The older notes
 
+**`diagram.json` is generated from `board.tsx`** — do not edit it by hand except to move parts
+around, which `make` preserves. Everything else is overwritten on the next regeneration, on
+purpose: a wiring diagram that disagrees with the board is worse than none.
+
 In the browser, quickest: start from <https://wokwi.com/projects/new/micropython-esp32-c6>, paste
 `diagram.json`, then paste the firmware files.
 

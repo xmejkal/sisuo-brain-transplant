@@ -24,7 +24,7 @@ BOARD_SOURCES   := board.tsx XIAO-ESP32-C6-SMD.tsx
 CIRCUIT         := dist/board/circuit.json
 
 # --- everything derived from it ------------------------------------------------------------
-DIAGRAM         := $(SIM)/diagram.generated.json
+DIAGRAM         := $(SIM)/diagram.json
 GERBERS         := board-gerbers.zip
 PCB_SVG         := board-pcb-routed.svg
 SCHEMATIC_SVG   := board-sch.svg

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "author": "smartbin",
+  "author": "generated from board.tsx",
   "editor": "wokwi",
   "parts": [
     {
@@ -11,189 +11,163 @@
       "attrs": {}
     },
     {
-      "type": "wokwi-pushbutton",
-      "id": "btn_open",
-      "top": 120,
-      "left": -120,
-      "attrs": {
-        "color": "green",
-        "label": "OPEN"
-      }
-    },
-    {
-      "type": "wokwi-pushbutton",
-      "id": "btn_mode",
-      "top": 180,
-      "left": -120,
-      "attrs": {
-        "color": "blue",
-        "label": "MODE"
-      }
-    },
-    {
-      "type": "wokwi-led",
-      "id": "led_red",
-      "top": 120,
-      "left": 160,
-      "attrs": {
-        "color": "red",
-        "label": "status R"
-      }
-    },
-    {
-      "type": "wokwi-led",
-      "id": "led_green",
-      "top": 180,
-      "left": 160,
-      "attrs": {
-        "color": "green",
-        "label": "status G"
-      }
-    },
-    {
-      "type": "wokwi-resistor",
-      "id": "r_red",
-      "top": 140,
-      "left": 120,
-      "attrs": {
-        "value": "330"
-      }
-    },
-    {
-      "type": "wokwi-resistor",
-      "id": "r_green",
-      "top": 200,
-      "left": 120,
-      "attrs": {
-        "value": "330"
-      }
+      "type": "chip-l9110s",
+      "id": "motordriver",
+      "top": 0,
+      "left": -268.8,
+      "attrs": {}
     },
     {
       "type": "chip-vl6180x",
-      "id": "tof",
-      "top": -60,
-      "left": 200,
+      "id": "sensorheader",
+      "top": 0,
+      "left": 182.4,
       "attrs": {
         "distance": "200"
       }
     },
     {
-      "type": "chip-l9110s",
-      "id": "motor",
-      "top": 260,
-      "left": -160,
+      "type": "wokwi-rgb-led",
+      "id": "statusled",
+      "top": 96,
+      "left": 182.4,
       "attrs": {}
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "redresistor",
+      "top": 201.6,
+      "left": 182.4,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "greenresistor",
+      "top": 259.2,
+      "left": 182.4,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btnopen",
+      "top": 96,
+      "left": -268.8,
+      "attrs": {
+        "color": "green"
+      }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btnmode",
+      "top": 172.79999999999998,
+      "left": -268.8,
+      "attrs": {
+        "color": "green"
+      }
     }
   ],
   "connections": [
     [
-      "btn_open:1.l",
-      "xiao:D1",
+      "xiao:D3",
+      "motordriver:IA",
       "green",
       []
     ],
     [
-      "btn_open:2.l",
-      "xiao:GND",
-      "black",
-      []
-    ],
-    [
-      "btn_mode:1.l",
-      "xiao:D6",
-      "blue",
-      []
-    ],
-    [
-      "btn_mode:2.l",
-      "xiao:GND",
-      "black",
-      []
-    ],
-    [
-      "xiao:D7",
-      "r_red:1",
-      "red",
-      []
-    ],
-    [
-      "r_red:2",
-      "led_red:A",
-      "red",
-      []
-    ],
-    [
-      "led_red:C",
-      "xiao:GND",
-      "black",
-      []
-    ],
-    [
-      "xiao:D10",
-      "r_green:1",
+      "xiao:D8",
+      "motordriver:IB",
       "green",
       []
     ],
     [
-      "r_green:2",
-      "led_green:A",
+      "xiao:D2",
+      "motordriver:GND",
       "green",
-      []
-    ],
-    [
-      "led_green:C",
-      "xiao:GND",
-      "black",
       []
     ],
     [
       "xiao:D4",
-      "tof:SDA",
+      "sensorheader:SDA",
       "green",
       []
     ],
     [
       "xiao:D5",
-      "tof:SCL",
+      "sensorheader:SCL",
       "green",
       []
     ],
     [
       "xiao:D0",
-      "tof:INT",
-      "orange",
+      "sensorheader:INT",
+      "green",
       []
     ],
     [
-      "tof:GND",
-      "xiao:GND",
-      "black",
-      []
-    ],
-    [
-      "tof:VIN",
       "xiao:3V3",
+      "sensorheader:VIN",
       "red",
       []
     ],
     [
-      "xiao:D3",
-      "motor:IA",
-      "yellow",
+      "xiao:D1",
+      "btnopen:1.l",
+      "green",
       []
     ],
     [
-      "xiao:D8",
-      "motor:IB",
-      "yellow",
+      "xiao:D6",
+      "btnmode:1.l",
+      "green",
       []
     ],
     [
-      "motor:GND",
+      "xiao:D7",
+      "redresistor:1",
+      "green",
+      []
+    ],
+    [
+      "redresistor:2",
+      "statusled:R",
+      "green",
+      []
+    ],
+    [
+      "xiao:D10",
+      "greenresistor:1",
+      "green",
+      []
+    ],
+    [
+      "greenresistor:2",
+      "statusled:G",
+      "green",
+      []
+    ],
+    [
       "xiao:GND",
+      "statusled:COM",
+      "black",
+      []
+    ],
+    [
+      "xiao:GND",
+      "btnmode:2.l",
+      "black",
+      []
+    ],
+    [
+      "xiao:GND",
+      "btnopen:2.l",
+      "black",
+      []
+    ],
+    [
+      "xiao:GND",
+      "sensorheader:GND",
       "black",
       []
     ]
-  ],
-  "dependencies": {}
+  ]
 }

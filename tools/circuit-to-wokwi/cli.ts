@@ -17,7 +17,7 @@ import { ConversionFailed } from "./lib/types";
 import { validate } from "./lib/validate";
 
 const DEFAULT_CIRCUIT = "../../dist/board/circuit.json";
-const DEFAULT_OUT = "../../firmware/micropython/sim/diagram.generated.json";
+const DEFAULT_OUT = "../../firmware/micropython/sim/diagram.json";
 const DEFAULT_CHIPS = "../../firmware/micropython/sim/chips";
 
 interface Options {
