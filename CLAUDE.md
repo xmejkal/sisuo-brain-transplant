@@ -52,14 +52,25 @@ Check routing/DRC from circuit.json (not just CLI): count `pcb_trace` and `pcb_*
 OO package with a **state machine** at its core. Design + rationale: `FIRMWARE_PLAN.md`;
 bench/calibration/deploy: `firmware/micropython/README.md`. Arduino v1 kept only as reference.
 - `smartbin/states.py` = states + triggers + TRANSITIONS table — the behaviour, as data.
-- Strategies: sensor (`TofSensor`/`IrBurstSensor`/`ButtonOnlySensor`), close detection
-  (`Timed`/`LimitSwitch`/`Stall`). Chosen in `config.py`, built in `smartbin/__init__.py`.
+- Strategies are named for the JOB first, implementation in the subclass: `ProximitySensor`
+  (TimeOfFlight / SelfRangingTimeOfFlight / InfraredBurst / ButtonOnly), `CloseDetector`
+  (Timed / LimitSwitch / MotorStall), `PowerPolicy` (StayAwake / DeepSleep), `MotorDriver`
+  (L9110), `Player` (Dfr0534 / Silent). Chosen by config strings, built in `smartbin/factory.py`.
+- `hardware.py` builds peripherals (the only `machine` importer besides `platform.py`);
+  `platform.py` holds ESP32-C6 facts (wake pins, deep sleep, watchdog).
 - Events = "entered:<state>", published by the FSM; `AudioFeedback`/`LedFeedback` are listeners.
   Sounds are data (`config.SOUND_PROFILES`), MODE button cycles profiles into `/config.json`.
 - `build()` constructs and starts nothing; `run()` starts the loop; `main.py` is 2 lines.
-  `aiorepl` gives a live REPL while it runs. Tests: `python3 -m unittest discover -s tests -t tests`.
+  `aiorepl` gives a live REPL while it runs (the bin is `b`). Deploy: `./deploy.sh`.
+  Calibrate: `tools/calibrate.py` (stroke times, ToF offset/crosstalk/range-ignore, stall).
+  Tests: `python3 -m unittest discover -s tests -t tests` (39, incl. one on real asyncio).
 - Safety: hard `MOTOR_MAX_RUN_MS` inside the motion loop, motor stop in `finally` + on every
-  transition out, WDT only in `run()`, **10k pulldowns on both L9110S inputs** (hardware).
+  transition out, WDT only in `run()` (default OFF — it survives Ctrl-C and would reset you at
+  the REPL), **10k pulldowns on both L9110S inputs** (hardware).
+- **A task cannot cancel itself in MicroPython** (`RuntimeError("can't cancel self")`), and every
+  stroke does exactly that when it fires the trigger that transitions away — `lid._cancel_safely`
+  tolerates it. The test fakes model this on purpose; do not "simplify" them.
+- `/config.json` overrides only `config.CALIBRATABLE` keys (never pins), written atomically.
 
 ### Pin map v2 (GPIO in brackets) — supersedes the v1 map above
 **Only GPIO0-7 wake an ESP32-C6 from deep sleep = D0/D1/D2 only.** They are spent accordingly:

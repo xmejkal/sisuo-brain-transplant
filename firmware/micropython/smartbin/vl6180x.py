@@ -18,6 +18,7 @@ safe on 3.3 V; a bare board may not be.
 """
 
 from . import log
+from .compat import sleep_ms
 
 DEFAULT_ADDRESS = 0x29
 MODEL_ID = 0xB4
@@ -41,6 +42,21 @@ _RESULT_RANGE_STATUS = 0x04D
 _RESULT_INTERRUPT_STATUS_GPIO = 0x04F
 _RESULT_RANGE_VAL = 0x062
 _RESULT_RANGE_RETURN_RATE = 0x066
+
+# Command and mask values, named so the register writes below can be read without the datasheet.
+_START_SINGLE = 0x01
+_START_CONTINUOUS = 0x03          # continuous bit + start bit
+_CONTINUOUS_RUNNING_BIT = 0x02
+_INTERRUPT_CLEAR_ALL = 0x07
+_INTERRUPT_STATUS_MASK = 0x07
+_INTERRUPT_NEW_SAMPLE_READY = 0x04
+_RANGE_STATUS_ERROR_SHIFT = 4
+_GPIO1_INTERRUPT_ACTIVE_HIGH = 0x30
+_GPIO1_INTERRUPT_ACTIVE_LOW = 0x10
+_THRESHOLD_HIGH_DISABLED = 0xFF
+_RANGE_CHECK_ENABLE_IGNORE = 0x02
+_INTERMEASUREMENT_STEP_MS = 10    # the period register counts in 10 ms units
+_INTERMEASUREMENT_MAX_STEPS = 254
 
 # Range status codes worth naming; anything non-zero means "do not trust the number".
 ERROR_NONE = 0
@@ -90,10 +106,12 @@ class RangeError(Exception):
 class VL6180X:
     """Single-shot ranging driver. `i2c` is a machine.I2C; reads raise OSError if it is unwired."""
 
-    def __init__(self, i2c, address=DEFAULT_ADDRESS, offset=None, poll_limit=100):
+    def __init__(self, i2c, address=DEFAULT_ADDRESS, offset=None, sample_poll_limit=100):
         self._i2c = i2c
         self._address = address
-        self._poll_limit = poll_limit
+        # One poll per millisecond, so this is also the timeout in ms. Bounded because this runs
+        # inside the lid's event loop and must never hang it.
+        self._sample_poll_limit = sample_poll_limit
 
         model = self._read8(_IDENTIFICATION_MODEL_ID)
         if model != MODEL_ID:
@@ -141,22 +159,23 @@ class VL6180X:
         Polling is bounded: a sensor that never signals "ready" raises rather than hanging the
         firmware, which matters because this runs inside the lid's event loop.
         """
-        self._write8(_SYSRANGE_START, 0x01)
+        self._write8(_SYSRANGE_START, _START_SINGLE)
 
-        for _ in range(self._poll_limit):
-            if self._read8(_RESULT_INTERRUPT_STATUS_GPIO) & 0x04:
+        for _ in range(self._sample_poll_limit):
+            status_flags = self._read8(_RESULT_INTERRUPT_STATUS_GPIO) & _INTERRUPT_STATUS_MASK
+            if status_flags == _INTERRUPT_NEW_SAMPLE_READY:
                 break
-            _sleep_ms(1)
+            sleep_ms(1)
         else:
             raise OSError("VL6180X timed out waiting for a sample")
 
-        distance = self._read8(_RESULT_RANGE_VAL)
-        status = self._read8(_RESULT_RANGE_STATUS) >> 4
-        self._write8(_SYSTEM_INTERRUPT_CLEAR, 0x07)
+        distance_mm = self._read8(_RESULT_RANGE_VAL)
+        status = self._read8(_RESULT_RANGE_STATUS) >> _RANGE_STATUS_ERROR_SHIFT
+        self.clear_interrupt()
 
         if status != ERROR_NONE:
             raise RangeError(status)
-        return distance
+        return distance_mm
 
     def range_or_none(self):
         """`range()` without the exception — None when the reading is not trustworthy."""
@@ -184,10 +203,13 @@ class VL6180X:
         open-drain: asserted-high relies on the breakout's pull-up (both Adafruit and Pololu have
         one, to 2.8 V, which clears the C6's input threshold).
         """
-        self._write8(_SYSTEM_MODE_GPIO1, 0x30 if active_high else 0x10)
+        self._write8(
+            _SYSTEM_MODE_GPIO1,
+            _GPIO1_INTERRUPT_ACTIVE_HIGH if active_high else _GPIO1_INTERRUPT_ACTIVE_LOW,
+        )
         self._write8(_SYSTEM_GROUPED_PARAMETER_HOLD, 0x01)
         self._write8(_SYSRANGE_THRESH_LOW, threshold_low_mm & 0xFF)
-        self._write8(_SYSRANGE_THRESH_HIGH, 0xFF)
+        self._write8(_SYSRANGE_THRESH_HIGH, _THRESHOLD_HIGH_DISABLED)
         self._write8(_SYSTEM_INTERRUPT_CONFIG, mode)
         self._write8(_SYSTEM_GROUPED_PARAMETER_HOLD, 0x00)
         self.clear_interrupt()
@@ -198,19 +220,20 @@ class VL6180X:
         1.7 mA at 10 Hz, scaling down with rate, so ~340 uA at 500 ms and ~170 uA at 1 s.
         Maximum is 2550 ms.
         """
-        self._write8(_SYSRANGE_INTERMEASUREMENT_PERIOD, max(0, min(254, period_ms // 10)))
-        self._write8(_SYSRANGE_START, 0x03)
+        steps = max(0, min(_INTERMEASUREMENT_MAX_STEPS, period_ms // _INTERMEASUREMENT_STEP_MS))
+        self._write8(_SYSRANGE_INTERMEASUREMENT_PERIOD, steps)
+        self._write8(_SYSRANGE_START, _START_CONTINUOUS)
 
     def stop_continuous(self):
-        if self._read8(_SYSRANGE_START) & 0x02:
-            self._write8(_SYSRANGE_START, 0x01)
+        if self._read8(_SYSRANGE_START) & _CONTINUOUS_RUNNING_BIT:
+            self._write8(_SYSRANGE_START, _START_SINGLE)
 
-    def interrupt_pending(self):
-        return bool(self._read8(_RESULT_INTERRUPT_STATUS_GPIO) & 0x07)
+    def has_interrupt_pending(self):
+        return bool(self._read8(_RESULT_INTERRUPT_STATUS_GPIO) & _INTERRUPT_STATUS_MASK)
 
     def clear_interrupt(self):
         """The interrupt latches until this is called, so it always follows a wake."""
-        self._write8(_SYSTEM_INTERRUPT_CLEAR, 0x07)
+        self._write8(_SYSTEM_INTERRUPT_CLEAR, _INTERRUPT_CLEAR_ALL)
 
     def last_range(self):
         """The most recent continuous-mode reading, without starting a new measurement."""
@@ -219,8 +242,7 @@ class VL6180X:
     # ----------------------------------------------------------------- calibration
     @property
     def offset(self):
-        value = self._read8(_SYSRANGE_PART_TO_PART_RANGE_OFFSET)
-        return value - 256 if value > 127 else value
+        return _as_signed_byte(self._read8(_SYSRANGE_PART_TO_PART_RANGE_OFFSET))
 
     @offset.setter
     def offset(self, millimetres):
@@ -245,12 +267,11 @@ class VL6180X:
         enables = self._read8(_SYSRANGE_RANGE_CHECK_ENABLES)
         if threshold_fixed_point:
             self._write16(_SYSRANGE_RANGE_IGNORE_THRESHOLD, threshold_fixed_point)
-            self._write8(_SYSRANGE_RANGE_CHECK_ENABLES, enables | 0x02)
+            self._write8(_SYSRANGE_RANGE_CHECK_ENABLES, enables | _RANGE_CHECK_ENABLE_IGNORE)
         else:
-            self._write8(_SYSRANGE_RANGE_CHECK_ENABLES, enables & ~0x02)
+            self._write8(_SYSRANGE_RANGE_CHECK_ENABLES, enables & ~_RANGE_CHECK_ENABLE_IGNORE)
 
 
-def _sleep_ms(milliseconds):
-    from .compat import sleep_ms
-
-    sleep_ms(milliseconds)
+def _as_signed_byte(value):
+    """The offset register holds a signed 8-bit value in two's complement."""
+    return value - 256 if value > 127 else value

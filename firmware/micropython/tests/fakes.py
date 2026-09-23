@@ -16,16 +16,16 @@ class FakeClock:
     """A clock that only moves when the test says so."""
 
     def __init__(self):
-        self.millis = 0
+        self._now_ms = 0
 
     def now_ms(self):
-        return self.millis
+        return self._now_ms
 
     def elapsed_ms(self, since):
-        return self.millis - since
+        return self._now_ms - since
 
     def advance(self, milliseconds):
-        self.millis += milliseconds
+        self._now_ms += milliseconds
 
 
 class FakeMotor:
@@ -41,20 +41,20 @@ class FakeMotor:
     def is_running(self):
         return self.running_since is not None
 
-    def drive(self, open_direction, speed):
-        self.calls.append(("drive", open_direction, speed))
+    def drive(self, opening, speed):
+        self.calls.append(("drive", opening, speed))
         if self.running_since is None:
             self.running_since = self._clock.now_ms()
 
     def stop(self):
         self.calls.append(("stop",))
-        self._note_run()
+        self._record_run_length()
 
     def brake(self):
         self.calls.append(("brake",))
-        self._note_run()
+        self._record_run_length()
 
-    def _note_run(self):
+    def _record_run_length(self):
         if self.running_since is not None:
             run = self._clock.now_ms() - self.running_since
             self.longest_run_ms = max(self.longest_run_ms, run)
@@ -80,9 +80,13 @@ class StepRunner:
         return _SleepUntil(self._clock, milliseconds)
 
     def spawn(self, coroutine):
+        """
+        Like `asyncio.create_task`: the coroutine is scheduled but does NOT start running yet.
+        (An earlier version ran it to its first await here, which reversed motor stop/start
+        ordering compared with the device and made an obstruction test pass for the wrong reason.)
+        """
         task = _Task(coroutine)
         self._tasks.append(task)
-        task.step()  # run up to the first await, as create_task effectively does
         return task
 
     def step(self, milliseconds=10):
@@ -119,28 +123,46 @@ class _Task:
         self.done = False
         self.cancelled = False
 
+    running = None  # the task currently being stepped, so cancel() can refuse to cancel it
+
     def step(self):
         if self.done or self.cancelled:
             return
+        previous, _Task.running = _Task.running, self
         try:
             self._coroutine.send(None)
         except StopIteration:
             self.done = True
+        finally:
+            _Task.running = previous
 
     def cancel(self):
         """
-        Mirror asyncio: cancelling a task that is *currently running* (a stroke cancels itself
-        when it fires the trigger that transitions away) does not tear it down underneath itself.
-        Real asyncio defers to the next await; here the coroutine is about to return anyway, and
-        its `finally` — the one that stops the motor — runs as it does.
+        Mirrors MicroPython's `Task.cancel()`, including the part that matters most:
+        **cancelling the currently-running task raises `RuntimeError("can't cancel self")`**.
+
+        A stroke cancels itself whenever it fires the trigger that transitions the lid away, so
+        any code path that does not tolerate this is broken on the device. The fake used to
+        swallow it, which hid exactly that bug.
         """
         if self.done or self.cancelled:
             return
+        if self is _Task.running:
+            raise RuntimeError("can't cancel self")
         self.cancelled = True
-        try:
-            self._coroutine.close()
-        except ValueError:
-            pass  # "coroutine already executing": it will unwind on its own
+        self._coroutine.close()
+
+
+class FakePin:
+    """A pin whose level the test sets. `value()` matches machine.Pin's read form."""
+
+    def __init__(self, level=1):
+        self.level = level
+
+    def value(self, new_level=None):
+        if new_level is not None:
+            self.level = new_level
+        return self.level
 
 
 class FakeConfig:
@@ -154,6 +176,9 @@ class FakeConfig:
     MOTOR_CLOSE_SPEED = 200
     MAX_CLOSE_RETRIES = 3
     MOTION_POLL_MS = 10
+    SENSOR_CONSECUTIVE_HITS = 2
+    SENSOR_COOLDOWN_MS = 1500
+    BUTTON_DEBOUNCE_MS = 40
 
 
 class RecordingListener:
@@ -164,3 +189,17 @@ class RecordingListener:
 
     def __call__(self, event, **data):
         self.events.append(event)
+
+
+class FakeCloseDetector:
+    """Test double for a CloseDetector: set `.is_shut` to choose the answer."""
+
+    def __init__(self, is_shut=False):
+        self.is_shut = is_shut
+        self.starts = 0
+
+    def start(self):
+        self.starts += 1
+
+    def is_closed(self, elapsed_ms):
+        return self.is_shut

@@ -16,10 +16,10 @@ same numbers, which is the single easiest mistake to make on this board.
 import json
 
 # ----------------------------------------------------------------- which parts are fitted
-SENSOR = "tof"              # "tof" (polled I2C) | "tof_interrupt" (sensor watches, can wake the
-                            #   chip from deep sleep) | "ir" | "none" (buttons only)
-POWER = "always_on"         # "always_on" (bench, USB) | "deep_sleep" (battery)
-CLOSE_DETECT = "timed"      # "timed" | "limit" (microswitch) | "stall" (shunt + ADC)
+SENSOR_STRATEGY = "tof"     # "tof" (polled I2C) | "tof_interrupt" (the sensor watches by itself
+                            #   and can wake the chip) | "ir" | "none" (buttons only)
+POWER_POLICY = "always_on"  # "always_on" (bench, USB) | "deep_sleep" (battery)
+CLOSE_DETECTOR = "timed"    # "timed" | "limit" (microswitch) | "stall" (shunt + ADC)
 AUDIO_ENABLED = True
 REPL_ENABLED = True         # live REPL via aiorepl while the bin runs
 LOG_EVENTS = True
@@ -58,7 +58,7 @@ MOTION_POLL_MS = 10
 SENSOR_POLL_MS = 60         # ~16 Hz; comfortably inside the VL6180X's measurement rate
 BUTTON_POLL_MS = 20
 BUTTON_DEBOUNCE_MS = 40
-SENSOR_CONSECUTIVE = 2      # detections in a row before the lid reacts
+SENSOR_CONSECUTIVE_HITS = 2  # detections in a row before the lid reacts
 SENSOR_COOLDOWN_MS = 1500   # ignore the sensor for this long after acting
 
 TOF_INTERRUPT_PERIOD_MS = 500   # how often the sensor ranges by itself while the chip sleeps;
@@ -69,12 +69,15 @@ TOF_FAR_MM = 100            # the datasheet guarantees 100 mm; do not raise this
 TOF_OFFSET_MM = None        # from the offset calibration, once mounted behind the window
 TOF_CROSSTALK = None        # 9.7 fixed point, from the crosstalk calibration
 TOF_RANGE_IGNORE = None     # >= 1.2x crosstalk; stops the window reading as a hand
+TOF_MAX_FAILURES = 10       # unreadable this many times in a row -> the bin faults
 
 IR_CARRIER_HZ = 38000
 IR_BURST_US = 600
 
-STALL_COUNTS = 12000        # raw ADC counts at stall; measure with bringup/07_stall.py
+STALL_COUNTS = 12000        # raw ADC counts at stall; measure with tools/calibrate.py
 STALL_BLANKING_MS = 200     # ignore start-up inrush
+STALL_SAMPLES = 8           # ADC reads averaged per check (the C6's ADC is noisy)
+STALL_CONSECUTIVE_HITS = 3  # checks above the threshold before believing it
 
 # ----------------------------------------------------------------- audio
 VOLUME = 22                 # 0-30
@@ -91,48 +94,132 @@ SOUND_PROFILES = {
 # ----------------------------------------------------------------- power
 IDLE_TICK_MS = 200          # how often the power policy gets a say
 SLEEP_AFTER_MS = 30000      # idle this long -> deep sleep (deep_sleep policy only)
+SLEEP_AFTER_FAULT_MS = 300000   # a faulted bin sleeps too, just later (5 min of visible red)
+
+# All deep-sleep wake sources share one polarity, because the chip applies one level to all of
+# them. True means every wake signal must idle LOW and go HIGH to wake: buttons wired to 3V3
+# with pull-downs, and the ToF interrupt configured active-high. False means the opposite, which
+# suits ground-wired buttons but hits an open MicroPython bug on this chip (#17334, "stuck pin").
+# Whichever you choose, the wiring and this flag must agree or the bin wakes instantly, forever.
+WAKE_ON_HIGH = True
 
 # ----------------------------------------------------------------- housekeeping
 I2C_FREQ_HZ = 400000
 MP3_UART_ID = 1
 MP3_BAUD = 9600
-FAULT_BLINK_MS = 400
-WATCHDOG_MS = 8000          # 0 disables. Started only by run(), never by build().
+FAULT_BLINK_MS = 400        # blink period while faulted
+FAULT_IDLE_POLL_MS = 800    # how often the blinker checks whether a fault has appeared
+# 0 disables. The watchdog cannot be stopped once started and survives Ctrl-C, so a board left
+# at the REPL would reset every few seconds: keep it off by default and enable it in
+# /config.json on the deployed bin.
+WATCHDOG_MS = 0
 WATCHDOG_FEED_MS = 2000
 
 OVERLAY_PATH = "/config.json"
+OVERLAY_TEMP_PATH = "/config.json.tmp"
+
+# Only these may be overridden per unit. Everything else — pin numbers above all — is design,
+# and a calibration file has no business repointing the motor or raising the safety cap.
+CALIBRATABLE = (
+    "LID_OPEN_RUN_MS", "LID_CLOSE_RUN_MS", "LID_OPEN_HOLD_MS",
+    "MOTOR_OPEN_SPEED", "MOTOR_CLOSE_SPEED",
+    "TOF_NEAR_MM", "TOF_FAR_MM", "TOF_OFFSET_MM", "TOF_CROSSTALK", "TOF_RANGE_IGNORE",
+    "TOF_INTERRUPT_PERIOD_MS",
+    "STALL_COUNTS", "STALL_BLANKING_MS",
+    "SENSOR_CONSECUTIVE_HITS", "SENSOR_COOLDOWN_MS",
+    "ACTIVE_PROFILE", "VOLUME",
+    "SENSOR_STRATEGY", "CLOSE_DETECTOR", "POWER_POLICY",
+    "SLEEP_AFTER_MS", "WATCHDOG_MS", "LOG_EVENTS",
+)
 
 
-def _apply_overlay():
-    """Let /config.json override any constant above. Missing or broken file: keep the defaults."""
+def _load_overlay():
+    """
+    Read /config.json and apply the keys it is allowed to change.
+
+    A missing file is the normal case on a fresh board. A corrupt one is reported rather than
+    silently ignored, because the alternative is a bin that quietly reverts to uncalibrated
+    defaults and behaves oddly for reasons nobody can see.
+    """
     try:
         with open(OVERLAY_PATH) as overlay_file:
             overlay = json.load(overlay_file)
-    except (OSError, ValueError):
+    except OSError:
+        return {}
+    except ValueError as exception:
+        print("W config: /config.json is corrupt, using defaults:", exception)
         return {}
 
-    globals_dict = globals()
+    accepted = {}
     for key, value in overlay.items():
-        if key in globals_dict:
-            globals_dict[key] = value
-    return overlay
+        if key not in CALIBRATABLE:
+            print("W config: ignoring %s from /config.json (not calibratable)" % key)
+            continue
+        globals()[key] = value
+        accepted[key] = value
+    return accepted
 
 
-_OVERLAY = _apply_overlay()
+_OVERLAY = _load_overlay()
 
 
-def save(values):
+def save(overrides):
     """
     Persist calibration or a setting choice to /config.json, merging with what is there.
 
-    Used by the MODE button to remember the sound profile, and by the bench calibration helpers.
+    Written to a temporary file and renamed, so losing power mid-write cannot leave a truncated
+    file that reverts the bin to defaults on the next boot.
     """
-    _OVERLAY.update(values)
-    globals().update(values)
-    try:
-        with open(OVERLAY_PATH, "w") as overlay_file:
-            json.dump(_OVERLAY, overlay_file)
-        return True
-    except OSError as exception:
-        print("could not save config:", exception)
+    rejected = [key for key in overrides if key not in CALIBRATABLE]
+    if rejected:
+        print("W config: refusing to save non-calibratable keys:", rejected)
+        overrides = {k: v for k, v in overrides.items() if k in CALIBRATABLE}
+    if not overrides:
         return False
+
+    merged = dict(_OVERLAY)
+    merged.update(overrides)
+    try:
+        with open(OVERLAY_TEMP_PATH, "w") as overlay_file:
+            json.dump(merged, overlay_file)
+        _rename(OVERLAY_TEMP_PATH, OVERLAY_PATH)
+    except OSError as exception:
+        print("E config: could not save:", exception)
+        return False
+
+    _OVERLAY.update(overrides)
+    globals().update(overrides)
+    return True
+
+
+def forget(key):
+    """Drop a calibrated value so the default in this file applies again after a restart."""
+    if key not in _OVERLAY:
+        return False
+    merged = dict(_OVERLAY)
+    del merged[key]
+    try:
+        with open(OVERLAY_TEMP_PATH, "w") as overlay_file:
+            json.dump(merged, overlay_file)
+        _rename(OVERLAY_TEMP_PATH, OVERLAY_PATH)
+    except OSError as exception:
+        print("E config: could not save:", exception)
+        return False
+    del _OVERLAY[key]
+    print("I config: %s forgotten; restart to use the default" % key)
+    return True
+
+
+def calibration():
+    """What this particular bin has been taught, as opposed to what the design says."""
+    return dict(_OVERLAY)
+
+
+def _rename(source, destination):
+    import os
+
+    try:
+        os.remove(destination)
+    except OSError:
+        pass
+    os.rename(source, destination)

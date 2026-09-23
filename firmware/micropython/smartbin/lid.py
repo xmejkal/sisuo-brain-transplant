@@ -2,12 +2,13 @@
 The lid: the state machine's hooks, and the motion that runs between transitions.
 
 The split that keeps this honest — the state machine decides *what* state we are in, and the
-coroutines here only drive the motor and report what happened (`STROKE_DONE`, `CAP_TRIPPED`,
-`CLOSED_CONFIRMED`). No motion decides where to go next; the table in states.py does.
+coroutines here only drive the motor and report what happened (`STROKE_FINISHED`,
+`SAFETY_CAP_TRIPPED`, `CLOSE_CONFIRMED`). No motion decides where to go next; the table in
+states.py does.
 
 The safety cap lives here, inside the motion loop, and is checked before anything else. It is not
 a policy a detector can override: whatever the sensors say, the motor stops after
-`MOTOR_MAX_RUN_MS`. The `finally` stops it again if the task is cancelled or raises.
+`MOTOR_MAX_RUN_MS`. The `finally` stops it again if the stroke is cancelled or raises.
 """
 
 from . import compat, fsm, log, states
@@ -19,8 +20,8 @@ class Lid:
     Owns the lid's state machine, the motor and the close detector.
 
     `clock`, `spawn` and `sleep` are injected so the tests can run the real state machine with no
-    event loop and no waiting: a clock that jumps, a task runner that steps by hand, and a sleep
-    that yields once. On the device they default to asyncio and real ticks.
+    event loop and no waiting: a clock that jumps, a task runner stepped by hand, and a sleep
+    that yields. On the device they default to asyncio and real ticks.
     """
 
     def __init__(self, motor, close_detector, config, bus, clock=None, spawn=None, sleep=None):
@@ -32,7 +33,7 @@ class Lid:
         self._sleep = sleep or async_sleep_ms
         self._motion_task = None
         self._hold_task = None
-        self._retries = 0
+        self._failed_close_attempts = 0
 
         self.machine = fsm.StateMachine(
             states.TRANSITIONS, states.IDLE, bus=bus, clock=self._clock, name="lid"
@@ -49,116 +50,130 @@ class Lid:
         return self.machine.history
 
     @property
-    def retries(self):
-        return self._retries
+    def failed_close_attempts(self):
+        """How many times the current close has been obstructed; reset by reaching IDLE."""
+        return self._failed_close_attempts
 
-    def fire(self, trigger, **data):
+    def fire(self, trigger, **event_data):
         """Drive the machine by hand — how you test behaviour with no sensor connected."""
-        return self.machine.fire(trigger, **data)
+        return self.machine.fire(trigger, **event_data)
 
     # ----------------------------------------------------------------- hooks
     def _register_hooks(self):
-        self.machine.on_enter(states.IDLE, self._enter_idle)
-        self.machine.on_enter(states.OPENING, self._enter_opening)
-        self.machine.on_enter(states.OPEN, self._enter_open)
-        self.machine.on_exit(states.OPEN, self._cancel_hold)
-        self.machine.on_enter(states.CLOSING, self._enter_closing)
-        self.machine.on_enter(states.OBSTRUCTED, self._enter_obstructed)
-        self.machine.on_enter(states.FAULT, self._enter_fault)
-        for state in states.MOVING_STATES:
-            self.machine.on_exit(state, self._cancel_motion)
+        self.machine.on_enter(states.IDLE, self._on_idle)
+        self.machine.on_enter(states.OPENING, self._on_opening)
+        self.machine.on_enter(states.OPEN, self._on_open)
+        self.machine.on_exit(states.OPEN, self._cancel_hold_timer)
+        self.machine.on_enter(states.CLOSING, self._on_closing)
+        self.machine.on_enter(states.OBSTRUCTED, self._on_obstructed)
+        self.machine.on_enter(states.FAULT, self._on_fault)
+        for state in states.STATES_WITH_MOTION:
+            self.machine.on_exit(state, self._cancel_stroke)
 
-    def _enter_idle(self):
-        self._retries = 0
+    def _on_idle(self):
+        self._failed_close_attempts = 0
         self._motor.stop()
 
-    def _enter_opening(self):
-        self._start_motion(open_direction=True, run_ms=self._config.LID_OPEN_RUN_MS)
+    def _on_opening(self):
+        self._start_stroke(opening=True, run_ms=self._config.LID_OPEN_RUN_MS)
 
-    def _enter_open(self):
+    def _on_open(self):
         self._motor.stop()
-        self._cancel_hold()
-        self._hold_task = self._spawn(self._hold())
+        self._cancel_hold_timer()
+        self._hold_task = self._spawn(self._hold_then_close())
 
-    def _enter_closing(self):
+    def _on_closing(self):
         self._close_detector.start()
-        self._start_motion(
-            open_direction=False,
+        self._start_stroke(
+            opening=False,
             run_ms=self._config.LID_CLOSE_RUN_MS,
-            detector=self._close_detector,
+            close_detector=self._close_detector,
         )
 
-    def _enter_obstructed(self):
-        self._retries += 1
-        if self._retries > self._config.MAX_CLOSE_RETRIES:
-            log.warn("lid: %d close attempts failed; faulting", self._retries)
-            # Queued by the machine: we are inside a transition right now.
-            self.machine.fire(states.RETRY_EXHAUSTED)
+    def _on_obstructed(self):
+        self._failed_close_attempts += 1
+        if self._failed_close_attempts > self._config.MAX_CLOSE_RETRIES:
+            log.warn("lid: %d close attempts failed; faulting", self._failed_close_attempts)
+            # Queued by the machine, because we are inside a transition right now.
+            self.machine.fire(states.RETRY_LIMIT_REACHED)
             return
-        log.info("lid: obstructed, reopening (attempt %d)", self._retries)
-        self._start_motion(open_direction=True, run_ms=self._config.LID_OPEN_RUN_MS)
+        log.info("lid: obstructed, reopening (attempt %d)", self._failed_close_attempts)
+        self._start_stroke(opening=True, run_ms=self._config.LID_OPEN_RUN_MS)
 
-    def _enter_fault(self):
-        self._cancel_motion()
+    def _on_fault(self):
+        self._cancel_stroke()
         self._motor.stop()
 
     # ----------------------------------------------------------------- motion
-    def _start_motion(self, open_direction, run_ms, detector=None):
-        self._cancel_motion()
-        self._motion_task = self._spawn(self._stroke(open_direction, run_ms, detector))
+    def _start_stroke(self, opening, run_ms, close_detector=None):
+        self._cancel_stroke()
+        self._motion_task = self._spawn(self._stroke(opening, run_ms, close_detector))
 
-    def _cancel_motion(self):
+    def _cancel_stroke(self):
         """
-        Stop the motor first, then cancel the task.
+        Stop the motor now, then cancel the stroke task.
 
-        Order matters: cancelling only takes effect when the task is next scheduled, so stopping
-        the motor here is what makes "the lid stops now" true now.
+        Order matters twice over. Stopping first is what makes "the lid stops now" true now,
+        because cancellation only takes effect when the task is next scheduled. And the handle is
+        cleared *before* cancelling because a stroke usually cancels **itself**: it fires the
+        trigger that transitions the lid away, and this runs as the exit hook of that transition.
+        MicroPython raises `RuntimeError("can't cancel self")` in that case, and the stroke is
+        returning anyway — its `finally` stops the motor a second time.
         """
         self._motor.stop()
-        if self._motion_task is not None:
-            self._motion_task.cancel()
-            self._motion_task = None
+        self._motion_task = _cancel_safely(self._motion_task)
 
-    def _cancel_hold(self):
-        if self._hold_task is not None:
-            self._hold_task.cancel()
-            self._hold_task = None
+    def _cancel_hold_timer(self):
+        """The same self-cancellation case: the hold timer is what fires HOLD_EXPIRED."""
+        self._hold_task = _cancel_safely(self._hold_task)
 
-    async def _stroke(self, open_direction, run_ms, detector=None):
+    async def _stroke(self, opening, run_ms, close_detector=None):
         """
         One motor run. Reports how it ended and never decides what happens next.
 
         The cap is checked before the detector and before the calibrated time, so a detector that
         never fires, or a run time calibrated too long, still cannot burn the motor.
         """
-        started = self._clock.now_ms()
-        self._motor.drive(open_direction, self._speed(open_direction))
+        started_at = self._clock.now_ms()
+        self._motor.drive(opening, self._speed_for(opening))
         try:
             while True:
-                elapsed = self._clock.elapsed_ms(started)
+                elapsed_ms = self._clock.elapsed_ms(started_at)
 
-                if elapsed >= self._config.MOTOR_MAX_RUN_MS:
-                    log.warn("lid: safety cap at %d ms", elapsed)
-                    self.machine.fire(states.CAP_TRIPPED, elapsed_ms=elapsed)
+                if elapsed_ms >= self._config.MOTOR_MAX_RUN_MS:
+                    log.warn("lid: safety cap at %d ms", elapsed_ms)
+                    self.machine.fire(states.SAFETY_CAP_TRIPPED, elapsed_ms=elapsed_ms)
                     return
 
-                if detector is not None and detector.closed(elapsed):
-                    self.machine.fire(states.CLOSED_CONFIRMED, elapsed_ms=elapsed)
+                if close_detector is not None and close_detector.is_closed(elapsed_ms):
+                    self.machine.fire(states.CLOSE_CONFIRMED, elapsed_ms=elapsed_ms)
                     return
 
-                if elapsed >= run_ms:
-                    self.machine.fire(states.STROKE_DONE, elapsed_ms=elapsed)
+                if elapsed_ms >= run_ms:
+                    self.machine.fire(states.STROKE_FINISHED, elapsed_ms=elapsed_ms)
                     return
 
                 await self._sleep(self._config.MOTION_POLL_MS)
         finally:
             self._motor.stop()
 
-    async def _hold(self):
+    async def _hold_then_close(self):
         await self._sleep(self._config.LID_OPEN_HOLD_MS)
         self.machine.fire(states.HOLD_EXPIRED)
 
-    def _speed(self, open_direction):
-        return (
-            self._config.MOTOR_OPEN_SPEED if open_direction else self._config.MOTOR_CLOSE_SPEED
-        )
+    def _speed_for(self, opening):
+        return self._config.MOTOR_OPEN_SPEED if opening else self._config.MOTOR_CLOSE_SPEED
+
+
+def _cancel_safely(task):
+    """
+    Cancel `task` unless it is the one running right now, and return None to store back.
+    Self-cancellation is normal here rather than an error — see `Lid._cancel_stroke`.
+    """
+    if task is None:
+        return None
+    try:
+        task.cancel()
+    except RuntimeError:
+        log.debug("lid: task is cancelling itself; letting it return")
+    return None

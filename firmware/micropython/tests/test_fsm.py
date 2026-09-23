@@ -21,7 +21,7 @@ class TestTransitions(unittest.TestCase):
         machine, seen = build_machine()
         self.assertTrue(machine.fire(states.HAND_DETECTED))
         self.assertEqual(machine.state, states.OPENING)
-        self.assertEqual(seen[0][0], events.entered(states.OPENING))
+        self.assertEqual(seen[0][0], events.state_entered(states.OPENING))
         self.assertEqual(seen[0][1]["previous"], states.IDLE)
 
     def test_trigger_not_in_the_table_is_ignored_not_an_error(self):
@@ -41,19 +41,19 @@ class TestTransitions(unittest.TestCase):
     def test_a_hook_may_fire_another_trigger(self):
         """The obstruction retry counter does exactly this; it must not re-enter."""
         machine, _ = build_machine()
-        machine.on_enter(states.OPENING, lambda: machine.fire(states.CAP_TRIPPED))
+        machine.on_enter(states.OPENING, lambda: machine.fire(states.SAFETY_CAP_TRIPPED))
         machine.fire(states.HAND_DETECTED)
         self.assertEqual(machine.state, states.OPEN)
 
     def test_history_records_transitions(self):
         machine, _ = build_machine()
         machine.fire(states.HAND_DETECTED)
-        machine.fire(states.STROKE_DONE)
+        machine.fire(states.STROKE_FINISHED)
         self.assertEqual(
             [(entry[1], entry[2], entry[3]) for entry in machine.history],
             [
                 (states.IDLE, states.HAND_DETECTED, states.OPENING),
-                (states.OPENING, states.STROKE_DONE, states.OPEN),
+                (states.OPENING, states.STROKE_FINISHED, states.OPEN),
             ],
         )
 

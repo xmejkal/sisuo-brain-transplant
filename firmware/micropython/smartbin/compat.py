@@ -13,6 +13,7 @@ try:  # MicroPython
     ticks_diff = time.ticks_diff
     ticks_add = time.ticks_add
     sleep_ms = time.sleep_ms
+    sleep_us = time.sleep_us
     MICROPYTHON = True
 except AttributeError:  # CPython
     MICROPYTHON = False
@@ -28,6 +29,9 @@ except AttributeError:  # CPython
 
     def sleep_ms(milliseconds):
         time.sleep(milliseconds / 1000)
+
+    def sleep_us(microseconds):
+        time.sleep(microseconds / 1_000_000)
 
 
 class Clock:

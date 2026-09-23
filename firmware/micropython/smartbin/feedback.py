@@ -1,12 +1,12 @@
 """
 Listeners that turn state transitions into things a person notices.
 
-Each one subscribes to the bus and reacts to the event named after the state just entered. None
-of them can influence the lid, and the bus drops any that misbehave, so feedback is strictly
-optional decoration on a bin that works without it.
+Each subscribes to the bus and reacts to the event named after the state just entered. None can
+influence the lid, and the bus contains any that misbehave, so feedback is strictly decoration on
+a bin that works without it.
 
-Sounds and colours are *data* — a profile dict in config, not code — so re-voicing the bin means
-editing config.py or config.json, never this file.
+Sounds and colours are *data* — profiles in config, not code — so re-voicing the bin means
+editing config.py or /config.json, never this file.
 """
 
 from . import events, log, states, ui
@@ -14,21 +14,25 @@ from . import events, log, states, ui
 
 class AudioFeedback:
     """
-    Plays a clip when a mapped state is entered.
+    Plays a cue when a mapped state is entered.
 
-    A profile maps state -> track number; an unmapped state is silence, so "silent" is simply an
-    empty profile. `set_profile` is what the MODE button calls.
+    A profile maps state -> cue; an unmapped state is silence, so "silent" is simply an empty
+    profile. `next_profile()` is what the MODE button calls.
     """
 
     def __init__(self, player, profiles, active="default", volume=22):
         self._player = player
-        self._profiles = profiles
+        self._profiles = profiles or {"default": {}}
         self._volume = volume
-        self.active = active if active in profiles else "default"
+        self.active = active if active in self._profiles else self._first_profile_name()
 
     @property
     def profile(self):
         return self._profiles.get(self.active, {})
+
+    def _first_profile_name(self):
+        """Falling back to *some* profile keeps a typo in config from killing the button task."""
+        return list(self._profiles.keys())[0]
 
     def set_profile(self, name):
         if name not in self._profiles:
@@ -39,20 +43,24 @@ class AudioFeedback:
         return True
 
     def next_profile(self):
-        """Cycle to the next profile, in the order they are declared. Returns the new name."""
+        """Cycle to the next profile in declaration order, and return the new name."""
         names = list(self._profiles.keys())
-        self.active = names[(names.index(self.active) + 1) % len(names)]
+        if self.active not in names:
+            self.active = names[0]
+        else:
+            self.active = names[(names.index(self.active) + 1) % len(names)]
         log.info("sound profile: %s", self.active)
         return self.active
 
-    def set_volume(self, volume):
-        self._volume = volume
-        self._player.set_volume(volume)
+    def set_volume(self, level):
+        self._volume = level
+        self._player.set_volume(level)
 
-    def __call__(self, event, **data):
-        for state, track in self.profile.items():
-            if event == events.entered(state):
-                self._player.play(track)
+    def __call__(self, event, **event_data):
+        """The bus calls this for every event; we answer only to the states we have a cue for."""
+        for state, cue in self.profile.items():
+            if event == events.state_entered(state):
+                self._player.play(cue)
                 return
 
 
@@ -63,20 +71,22 @@ class LedFeedback:
         self._led = led
         self._colours = colours
 
-    def __call__(self, event, **data):
+    def __call__(self, event, **event_data):
         for state, colour in self._colours.items():
-            if event == events.entered(state):
+            if event == events.state_entered(state):
                 self._led.set(colour)
                 return
 
 
 class LogFeedback:
-    """Prints every event. The cheapest possible observability, and invaluable over USB."""
+    """Prints every event. The cheapest observability there is, and invaluable over USB."""
 
-    def __call__(self, event, **data):
-        log.info("event %s %s", event, data)
+    def __call__(self, event, **event_data):
+        log.info("event %s %s", event, event_data)
 
 
+# Green while the lid is doing something wanted, amber while it is working through a problem, red
+# when it needs a human. IDLE is dark so a bin at rest draws nothing.
 DEFAULT_LED_COLOURS = {
     states.IDLE: ui.OFF,
     states.OPENING: ui.GREEN,

@@ -20,8 +20,7 @@ def mermaid():
     lines = ["stateDiagram-v2", "    [*] --> idle"]
     for state in states.ALL_STATES:
         for trigger, destination in sorted(states.TRANSITIONS.get(state, {}).items()):
-            arrow = "-->" if destination != state else "-->"
-            lines.append("    %s %s %s: %s" % (state, arrow, destination, trigger))
+            lines.append("    %s --> %s: %s" % (state, destination, trigger))
     return "\n".join(lines)
 
 

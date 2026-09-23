@@ -12,32 +12,39 @@ smartbin/            the firmware package
   states.py          states, triggers and the transition table — the product, as data
   fsm.py             the state machine: hooks, history, event publishing
   lid.py             motion strokes + the hard safety cap
-  sensors.py         ToF / IR burst / button-only strategies
-  closing.py         timed / limit-switch / stall close detection
-  motor.py ui.py audio.py feedback.py vl6180x.py hw.py app.py
+  sensors.py         ProximitySensor + ToF / self-ranging ToF / IR burst / button-only
+  closing.py         CloseDetector + timed / limit-switch / motor-stall
+  power.py           PowerPolicy + stay-awake / deep-sleep
+  audio.py           Player + DFR0534 / silent
+  motor.py           MotorDriver + L9110S
+  factory.py         config strings -> constructed objects (all the wiring)
+  hardware.py        the only module that builds peripherals
+  platform.py        ESP32-C6 facts: wake pins, deep sleep, watchdog
+  events.py feedback.py ui.py vl6180x.py compat.py log.py app.py
 bringup/             one script per module, run in order on the bench
-tools/fsm_diagram.py prints the state diagram from the real table
+tools/               fsm_diagram.py (the diagram below) and calibrate.py (bench procedures)
 tests/               runs on the Mac, no hardware
+deploy.sh            copy to the device (--mpy to cross-compile first)
 ```
 
 ## Bench workflow
 ```sh
 mpremote mip install aiorepl        # once: the live REPL
-mpremote cp -r smartbin/ :          # deploy the package
-mpremote cp config.py main.py boot.py :
+./deploy.sh                         # copy the package, config, main.py and boot.py
 mpremote repl                       # Ctrl-C stops main.py
 ```
 ```python
 >>> import smartbin
 >>> b = smartbin.build()          # builds everything, starts nothing
->>> b.hw.scan_i2c()               # ['0x29'] when the ToF sensor is wired
->>> b.hw.motor.drive(True, 150); b.hw.motor.stop()
->>> b.sensor.read()               # distance in mm
+>>> b.hardware.scan_i2c()         # ['0x29'] when the ToF sensor is wired
+>>> b.hardware.motor.drive(True, 150); b.hardware.motor.stop()
+>>> b.sensor.read_distance_mm()
 >>> b.lid.fire("open_pressed")    # drive the state machine with no sensor at all
 >>> b.lid.state, b.lid.history[-3:]
 >>> import smartbin.log as log; log.LEVEL = log.DEBUG
 ```
-With `aiorepl` installed, all of the above also works *while the bin is running*.
+With `aiorepl` installed, all of the above also works *while the bin is running*, where the bin
+is `b`.
 
 ## Bring-up order
 Run each from `firmware/micropython/`; only move on when a script prints PASS. Nothing is
@@ -47,7 +54,7 @@ written to flash by `mpremote run`.
 | --- | --- | --- |
 | 1 | XIAO on USB only | `mpremote run bringup/01_board_alive.py` |
 | 2 | OPEN btn D1, MODE btn D6, LED D7/D10 | `mpremote run bringup/02_inputs.py` |
-| 3 | VL6180X on D4/D5 (+ INT to D0) | `mpremote run bringup/03_tof.py` |
+| 3 | VL6180X on D4/D5 (+ INT to D0) | `./deploy.sh` first, then `mpremote run bringup/03_tof.py` (it imports the driver from the device) |
 | 4 | DFR0534 on D9, speaker | `mpremote run bringup/04_mp3.py` |
 | 5 | L9110S + motor + 6V pack | `mpremote run bringup/05_motor.py` |
 | 6 | everything | deploy, then `mpremote repl` and `smartbin.build()` |
@@ -56,20 +63,33 @@ written to flash by `mpremote run`.
 ```sh
 cd firmware/micropython && python3 -m unittest discover -s tests -t tests -v
 ```
-15 tests, no hardware: the safety cap, the open/hold/close cycle, obstruction retries and the
-latched fault, the transition table's reachability, and the event bus isolating broken listeners.
+39 tests, no hardware, under a second: the safety cap, the open/hold/close cycle, obstruction
+retries and the latched fault, transition-table reachability, sensor debounce and cooldown,
+button debounce, the LED, the event bus isolating broken listeners, the config invariants (the
+cap exceeds both run times, wake pins are wake-capable, no pin is used twice), and one
+integration test that runs the real lid against **real asyncio** rather than the fakes — that
+last one exists because a task cancelling itself behaves differently on the device, and a model
+of asyncio hid a bug that froze the lid after one open.
 
-## Calibration, in order
-1. `LID_OPEN_RUN_MS` / `LID_CLOSE_RUN_MS` — time the strokes with `b.hw.motor` from the REPL.
-2. `MOTOR_MAX_RUN_MS` — comfortably above both, and the cap that makes a mistake harmless.
-3. `TOF_NEAR_MM` / `TOF_FAR_MM` — from what `bringup/03_tof.py` printed.
-4. Behind the lid window: the VL6180X offset, crosstalk and range-ignore
-   (procedures in `../../parts/SENSOR_OPTIONS.md`).
+## Calibration
+`tools/calibrate.py` runs each procedure on the device, prints what it measured and offers to
+save it. Run them in this order:
 
-Save calibrated values from the REPL so they survive a re-deploy:
 ```python
->>> import config; config.save({"LID_CLOSE_RUN_MS": 1020})
+>>> import tools.calibrate as cal
+>>> b = cal.bin()
+>>> cal.stroke_times(b)    # LID_OPEN_RUN_MS / LID_CLOSE_RUN_MS
+>>> cal.tof_window(b)      # watch live distances, choose TOF_NEAR_MM / TOF_FAR_MM
+>>> cal.tof_offset(b)      # white target at 50 mm, through the real window
+>>> cal.tof_crosstalk(b)   # black target at 100 mm; also sets the range-ignore threshold
+>>> cal.stall_counts(b)    # only with CLOSE_DETECTOR = "stall"
 ```
+
+The two ToF procedures measure the *window*, so run them in the finished lid — re-gluing the
+window invalidates them. Anything saved goes to `/config.json`, which deploys never overwrite.
+Only calibration keys can be saved: `config.CALIBRATABLE` lists them, and a pin number is not
+among them, so a calibration file can never repoint the motor. `config.forget("KEY")` drops a
+value; `config.calibration()` shows what this bin has been taught.
 
 ## The lid's behaviour
 ```mermaid
@@ -104,16 +124,16 @@ All in `config.py`; nothing else changes. This is the point of the strategy obje
 
 | Setting | Values | What changes |
 | --- | --- | --- |
-| `SENSOR` | `tof` · `tof_interrupt` · `ir` · `none` | polled I2C ranging · the sensor watches by itself and can wake the chip · IR LED + 38 kHz receiver · buttons only |
-| `POWER` | `always_on` · `deep_sleep` | stays awake (USB, bench, live REPL) · sleeps when idle and wakes on the ToF interrupt or the OPEN button |
-| `CLOSE_DETECT` | `timed` · `limit` · `stall` | calibrated run time · microswitch · motor current |
+| `SENSOR_STRATEGY` | `tof` · `tof_interrupt` · `ir` · `none` | polled I2C ranging · the sensor watches by itself and can wake the chip · IR LED + 38 kHz receiver · buttons only |
+| `POWER_POLICY` | `always_on` · `deep_sleep` | stays awake (USB, bench, live REPL) · sleeps when idle and wakes on the ToF interrupt or the OPEN button |
+| `CLOSE_DETECTOR` | `timed` · `limit` · `stall` | calibrated run time · microswitch · motor current |
 | `ACTIVE_PROFILE` | any key of `SOUND_PROFILES` | which clip plays on which state |
 
-`SENSOR = "none"` gives a working button-only bin with no sensor wired at all — the lid, the
+`SENSOR_STRATEGY = "none"` gives a working button-only bin with no sensor wired at all — the lid, the
 state machine and the sounds are untouched.
 
 ## Deep sleep
-`POWER = "deep_sleep"` needs `SENSOR = "tof_interrupt"`, and it rests on facts about this chip
+`POWER_POLICY = "deep_sleep"` needs `SENSOR_STRATEGY = "tof_interrupt"`, and it rests on facts about this chip
 (verified 2026-09-23 against the MicroPython source and the ESP-IDF docs):
 
 * **Only GPIO0-7 can wake an ESP32-C6**, which on the XIAO is D0, D1, D2 and nothing else. The
@@ -128,8 +148,11 @@ state machine and the sounds are untouched.
 * Expect **~200-400 uA** total idle, dominated by the sensor (~340 uA at 500 ms, ~170 uA at 1 s),
   with the ESP32 itself at ~15 uA — but ~300 uA extra if the LiPo sags toward 3.3 V, because the
   XIAO's regulator changes mode. Roughly months on a 1000 mAh cell.
-* `MicroPython 1.29+` gives `machine.wake_pins()`, which is how the bin tells the sensor from the
-  button. On older builds it assumes the sensor and says so in the log.
+* `machine.wake_pins()` is how the bin tells the sensor from the button. Builds without it report
+  only *that* something woke the chip, so the bin reads the pins itself instead.
+* **All wake sources share one polarity** (`config.WAKE_ON_HIGH`), because the chip applies one
+  level to all of them. The wiring must agree with the flag: a ground-wired button idles high, so
+  with wake-on-high it would wake the instant the bin slept, forever.
 
 Bench: `b.sleep_now()` sleeps immediately, for measuring idle current without waiting.
 

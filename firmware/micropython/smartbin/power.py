@@ -1,166 +1,172 @@
 """
-Power strategies — "what should the bin do while nothing is happening?"
+Power policies — "what should the bin do while nothing is happening?"
 
-Staying awake and sleeping deeply are not the same program: deep sleep on the ESP32 is a reset,
-so "waking" means booting, asking why, and acting on the answer. All of that is confined to this
-module, behind one interface:
+Staying awake and sleeping deeply are not the same program: deep sleep on this chip is a reset,
+so "waking" means booting, asking why, and acting on the answer. All of that is confined here,
+behind `PowerPolicy`, and `config.POWER_POLICY` picks one. Nothing else in the firmware knows
+which is in use — the lid, the state machine and the sensors are identical either way.
 
-    prepare(bin)   -> called once at start-up; turns a wake reason into a trigger
-    async idle(bin)-> called from the main loop; may sleep the chip, or may do nothing
-
-`config.POWER` picks one. Nothing else in the firmware knows which is in use — the lid, the state
-machine and the sensors are identical either way.
-
-Facts this is built on (ESP32-C6, MicroPython, verified 2026-09-23):
-  * deep sleep draws ~15 uA on the XIAO, but ~300 uA if the LiPo sags near 3.3 V (the XIAO's
-    regulator changes mode);
-  * only GPIO0-7 can wake the chip, which on the XIAO means D0, D1 and D2 and nothing else;
-  * `esp32.wake_on_ext0` does not exist on the C6, and `Pin.irq(wake=DEEPSLEEP)` silently does
-    nothing — `wake_on_ext1` is the call that works;
-  * low-level wake has an open MicroPython bug (#17334, "stuck pin"), so wake is configured
-    active-HIGH here;
-  * waking is a full reset: only `machine.RTC().memory()` survives, and boot costs ~100-300 ms.
+Board and port specifics (wake pins, sleep, watchdog) live in platform.py.
 """
 
-from . import compat, log, states
+from . import compat, log, platform, states
 
 
-class AlwaysOnPolicy:
+class PowerPolicy:
     """
-    Never sleeps. What you want on USB, on the bench, and while calibrating: the REPL stays
-    alive, timing is honest, and nothing reboots underneath you.
+    What the application needs from a power policy:
+
+        trigger_for_wake(smart_bin)     the trigger to fire because of how we booted, or None
+        await tick_while_idle(bin)      called repeatedly; may sleep the chip and never return
+        sleep_now(smart_bin)            sleep immediately, if this policy can
+
+    Policies may read the bin's state, but must not drive the lid themselves.
+    """
+
+    name = "policy"
+    sleeps = False
+
+    def trigger_for_wake(self, smart_bin):
+        return None
+
+    async def tick_while_idle(self, smart_bin):
+        raise NotImplementedError
+
+    def sleep_now(self, smart_bin):
+        log.warn("power: %s never sleeps", self.name)
+        return False
+
+
+class StayAwakePolicy(PowerPolicy):
+    """
+    Never sleeps. What you want on USB, on the bench and while calibrating: the REPL stays alive,
+    timing is honest, and nothing reboots underneath you.
     """
 
     name = "always_on"
-    wakes_on_sensor = False
 
-    def prepare(self, bin_):
-        return None
-
-    async def idle(self, bin_):
-        await compat.async_sleep_ms(bin_.config.IDLE_TICK_MS)
+    async def tick_while_idle(self, smart_bin):
+        await compat.async_sleep_ms(smart_bin.config.IDLE_TICK_MS)
 
 
-class DeepSleepPolicy:
+class DeepSleepPolicy(PowerPolicy):
     """
-    Sleeps the chip when the bin has been idle, and is woken by the ToF sensor's interrupt pin or
-    the OPEN button.
+    Sleeps the chip once the bin has been idle, waking on the sensor's interrupt or the OPEN
+    button.
 
-    The sensor keeps ranging on its own while the chip is off, so the idle current becomes the
-    sensor's (~170 uA at one reading per second, ~340 uA at two) rather than the ESP32's ~15 uA.
-    That is the real budget; months on a 1000 mAh cell rather than days.
+    The sensor keeps ranging while the chip is off, so idle current becomes the sensor's
+    (~170 uA at one reading per second) rather than the ESP32's ~15 uA. That is the real budget:
+    months on a 1000 mAh cell rather than days.
 
-    Waking is a reset, so `prepare()` runs before anything else and converts "which pin woke us"
-    into a trigger — which is why a hand at a sleeping bin opens the lid immediately instead of
-    waiting for the first poll.
+    Requirements this policy checks rather than assumes:
+      * the sensor must be able to watch while asleep (`SENSOR_STRATEGY = "tof_interrupt"`);
+      * every wake pin must be wake-capable — D0/D1/D2 on this board;
+      * every wake source must share the polarity in `config.WAKE_ON_HIGH`, because the chip
+        applies one level to all of them. A pull-up button (idle high, pressed low) with
+        wake-on-high would wake the instant it slept, forever.
     """
 
     name = "deep_sleep"
-    wakes_on_sensor = True
+    sleeps = True
 
-    def __init__(self):
-        self._idle_since = None
-        self._clock = compat.Clock()
+    def __init__(self, clock=None):
+        self._idle_since_ms = None
+        self._clock = clock or compat.Clock()
 
     # ----------------------------------------------------------------- waking
-    def prepare(self, bin_):
-        """Turn the reason we booted into a trigger, if it was a wake rather than a power-on."""
-        import machine
-
-        reason = machine.wake_reason()
-        if reason not in (getattr(machine, "EXT1_WAKE", -1), getattr(machine, "PIN_WAKE", -2)):
+    def trigger_for_wake(self, smart_bin):
+        """Turn the reason we booted into a trigger, so a wake acts immediately."""
+        if not platform.woke_from_sleep():
             log.info("power: cold boot")
             return None
 
-        pins = self._wake_pins()
-        log.info("power: woken by %s", pins)
+        gpio_numbers = platform.wake_gpio_numbers()
+        log.info("power: woken by GPIO %s", gpio_numbers or "(port cannot say)")
 
-        if bin_.config.PIN_BUTTON_OPEN in pins:
+        if not gpio_numbers:
+            return self._trigger_by_reading_pins(smart_bin)
+
+        if smart_bin.config.PIN_BUTTON_OPEN in gpio_numbers:
             return states.OPEN_PRESSED
-        if bin_.config.PIN_TOF_INTERRUPT in pins:
-            bin_.sensor.acknowledge_wake()
+        if smart_bin.config.PIN_TOF_INTERRUPT in gpio_numbers:
+            smart_bin.sensor.acknowledge_wake()
             return states.HAND_DETECTED
         return None
 
-    @staticmethod
-    def _wake_pins():
+    def _trigger_by_reading_pins(self, smart_bin):
         """
-        Which GPIO woke us. `machine.wake_pins()` arrived in MicroPython 1.29; on older builds we
-        only know that *something* did, and the caller falls back to treating it as a hand.
+        Fallback for MicroPython builds that report only *that* we woke, not from which pin:
+        look at the pins ourselves. The signal is still asserted this early after a wake.
         """
-        import machine
-
-        if hasattr(machine, "wake_pins"):
-            return tuple(machine.wake_pins())
-        log.warn("power: MicroPython too old for wake_pins(); assuming the sensor")
-        return ()
+        if smart_bin.hardware.button_open.is_pressed:
+            return states.OPEN_PRESSED
+        smart_bin.sensor.acknowledge_wake()
+        return states.HAND_DETECTED
 
     # ----------------------------------------------------------------- sleeping
-    async def idle(self, bin_):
-        await compat.async_sleep_ms(bin_.config.IDLE_TICK_MS)
+    async def tick_while_idle(self, smart_bin):
+        await compat.async_sleep_ms(smart_bin.config.IDLE_TICK_MS)
 
-        if bin_.lid.state != states.IDLE:
-            self._idle_since = None
+        if not self._may_sleep(smart_bin):
+            self._idle_since_ms = None
             return
 
-        if self._idle_since is None:
-            self._idle_since = self._clock.now_ms()
+        if self._idle_since_ms is None:
+            self._idle_since_ms = self._clock.now_ms()
             return
 
-        if self._clock.elapsed_ms(self._idle_since) < bin_.config.SLEEP_AFTER_MS:
-            return
+        idle_for_ms = self._clock.elapsed_ms(self._idle_since_ms)
+        if idle_for_ms >= self._sleep_after_ms(smart_bin):
+            self.sleep_now(smart_bin)
 
-        self.sleep_now(bin_)
-
-    def sleep_now(self, bin_):
+    def _may_sleep(self, smart_bin):
         """
-        Arm the wake pins and stop the chip. Does not return: the next thing that runs is boot.py.
-
-        Everything is put in its resting state first — a motor left driving through a deep sleep
-        would run until the battery died.
+        A faulted bin sleeps too, just later: blinking red until the cell is flat helps nobody,
+        and waking on the button is how the fault gets cleared anyway.
         """
-        import esp32
-        import machine
-        from machine import Pin
+        return smart_bin.lid.state in (states.IDLE, states.FAULT)
 
-        bin_.hw.all_off()
-        bin_.sensor.arm_for_sleep()
+    def _sleep_after_ms(self, smart_bin):
+        if smart_bin.lid.state == states.FAULT:
+            return smart_bin.config.SLEEP_AFTER_FAULT_MS
+        return smart_bin.config.SLEEP_AFTER_MS
 
-        wake_pins = [Pin(number, Pin.IN) for number in self._wake_pin_numbers(bin_.config)]
-        log.info("power: sleeping, wake on %s", [pin for pin in wake_pins])
+    def sleep_now(self, smart_bin):
+        """
+        Put everything in its resting state, arm the wake pins, and stop the chip. Does not
+        return — the next thing that runs is boot.py.
+        """
+        config = smart_bin.config
+        smart_bin.hardware.enter_safe_state()
 
-        # Active-high on purpose: low-level wake is the case with the open "stuck pin" bug.
-        esp32.wake_on_ext1(pins=wake_pins, level=esp32.WAKEUP_ANY_HIGH)
-        machine.deepsleep()
+        if not smart_bin.sensor.arm_for_sleep():
+            log.warn("power: sensor cannot watch while asleep; only the button will wake the bin")
+
+        wake_gpio = self.wake_gpio_numbers(config, smart_bin.sensor)
+        log.info("power: sleeping, wake on GPIO %s", wake_gpio)
+        platform.deep_sleep(wake_gpio, wake_on_high=config.WAKE_ON_HIGH)
+        return True
 
     @staticmethod
-    def _wake_pin_numbers(config):
-        """
-        Only GPIO0-7 can wake this chip; MicroPython refuses anything else with ValueError.
-        Keeping the check here makes a bad pin map fail loudly at the right moment.
-        """
+    def wake_gpio_numbers(config, sensor):
+        """Which pins are armed. Separate from `sleep_now` so a test or the REPL can check it."""
         numbers = [config.PIN_BUTTON_OPEN]
-        if config.SENSOR == "tof_interrupt":
+        if sensor.watches_while_asleep:
             numbers.append(config.PIN_TOF_INTERRUPT)
-
-        for number in numbers:
-            if not 0 <= number <= 7:
-                raise ValueError(
-                    "GPIO%d cannot wake an ESP32-C6 (only GPIO0-7 can)" % number
-                )
+        platform.assert_wake_capable(numbers)
         return numbers
 
 
 POLICIES = {
-    AlwaysOnPolicy.name: AlwaysOnPolicy,
+    StayAwakePolicy.name: StayAwakePolicy,
     DeepSleepPolicy.name: DeepSleepPolicy,
 }
 
 
-def build(config):
-    """The strategy choice, from one config line."""
-    policy = POLICIES.get(config.POWER)
-    if policy is None:
-        log.warn("unknown power policy %s; staying awake", config.POWER)
-        return AlwaysOnPolicy()
-    return policy()
+def build_policy(config):
+    """The strategy choice, from one config line. An unknown name stays awake, loudly."""
+    policy_class = POLICIES.get(config.POWER_POLICY)
+    if policy_class is None:
+        log.warn("unknown power policy %r; staying awake", config.POWER_POLICY)
+        return StayAwakePolicy()
+    return policy_class()

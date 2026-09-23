@@ -1,6 +1,8 @@
 # Firmware v2 plan — MicroPython, OO, testable
 
-Status: **proposed, awaiting approval**. Supersedes the v1 port in `firmware/micropython/main.py`
+Status: **implemented** in `firmware/micropython/` (v2.1), reviewed by a four-way code audit on
+2026-09-23 and corrected — see the README for the current names and the notes at the end of this
+file for what the audit changed. Supersedes the v1 port in `firmware/micropython/main.py`
 (kept until v2 works). Reviewed by a MicroPython/ESP32 architecture pass and a digital-electronics
 pass on 2026-09-23; their hardware findings are folded into `DESIGN_RULES.md` and `SHOPPING.md`.
 
@@ -257,3 +259,27 @@ Changes from v1 and why:
 1 Ω 0.5 W shunt if we do stall sensing · star ground at the driver's GND pin.
 **Measure the real motor current** — the 70/230 mA figures come from patent literature, not your
 motor. If it stalls above ~500 mA the L9110S has almost no margin and the driver choice changes.
+
+
+## What the 2026-09-23 audit changed
+Four reviewers (correctness, readability, architecture, on-device practicality) went through the
+implementation. The findings worth remembering:
+
+* **A task cannot cancel itself in MicroPython.** Every stroke cancels itself when it fires the
+  trigger that transitions the lid away, so the first implementation would have opened once and
+  frozen. The tests now model `RuntimeError("can't cancel self")`, and one test runs the real lid
+  against real asyncio rather than the fakes.
+* **`RangeError` is routine, not exceptional** — the ToF sensor reports it whenever nothing is in
+  front of it. It was escaping and killing the sensor task silently; failures are now counted and
+  only a persistent one faults the bin.
+* **All deep-sleep wake pins share one polarity.** A ground-wired button (idle high) with
+  wake-on-high would have woken the bin the instant it slept, forever. `config.WAKE_ON_HIGH` now
+  states the choice, and the wiring has to agree with it.
+* **The watchdog cannot be stopped once started** and survives Ctrl-C, so it now defaults to off
+  and is enabled per unit in `/config.json`.
+* **`boot.py` must not touch `network.WLAN`** — constructing it initialises the whole WiFi stack,
+  costing heap and boot time on every wake, for a radio that was not on anyway.
+* **Naming follows the job, not the implementation**: `ProximitySensor` / `CloseDetector` /
+  `PowerPolicy` / `MotorDriver` / `Player` are the contracts; `L9110MotorDriver`,
+  `SelfRangingTimeOfFlightSensor`, `Dfr0534Player` and friends are the details underneath.
+* **Calibration existed only as a procedure in prose.** `tools/calibrate.py` now runs it.

@@ -1,0 +1,94 @@
+"""
+The facts that are true of this chip and this board, in one place.
+
+Everything here is ESP32-C6 specific. Keeping it separate means a port to another board (an
+ESP32-S3, say) is this file plus the pin block in config.py, and it keeps `machine`/`esp32` out
+of the policy code so that code stays readable and testable.
+
+`machine` is imported lazily inside the functions so this module can be imported on a PC.
+"""
+
+from . import log
+
+# Only these GPIOs can wake an ESP32-C6 from deep sleep. On the XIAO that is D0, D1 and D2 —
+# every other D-pin maps to a GPIO above 7. MicroPython raises ValueError for the rest.
+WAKE_CAPABLE_GPIO = tuple(range(8))
+
+# The chip has a second RISC-V core, but it is a 20 MHz low-power coprocessor, not an application
+# core, and MicroPython exposes no way to run code on it. Noted here so nobody goes looking.
+HAS_USABLE_COPROCESSOR = False
+
+
+def supports_wake(gpio_number):
+    return gpio_number in WAKE_CAPABLE_GPIO
+
+
+def assert_wake_capable(gpio_numbers):
+    """Fail loudly at configuration time rather than mysteriously failing to ever wake."""
+    for number in gpio_numbers:
+        if not supports_wake(number):
+            raise ValueError(
+                "GPIO%d cannot wake an ESP32-C6; only GPIO0-7 can (XIAO pins D0, D1, D2)"
+                % number
+            )
+
+
+def woke_from_sleep():
+    """True when this boot is a wake from deep sleep rather than a power-on or reset."""
+    import machine
+
+    return machine.wake_reason() != 0  # 0 == ESP_SLEEP_WAKEUP_UNDEFINED, i.e. a cold boot
+
+
+def wake_gpio_numbers():
+    """
+    Which GPIOs woke the chip, or () when the port cannot say.
+
+    `machine.wake_pins()` is recent; on a build without it the caller has to work out what woke
+    the bin by reading the pins itself, which is why this returns a tuple rather than raising.
+    """
+    import machine
+
+    if hasattr(machine, "wake_pins"):
+        return tuple(machine.wake_pins())
+    log.debug("platform: this MicroPython has no wake_pins(); falling back to reading pins")
+    return ()
+
+
+def deep_sleep(wake_gpio_numbers, wake_on_high):
+    """
+    Stop the chip until one of `wake_gpio_numbers` is asserted. Does not return: waking is a
+    full reset, so execution resumes at boot.py.
+
+    Uses `esp32.wake_on_ext1`, which is the call that works on this chip. Note that
+    `esp32.wake_on_ext0` does not exist on the C6 at all, and `Pin.irq(wake=machine.DEEPSLEEP)`
+    silently does nothing there — both are easy and expensive mistakes.
+
+    All wake pins share one polarity, which is a hardware constraint of ext1 and the reason
+    `config.WAKE_ON_HIGH` has to agree with how the buttons and the sensor interrupt are wired.
+    """
+    import esp32
+    import machine
+    from machine import Pin
+
+    assert_wake_capable(wake_gpio_numbers)
+
+    # The pull has to oppose the asserted level, or the pin floats while the chip sleeps and
+    # wakes it at random.
+    pull = Pin.PULL_DOWN if wake_on_high else Pin.PULL_UP
+    pins = [Pin(number, Pin.IN, pull) for number in wake_gpio_numbers]
+
+    level = esp32.WAKEUP_ANY_HIGH if wake_on_high else esp32.WAKEUP_ALL_LOW
+    esp32.wake_on_ext1(pins=pins, level=level)
+    machine.deepsleep()
+
+
+def start_watchdog(timeout_ms):
+    """
+    Start the hardware watchdog. It cannot be stopped again, which is why this is called only
+    from the running application and never at import or from `build()`.
+    """
+    from machine import WDT
+
+    log.info("platform: watchdog armed at %d ms", timeout_ms)
+    return WDT(timeout=timeout_ms)

@@ -1,76 +1,96 @@
 """
-Proximity sensing strategies — "is a hand there?"
+Proximity sensing — "is a hand there?"
 
-Which sensor the bin ends up with is a mechanical question (does it fit the lid?), not a software
-one, so all of them satisfy the same tiny interface and are chosen in config:
+Which sensor the bin ends up with is a mechanical question (does it fit the lid?) rather than a
+software one, so they all satisfy `ProximitySensor` and are chosen by `config.SENSOR_STRATEGY`.
 
-    read()     -> distance in mm, or None when this sensor cannot measure distance
-    detected() -> bool, the decision, with debounce and hysteresis already applied
-
-Keeping the decision inside the sensor (rather than in the lid) is what lets a distance sensor
+Keeping the *decision* inside the sensor, rather than in the lid, is what lets a distance sensor
 and a bare on/off sensor be swapped without the lid noticing.
 """
 
 from . import compat, log
+from .vl6180x import RangeError
+
+# A reading can fail because the bus is unhappy (OSError) or because the sensor says the
+# measurement is untrustworthy (RangeError) — for the lid these mean the same thing: no answer.
+UNREADABLE = (OSError, RangeError)
+
+
+class SensorFailure(Exception):
+    """Raised when a sensor has failed often enough that the bin should fault rather than guess."""
 
 
 class ProximitySensor:
     """
-    Base class holding the debounce that every implementation needs: a detection must survive
-    `consecutive` polls in a row, and after a detection the sensor stays quiet for `cooldown_ms`
-    so one wave does not trigger three times.
+    What the lid needs from a hand sensor:
+
+        hand_detected()     the decision: True once per wave, debounced and rate-limited
+        read_distance_mm()  distance in mm, or None if this sensor cannot measure one
+                            (may raise SensorFailure when the hardware has stopped answering)
+        arm_for_sleep()     prepare to keep watching with the CPU off; False if it cannot
+        acknowledge_wake()  called after the chip wakes because of this sensor
+
+    This base class holds the debounce every implementation needs: a detection must survive
+    `consecutive_hits` polls in a row, and afterwards the sensor stays quiet for `cooldown_ms` so
+    one wave does not open the lid three times.
     """
 
-    def __init__(self, consecutive=2, cooldown_ms=1500, clock=None):
-        self._consecutive = consecutive
+    watches_while_asleep = False
+
+    def __init__(self, consecutive_hits=2, cooldown_ms=1500, clock=None):
+        self._consecutive_hits = consecutive_hits
         self._cooldown_ms = cooldown_ms
         self._clock = clock or compat.Clock()
         self._hits = 0
-        self._last_detection = None
+        self._last_detection_at = None
 
-    def read(self):
+    def read_distance_mm(self):
+        """None means "this sensor has no notion of distance", not "nothing is there"."""
         return None
 
     def arm_for_sleep(self):
-        """Prepare to keep watching while the CPU is off. Only the interrupt sensor can."""
         return False
 
     def acknowledge_wake(self):
-        """Called after the chip wakes because of this sensor."""
-        return None
+        """Most sensors need nothing; ones with a latching interrupt must clear it."""
 
-    def _sees_hand(self):
-        """Implemented by each strategy: the raw, undebounced answer."""
-        raise NotImplementedError
+    def hand_detected(self):
+        if self._within_cooldown():
+            return False
 
-    def detected(self):
-        if self._last_detection is not None:
-            if self._clock.elapsed_ms(self._last_detection) < self._cooldown_ms:
-                return False
-
-        if not self._sees_hand():
+        if not self._senses_hand():
             self._hits = 0
             return False
 
         self._hits += 1
-        if self._hits < self._consecutive:
+        if self._hits < self._consecutive_hits:
             return False
 
         self._hits = 0
-        self._last_detection = self._clock.now_ms()
+        self._last_detection_at = self._clock.now_ms()
         return True
 
+    def _within_cooldown(self):
+        if self._last_detection_at is None:
+            return False
+        return self._clock.elapsed_ms(self._last_detection_at) < self._cooldown_ms
 
-class TofSensor(ProximitySensor):
+    def _senses_hand(self):
+        """The raw, undebounced answer. Each implementation provides this one method."""
+        raise NotImplementedError
+
+
+class TimeOfFlightSensor(ProximitySensor):
     """
-    VL6180X time-of-flight over I2C. Triggers on a hand inside a distance window.
+    VL6180X time-of-flight over I2C, polled: the lid asks it for a distance and decides.
 
-    The window matters: the datasheet guarantees 0-100 mm, and in bright light the guaranteed
-    range falls to about 60-70 mm, so the default is deliberately not optimistic. The near limit
-    keeps the lid itself, or a dirty window, from reading as a hand.
+    The distance window matters. The datasheet guarantees 0-100 mm, and in bright light the
+    guaranteed range falls to about 60-70 mm, so the default is deliberately not optimistic. The
+    near limit keeps the lid itself, or a dirty window, from reading as a hand.
 
-    I2C is a cable that can be knocked loose, so reads are wrapped: a few failures are reported
-    as "no hand", and persistent failure raises `SensorFailure` for the app to turn into a fault.
+    I2C is a cable that can be knocked loose, and a measurement error is routine (an empty field
+    of view reports one), so both are treated as "no hand" until they persist — at which point
+    `SensorFailure` tells the app to fault rather than silently stop noticing hands.
     """
 
     def __init__(self, driver, near_mm=30, far_mm=100, max_failures=10, **kwargs):
@@ -81,97 +101,85 @@ class TofSensor(ProximitySensor):
         self._max_failures = max_failures
         self._failures = 0
 
-    def read(self):
+    def read_distance_mm(self):
         try:
-            distance = self._driver.range()
-        except OSError as exception:
-            self._failures += 1
-            log.warn("tof read failed (%d/%d): %s", self._failures, self._max_failures, exception)
-            if self._failures >= self._max_failures:
-                raise SensorFailure("VL6180X unreachable")
-            return None
+            distance_mm = self._driver.range()
+        except UNREADABLE as exception:
+            return self._note_failure(exception)
         self._failures = 0
-        return distance
+        return distance_mm
 
-    def _sees_hand(self):
-        distance = self.read()
-        if distance is None:
+    def _note_failure(self, exception):
+        """
+        A failed reading is only alarming if it keeps happening.
+
+        `RangeError` is ordinary — it is what the sensor reports with nothing in front of it, and
+        what the range-ignore calibration deliberately causes for reflections off the lid window.
+        `OSError` means the bus itself is unhappy. Either way, count and carry on until the count
+        says the sensor is really gone.
+        """
+        self._failures += 1
+        log.debug("tof read failed (%d/%d): %s", self._failures, self._max_failures, exception)
+        if self._failures >= self._max_failures:
+            raise SensorFailure("VL6180X unreadable after %d attempts" % self._failures)
+        return None
+
+    def _senses_hand(self):
+        distance_mm = self.read_distance_mm()
+        if distance_mm is None:
             return False
-        return self._near_mm < distance < self._far_mm
+        return self._near_mm < distance_mm < self._far_mm
 
 
-class IrBurstSensor(ProximitySensor):
-    """
-    The fallback that fits the bin's existing lid holes: an IR LED pulsed at 38 kHz and a
-    TSOP-style receiver.
-
-    These receivers have automatic gain control that suppresses a *continuous* carrier, so the
-    LED must be sent in short bursts with gaps — hence `burst_us`. The receiver output is active
-    low while it hears the carrier, so a reflection off a hand reads as 0.
-
-    It reports no distance: `read()` returns None and sensitivity is set by LED current and
-    aiming, in hardware.
-    """
-
-    def __init__(self, emitter_pwm, receiver_pin, burst_us=600, carrier_hz=38000, **kwargs):
-        super().__init__(**kwargs)
-        self._emitter = emitter_pwm
-        self._receiver = receiver_pin
-        self._burst_us = burst_us
-        self._carrier_hz = carrier_hz
-        self._emitter.freq(carrier_hz)
-        self._emitter.duty_u16(0)
-
-    def _sees_hand(self):
-        import time
-
-        self._emitter.duty_u16(32768)  # 50% duty is what these receivers expect
-        time.sleep_us(self._burst_us)
-        heard = self._receiver.value() == 0
-        self._emitter.duty_u16(0)
-        return heard
-
-
-class TofInterruptSensor(TofSensor):
+class SelfRangingTimeOfFlightSensor(TimeOfFlightSensor):
     """
     The same VL6180X, doing the watching itself.
 
-    The sensor ranges continuously on its own clock and asserts its interrupt pin when something
-    comes closer than the threshold. While awake we read that pin instead of the I2C bus, which
-    is cheaper and gives the same answer; asleep, that pin is what wakes the chip.
+    It ranges continuously on its own clock and asserts its interrupt pin when something comes
+    within `far_mm`. While the bin is awake we read that pin instead of the I2C bus; while it is
+    asleep, that pin is what wakes the chip — which is the whole point, and why this is the only
+    sensor that works with `POWER_POLICY = "deep_sleep"`.
 
-    `interrupt_pin` must be D0, D1 or D2 — the only pins on this board that can wake an
-    ESP32-C6 — and `power.DeepSleepPolicy` refuses to sleep otherwise.
+    The distance is still checked after the pin fires, because the sensor's threshold has no near
+    limit: without that check the lid's own window (closer than `near_mm`) would latch the
+    interrupt permanently.
+
+    `interrupt_pin` must be wake-capable — D0, D1 or D2 on this board.
     """
 
-    def __init__(self, driver, interrupt_pin, period_ms=500, active_high=True, **kwargs):
+    watches_while_asleep = True
+
+    def __init__(self, driver, interrupt_pin, period_ms=500, interrupt_active_high=True, **kwargs):
         super().__init__(driver, **kwargs)
         self._pin = interrupt_pin
         self._period_ms = period_ms
-        self._active_high = active_high
-        self._asserted = 1 if active_high else 0
-        self._configure()
+        self._asserted_level = 1 if interrupt_active_high else 0
+        driver.configure_interrupt(self._far_mm, active_high=interrupt_active_high)
+        driver.start_continuous(period_ms)
 
-    def _configure(self):
-        self._driver.configure_interrupt(self._far_mm, active_high=self._active_high)
-        self._driver.start_continuous(self._period_ms)
-
-    def _sees_hand(self):
-        if self._pin.value() != self._asserted:
+    def _senses_hand(self):
+        if self._pin.value() != self._asserted_level:
             return False
-        self._driver.clear_interrupt()
-        return True
 
-    def read(self):
-        """The last continuous reading — no new measurement, so this is cheap to poll."""
+        # The interrupt latches, so it must be cleared whether or not we believe it.
+        self._driver.clear_interrupt()
+        distance_mm = self.read_last_distance_mm()
+        if distance_mm is None:
+            return False
+        return self._near_mm < distance_mm < self._far_mm
+
+    def read_last_distance_mm(self):
+        """The most recent continuous reading — no new measurement, so it is cheap to poll."""
         try:
             return self._driver.last_range()
         except OSError as exception:
-            log.warn("tof read failed: %s", exception)
-            return None
+            return self._note_failure(exception)
+
+    def read_distance_mm(self):
+        return self.read_last_distance_mm()
 
     def arm_for_sleep(self):
-        """Clear any latched interrupt so we do not wake instantly on the one we just handled."""
+        """Clear the latched interrupt, so the chip does not wake instantly on the one we saw."""
         self._driver.clear_interrupt()
         return True
 
@@ -179,23 +187,43 @@ class TofInterruptSensor(TofSensor):
         self._driver.clear_interrupt()
 
 
-class ButtonOnlySensor(ProximitySensor):
-    """No proximity sensing at all — the bin opens on the button. Useful during bring-up."""
+class InfraredBurstSensor(ProximitySensor):
+    """
+    The fallback that fits the bin's existing lid holes: an IR LED pulsed at 38 kHz and a
+    TSOP-style receiver.
 
-    def _sees_hand(self):
-        return False
+    These receivers have automatic gain control that suppresses a *continuous* carrier, so the
+    LED is sent in short bursts with gaps — hence `burst_us`. The receiver's output is low while
+    it hears the carrier, so a reflection off a hand reads as 0.
 
+    It reports no distance: sensitivity is set by LED current and aiming, in hardware.
+    """
 
-class FakeSensor(ProximitySensor):
-    """Test double: set `.hand` to choose what it sees."""
+    CARRIER_DUTY = 32768  # 50% of DUTY_MAX, which is what these receivers expect
 
-    def __init__(self, hand=False, **kwargs):
+    def __init__(self, emitter_pwm, receiver_pin, burst_us=600, carrier_hz=38000, **kwargs):
         super().__init__(**kwargs)
-        self.hand = hand
+        self._emitter = emitter_pwm
+        self._receiver = receiver_pin
+        self._burst_us = burst_us
+        self._emitter.freq(carrier_hz)
+        self._emitter.duty_u16(0)
 
-    def _sees_hand(self):
-        return self.hand
+    def _senses_hand(self):
+        self._emitter.duty_u16(self.CARRIER_DUTY)
+        compat.sleep_us(self._burst_us)
+        heard_reflection = self._receiver.value() == 0
+        self._emitter.duty_u16(0)
+        return heard_reflection
 
 
-class SensorFailure(Exception):
-    """Raised when a sensor has failed often enough that the bin should fault rather than guess."""
+class ButtonOnlySensor(ProximitySensor):
+    """
+    No proximity sensing at all: the bin opens on the button.
+
+    Not a stub — it is the honest configuration for a bin with no sensor fitted, and what the
+    firmware falls back to when a sensor cannot be brought up.
+    """
+
+    def _senses_hand(self):
+        return False

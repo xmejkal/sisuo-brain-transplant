@@ -1,21 +1,34 @@
 """
-Close-detection strategies — "is the lid actually shut?"
+Close detection — "is the lid actually shut?"
 
 This is the question the original Sisuo board got wrong: it drove the lid closed and waited
-forever for a confirmation that never came. Three answers, from crudest to best, all behind one
-interface so the choice is a config line:
+forever for a confirmation that never came. `CloseDetector` is the question; the three
+implementations are increasingly good answers, chosen by `config.CLOSE_DETECTOR`.
 
-    start()             -> called as the closing stroke begins
-    closed(elapsed_ms)  -> True when the lid should be considered shut
-
-None of them is the safety net. `Lid` stops the motor at MOTOR_MAX_RUN_MS regardless of what a
+None of them is the safety net. `Lid` stops the motor at `MOTOR_MAX_RUN_MS` regardless of what a
 detector says, so a broken detector can never burn the motor.
 """
 
 from . import log
 
 
-class TimedCloseDetector:
+class CloseDetector:
+    """
+    What the lid needs to know whether a closing stroke has finished:
+
+        start()                called as the closing stroke begins
+        is_closed(elapsed_ms)  True when the lid should be considered shut;
+                               `elapsed_ms` is measured from the start of that stroke
+    """
+
+    def start(self):
+        """Reset any per-stroke state. Detectors with none may do nothing."""
+
+    def is_closed(self, elapsed_ms):
+        raise NotImplementedError
+
+
+class TimedCloseDetector(CloseDetector):
     """
     Run the motor for a calibrated time and call it shut. No extra hardware, no feedback.
 
@@ -27,61 +40,57 @@ class TimedCloseDetector:
     def __init__(self, run_ms):
         self._run_ms = run_ms
 
-    def start(self):
-        pass
-
-    def closed(self, elapsed_ms):
+    def is_closed(self, elapsed_ms):
         return elapsed_ms >= self._run_ms
 
 
-class LimitSwitchCloseDetector:
+class LimitSwitchCloseDetector(CloseDetector):
     """
-    A microswitch at the end of travel. Deterministic, needs no calibration, and is the option
-    the electronics review preferred: one part, and "shut" means shut.
+    A microswitch at the end of travel: deterministic, no calibration, and "shut" means shut.
+    One extra part, and the option the electronics review preferred.
 
-    The switch is wired to ground with a pull-up, so closed == 0.
+    The switch is wired to ground with a pull-up, so a closed switch reads 0.
     """
 
     def __init__(self, pin):
         self._pin = pin
 
-    def start(self):
-        pass
-
-    def closed(self, elapsed_ms):
+    def is_closed(self, elapsed_ms):
         return self._pin.value() == 0
 
 
-class StallCloseDetector:
+class MotorStallCloseDetector(CloseDetector):
     """
     Watch the motor current and call the lid shut when it stalls against its stop — the method
     the original board appears to have used.
 
     Needs the 1 ohm shunt in the motor's ground return and an ADC pin (only GPIO0/1/2 have one on
-    this chip). Readings are averaged because the ESP32-C6 ADC is noisy, and the first
-    `blanking_ms` of a stroke are ignored so the motor's inrush current is not mistaken for a
-    stall.
+    this chip). Readings are averaged because the ESP32-C6's ADC is noisy, and the first
+    `blanking_ms` of a stroke are ignored so the motor's inrush current is not read as a stall.
+
+    `consecutive_hits` counts polls rather than time, so it depends on `MOTION_POLL_MS`; at the
+    default 10 ms, 3 hits is about 30 ms of sustained over-current.
     """
 
-    def __init__(self, adc, stall_counts, blanking_ms=200, samples=8, consecutive=3, clock=None):
+    def __init__(self, adc, stall_counts, blanking_ms=200, samples=8, consecutive_hits=3):
         self._adc = adc
         self._stall_counts = stall_counts
         self._blanking_ms = blanking_ms
         self._samples = samples
-        self._consecutive = consecutive
+        self._consecutive_hits = consecutive_hits
         self._hits = 0
 
     def start(self):
         self._hits = 0
 
     def read_counts(self):
-        """Averaged raw ADC counts. Exposed for calibration from the REPL."""
+        """Averaged raw ADC counts. Public because calibration reads it from the REPL."""
         total = 0
         for _ in range(self._samples):
             total += self._adc.read_u16()
         return total // self._samples
 
-    def closed(self, elapsed_ms):
+    def is_closed(self, elapsed_ms):
         if elapsed_ms < self._blanking_ms:
             return False
 
@@ -91,22 +100,8 @@ class StallCloseDetector:
             return False
 
         self._hits += 1
-        if self._hits < self._consecutive:
+        if self._hits < self._consecutive_hits:
             return False
 
         log.info("stall detected at %d counts after %d ms", counts, elapsed_ms)
         return True
-
-
-class FakeCloseDetector:
-    """Test double: set `.is_closed` to choose the answer."""
-
-    def __init__(self, is_closed=False):
-        self.is_closed = is_closed
-        self.started = 0
-
-    def start(self):
-        self.started += 1
-
-    def closed(self, elapsed_ms):
-        return self.is_closed
