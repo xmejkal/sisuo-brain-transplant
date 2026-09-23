@@ -11,6 +11,21 @@
       "max": 255,
       "step": 1,
       "value": 200
+    },
+    {
+      "id": "status",
+      "label": "Range status (0 ok, 7 no target)",
+      "type": "range",
+      "min": 0,
+      "max": 15,
+      "step": 1,
+      "value": 0
+    },
+    {
+      "id": "unplugged",
+      "label": "Unplug the sensor",
+      "type": "boolean",
+      "value": 0
     }
   ]
 }

@@ -6,7 +6,14 @@
 //
 // It is a model of the conversation, not of the chip. It knows the handful of registers
 // smartbin/vl6180x.py touches and stores anything else written to it, which is enough for the
-// firmware to initialise, range, and (later) run in continuous mode.
+// firmware to initialise, range, and run in continuous mode.
+//
+// It models the unhappy paths too, because those are the ones firmware gets wrong:
+//   * `status` sets RESULT__RANGE_STATUS, so a simulation can produce the "no target in view"
+//     error an empty room reports every time — the reading that once faulted the bin;
+//   * `unplugged` makes the device stop acknowledging, which is a cable falling out;
+//   * the interrupt **latches** until the firmware clears it, as the real one does, so code
+//     that forgets to clear it misbehaves here as it would on a bench.
 //
 // Register addresses are 16-bit, which is why the write path collects two address bytes before
 // it starts reading or writing data.
@@ -21,6 +28,7 @@
 // The registers the driver reads. Everything else is stored and echoed back.
 #define REG_IDENTIFICATION_MODEL_ID 0x000
 #define REG_SYSTEM_FRESH_OUT_OF_RESET 0x016
+#define REG_SYSTEM_INTERRUPT_CLEAR 0x015
 #define REG_SYSRANGE_START 0x018
 #define REG_SYSRANGE_INTERMEASUREMENT_PERIOD 0x01B
 #define REG_SYSRANGE_THRESH_LOW 0x01A
@@ -38,6 +46,9 @@ typedef struct {
   pin_t pin_int;
   timer_t ranging_timer;
   uint32_t distance_control;
+  uint32_t status_control;
+  uint32_t unplugged_control;
+  bool interrupt_latched;
 
   uint16_t address;                // the 16-bit register address being addressed
   uint8_t address_bytes_seen;      // 0, 1 or 2 bytes of it received so far
@@ -57,6 +68,8 @@ void chip_init(void) {
   chip_state_t *chip = calloc(1, sizeof(chip_state_t));
   chip->pin_int = pin_init("INT", OUTPUT_LOW);
   chip->distance_control = attr_init("distance", 200);
+  chip->status_control = attr_init("status", 0);
+  chip->unplugged_control = attr_init("unplugged", 0);
   chip->fresh_out_of_reset = 1;    // a freshly powered sensor, so the driver loads its tuning
 
   // The real sensor ranges on its own clock once continuous mode is started, and keeps its
@@ -97,10 +110,12 @@ static uint8_t read_register(chip_state_t *chip, uint16_t address) {
       return chip->fresh_out_of_reset;
     case REG_RESULT_INTERRUPT_STATUS_GPIO:
       return SAMPLE_READY;
+    case REG_RESULT_RANGE_STATUS:
+      // The real chip reports the error in the high nibble. 7 is "could not converge", which is
+      // what an empty field of view gives, every time.
+      return (uint8_t)(attr_read(chip->status_control) << 4);
     case REG_RESULT_RANGE_VAL:
       return measured_distance(chip);
-    case REG_RESULT_RANGE_STATUS:
-      return RANGE_STATUS_OK;
     case REG_RESULT_RANGE_RETURN_RATE:
       return 0x10;
     default:
@@ -111,6 +126,9 @@ static uint8_t read_register(chip_state_t *chip, uint16_t address) {
 static void write_register(chip_state_t *chip, uint16_t address, uint8_t value) {
   if (address == REG_SYSTEM_FRESH_OUT_OF_RESET) {
     chip->fresh_out_of_reset = value;
+  }
+  if (address == REG_SYSTEM_INTERRUPT_CLEAR) {
+    chip->interrupt_latched = false;
   }
   if (address < STORED_REGISTERS) {
     chip->registers[address] = value;
@@ -139,7 +157,14 @@ static void update_interrupt(chip_state_t *chip) {
   uint8_t threshold = chip->registers[REG_SYSRANGE_THRESH_LOW];
   bool continuous = (chip->registers[REG_SYSRANGE_START] & 0x02) != 0;
   bool something_near = threshold > 0 && measured_distance(chip) < threshold;
-  bool assert_interrupt = continuous && something_near;
+
+  // The interrupt latches: once something has been seen, the pin stays asserted until the
+  // firmware writes to SYSTEM__INTERRUPT_CLEAR. Firmware that forgets will find the bin waking
+  // itself forever, here as on a bench.
+  if (continuous && something_near) {
+    chip->interrupt_latched = true;
+  }
+  bool assert_interrupt = chip->interrupt_latched;
 
   if (assert_interrupt != chip->interrupt_asserted) {
     chip->interrupt_asserted = assert_interrupt;
@@ -151,6 +176,12 @@ static void update_interrupt(chip_state_t *chip) {
 
 static bool on_i2c_connect(void *user_data, uint32_t address, bool read) {
   chip_state_t *chip = (chip_state_t *)user_data;
+
+  // An unplugged device does not acknowledge, which is what the host sees as a bus error.
+  if (attr_read(chip->unplugged_control)) {
+    return false;
+  }
+
   if (!read) {
     chip->address_bytes_seen = 0;  // a write always begins with the register address
   }

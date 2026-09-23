@@ -67,13 +67,25 @@ export default () => (
     <chip name="LipoBattery" footprint="jst_ph_2" pcbX={28} pcbY={-6} pinLabels={{ pin1:"POS", pin2:"NEG" }} />
 
     {/* The pins float for ~300 ms between reset and the firmware running. These are what keep the
-        motor still in that window, and through any crash or reflash. */}
+        motor still in that window, and through any crash or reflash.
+
+        They return to the driver's OWN ground, not the board's: the shunt lifts the driver's
+        ground above system ground while the motor runs, so a pulldown to system ground would
+        hold the inputs *below* the driver's idea of zero — outside its input range, and an
+        injection path into the chip. */}
     <resistor name="PulldownIa" resistance="10k" footprint="0603" pcbX={-17} pcbY={9} />
     <resistor name="PulldownIb" resistance="10k" footprint="0603" pcbX={-17} pcbY={12} />
 
     {/* Low-side shunt: the driver's ground returns through it, and D2 reads the voltage across
-        it. 1 ohm gives ~70 mV running and ~230 mV stalled. */}
-    <resistor name="CurrentShunt" resistance="1" footprint="0805" pcbX={-21} pcbY={-1} />
+        it. 0.33 ohm gives ~23 mV running and ~76 mV stalled — above the C6 ADC's noise, while
+        costing the motor a tenth of what 1 ohm did.
+
+        The sense line reaches the ADC through a series resistor and a capacitor: the resistor
+        limits the current into the pin if the motor ever stalls hard enough to lift this node
+        toward the rail, and the capacitor averages the PWM chopping the reading. */}
+    <resistor name="CurrentShunt" resistance="0.33" footprint="0805" pcbX={-21} pcbY={-1} />
+    <resistor name="SenseResistor" resistance="1k" footprint="0603" pcbX={-13} pcbY={-1} />
+    <capacitor name="SenseFilterCap" capacitance="100nF" footprint="0603" pcbX={-13} pcbY={2} />
 
     <capacitor name="MotorBulkCap" capacitance="220uF" footprint="0805" pcbX={-19} pcbY={-8} />
     <capacitor name="Mp3ReservoirCap" capacitance="470uF" footprint="0805" pcbX={19} pcbY={-8} />
@@ -106,13 +118,17 @@ export default () => (
     <trace from=".XIAO > .MOTOR_IA" to=".MotorDriver > .AIA" />
     <trace from=".XIAO > .MOTOR_IB" to=".MotorDriver > .AIB" />
     <trace from=".PulldownIa > .pin1" to=".MotorDriver > .AIA" />
-    <trace from=".PulldownIa > .pin2" to="net.GND" />
+    <trace from=".PulldownIa > .pin2" to="net.MOTOR_SENSE" />
     <trace from=".PulldownIb > .pin1" to=".MotorDriver > .AIB" />
-    <trace from=".PulldownIb > .pin2" to="net.GND" />
+    <trace from=".PulldownIb > .pin2" to="net.MOTOR_SENSE" />
     <trace from=".MotorDriver > .GND" to="net.MOTOR_SENSE" />
     <trace from=".CurrentShunt > .pin1" to="net.MOTOR_SENSE" />
     <trace from=".CurrentShunt > .pin2" to="net.GND" />
-    <trace from=".XIAO > .MOTOR_SENSE" to="net.MOTOR_SENSE" />
+    <trace from=".SenseResistor > .pin1" to="net.MOTOR_SENSE" />
+    <trace from=".SenseResistor > .pin2" to="net.SENSE_ADC" />
+    <trace from=".XIAO > .MOTOR_SENSE" to="net.SENSE_ADC" />
+    <trace from=".SenseFilterCap > .pin1" to="net.SENSE_ADC" />
+    <trace from=".SenseFilterCap > .pin2" to="net.GND" />
     <trace from=".BinConnector > .MOTA" to=".MotorOut > .OA" />
     <trace from=".BinConnector > .MOTB" to=".MotorOut > .OB" />
     <trace from=".MotorBrushCap > .pin1" to=".MotorOut > .OA" />

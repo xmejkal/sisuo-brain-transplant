@@ -111,7 +111,7 @@ simulate-all: $(FLASH_IMAGE) $(DIAGRAM) $(CHIP_BINARIES)
 	@python3 tools/build-flash-image.py --config \
 	  '{"POWER_POLICY":"deep_sleep","SENSOR_STRATEGY":"tof_interrupt","SLEEP_AFTER_MS":3000}' \
 	  flash-deep-sleep.bin > /dev/null
-	@for scenario in lid-cycle wave-to-open obstruction; do \
+	@for scenario in lid-cycle wave-to-open obstruction sensor-trouble; do \
 	   printf "==> %s\n" "$$scenario"; \
 	   (cd $(SIM) && wokwi-cli . --scenario $$scenario.scenario.yaml --timeout 120000 \
 	      | grep -E "matched|completed|Timeout" | sed 's/^/   /') || exit 1; \

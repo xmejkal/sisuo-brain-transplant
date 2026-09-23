@@ -64,6 +64,13 @@
       "attrs": {
         "color": "green"
       }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "senseresistor",
+      "top": 316.8,
+      "left": 182.4,
+      "attrs": {}
     }
   ],
   "connections": [
@@ -80,8 +87,14 @@
       []
     ],
     [
-      "xiao:D2",
+      "senseresistor:1",
       "motordriver:GND",
+      "green",
+      []
+    ],
+    [
+      "xiao:D2",
+      "senseresistor:2",
       "green",
       []
     ],

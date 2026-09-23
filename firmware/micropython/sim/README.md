@@ -142,10 +142,25 @@ chip reports the motor turning one way and then the other. The strokes measured 
   direction immediately but only calls the motor stopped after the inputs have been quiet for
   longer than a PWM period — which is exactly what a real motor's inertia does.
 
+### The scenarios
+
+| Scenario | What it proves |
+| --- | --- |
+| `lid-cycle` | a button press opens the lid, it holds, and closes itself — with the LED pins checked, not just the log |
+| `wave-to-open` | the I2C path end to end: our driver reading our VL6180X chip, and a hand at 60 mm opening the lid |
+| `obstruction` | something in the way reopens the lid, retries, and latches a fault rather than fighting — the failure the original bin got wrong |
+| `sensor-trouble` | an empty room is **not** a fault however long it lasts, while an unplugged sensor is |
+| `deep-sleep/sleep-and-wake` | the bin sleeps and arms the two pins that can wake this chip |
+
+`make simulate-all` runs the first four; the fifth needs its own flash image and runs last.
+
 ### Still unverified
 
-`machine.deepsleep` and wake-on-pin under MicroPython in Wokwi. The firmware defaults to
-`POWER_POLICY = "always_on"`, so this scenario never exercises them.
+**Waking from deep sleep.** Wokwi wakes an ESP32-C6 from a timer but not from a GPIO — shown by
+experiment: a bare MicroPython script sleeping on a timer wakes reliably, and the same script
+arming `esp32.wake_on_ext1` or `wake_on_gpio` never does, with the pin verified high. So the
+sleep scenario asserts only that the bin sleeps and arms the right pins. Waking on a hand is a
+bench test.
 
 
 ## What this layer has already caught

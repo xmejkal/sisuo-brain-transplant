@@ -77,12 +77,14 @@ TOF_MAX_FAILURES = 10       # unreadable this many times in a row -> the bin fau
 IR_CARRIER_HZ = 38000
 IR_BURST_US = 600
 
-# Raw ADC counts at stall, across the board's 1 ohm shunt, read at 11 dB attenuation (~3.1 V
-# full scale, 16-bit). The patent literature's ~230 mA stall is ~230 mV is ~4900 counts, and a
-# threshold sits between running (~70 mA, ~1500) and that. This number is a starting point and
-# MUST be measured on the real motor with tools/calibrate.py — see STATUS.md, where measuring
-# the motor's current is the open question that could still change the driver choice.
-STALL_COUNTS = 3200
+# Raw ADC counts at stall, across the board's 0.33 ohm shunt, read at 11 dB attenuation (~3.1 V
+# full scale, 16-bit). The patent literature's ~230 mA stall is ~76 mV is ~1600 counts; running
+# at ~70 mA is ~23 mV is ~490. The threshold sits between them.
+#
+# A starting point only: it MUST be measured on the real motor with tools/calibrate.py. If that
+# motor's stall current is much higher than the literature's, this number changes and so might
+# the driver — see STATUS.md.
+STALL_COUNTS = 1000
 STALL_BLANKING_MS = 200     # ignore start-up inrush
 STALL_SAMPLES = 8           # ADC reads averaged per check (the C6's ADC is noisy)
 STALL_CONSECUTIVE_HITS = 3  # checks above the threshold before believing it

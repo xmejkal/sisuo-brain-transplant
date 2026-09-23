@@ -1,0 +1,48 @@
+# What the bin does when the sensor is unhappy — the two cases that must not be confused.
+#
+# An empty room makes the sensor report "could not measure", every poll, forever. That is not a
+# fault and must never be treated as one: the firmware used to, and a bin nobody was using would
+# latch a red LED after about six hundred milliseconds.
+#
+# A cable falling out is a fault, and must be noticed rather than quietly ignored.
+name: sensor trouble
+version: 1
+author: smartbin
+
+steps:
+  - wait-serial: "smartbin ready"
+  - delay: 500ms
+
+  # An empty room: the sensor answers, and says it has nothing to report.
+  - set-control: { part-id: sensorheader, name: status, value: 7 }
+  - delay: 3000ms
+
+  # Three seconds of that is fifty polls, five times the failure budget. The bin must still be
+  # idle and willing — prove it by opening on a button.
+  - set-control: { part-id: btnopen, name: pressed, value: 1 }
+  - wait-serial: "idle --open_pressed--> opening"
+  - set-control: { part-id: btnopen, name: pressed, value: 0 }
+  - wait-serial: "opening --stroke_finished--> open"
+
+  # Now unplug the sensor. This one *is* a fault, and the bin should say so rather than pretend
+  # to be watching.
+  - set-control: { part-id: sensorheader, name: unplugged, value: 1 }
+  - wait-serial: "sensor failed"
+  - wait-serial: "--> fault"
+
+  # The transition is logged *before* the hooks run and the event reaches the LED, so give it a
+  # moment — asserting on the same instant as the log line samples the previous state.
+  #
+  # The fault LED also *blinks*, so its own pin cannot be asserted at an instant. The steady
+  # assertion is the green half being dark: the bin is not pretending to be open for business.
+  - delay: 500ms
+  - expect-pin: { part-id: xiao, name: D10, value: 0 }
+
+  # Latched: only a button clears it, and plugging the sensor back in does not.
+  - set-control: { part-id: sensorheader, name: unplugged, value: 0 }
+  - delay: 1000ms
+  - expect-pin: { part-id: xiao, name: D10, value: 0 }
+  - set-control: { part-id: btnopen, name: pressed, value: 1 }
+  - wait-serial: "fault --open_pressed--> idle"
+  - set-control: { part-id: btnopen, name: pressed, value: 0 }
+  - delay: 200ms

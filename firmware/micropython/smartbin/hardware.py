@@ -77,15 +77,34 @@ class Hardware:
         return button_open, button_mode, led
 
     def _build_player(self, config):
+        """
+        The MP3 module, or silence.
+
+        A bin that cannot make a noise still empties itself, so nothing here is allowed to stop
+        the firmware starting. `rx=-1` should mean "leave the receive pin alone" on this port,
+        but it is unverified on hardware, and a ValueError at this point would take the whole bin
+        down over a speaker.
+        """
         if not config.AUDIO_ENABLED:
             return audio.SilentPlayer()
-        uart = UART(
-            config.MP3_UART_ID,
-            baudrate=config.MP3_BAUD,
-            tx=config.PIN_MP3_TX,
-            rx=-1,  # the module's TXD is deliberately not wired; see audio.Dfr0534Player
-        )
+
+        try:
+            uart = self._open_mp3_uart(config)
+        except Exception as exception:  # noqa: BLE001 - see docstring
+            log.error("no MP3 module (%s); the bin will run silently", exception)
+            return audio.SilentPlayer()
+
         return audio.Dfr0534Player(uart, config.VOLUME)
+
+    def _open_mp3_uart(self, config):
+        """Transmit only: the module's TXD is deliberately unwired (see audio.Dfr0534Player)."""
+        try:
+            return UART(config.MP3_UART_ID, baudrate=config.MP3_BAUD, tx=config.PIN_MP3_TX, rx=-1)
+        except (ValueError, TypeError):
+            # Some ports will not accept -1 for "no pin". Fall back to letting the port pick its
+            # own receive pin: we never read it, and an unused input is harmless.
+            log.warn("this port rejects rx=-1; opening the MP3 UART with its default receive pin")
+            return UART(config.MP3_UART_ID, baudrate=config.MP3_BAUD, tx=config.PIN_MP3_TX)
 
     def _build_proximity_devices(self, config):
         """
