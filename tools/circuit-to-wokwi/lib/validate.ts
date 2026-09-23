@@ -22,9 +22,12 @@ export interface ValidationResult {
   lintIssues: number;
 }
 
-export function validate(emitted: EmitResult): ValidationResult {
+export function validate(emitted: EmitResult, componentCount?: number): ValidationResult {
   const lintProblems = lint(emitted);
-  const coverageProblems = checkNetCoverage(emitted);
+  const coverageProblems = [
+    ...checkNetCoverage(emitted),
+    ...checkNothingVanished(emitted, componentCount),
+  ];
 
   return {
     problems: [...lintProblems, ...coverageProblems],
@@ -50,6 +53,29 @@ function lint(emitted: EmitResult): Problem[] {
  * Nets that lost members to skip rules are not failures — that is the skip rules working, and
  * the emitter records exactly how many went that way.
  */
+/**
+ * Every component in the design must have become a part, or been skipped for a stated reason,
+ * or been reported. Nothing may simply disappear.
+ *
+ * This is the check that catches a skip rule quietly widening its reach — renaming a component
+ * so an unanchored pattern starts matching it used to remove it from the simulation in silence.
+ */
+function checkNothingVanished(emitted: EmitResult, componentCount?: number): Problem[] {
+  if (componentCount === undefined) return [];
+
+  const accountedFor = emitted.diagram.parts.length + emitted.skipped.length +
+    emitted.problems.length;
+  if (accountedFor >= componentCount) return [];
+
+  return [
+    {
+      message:
+        `${componentCount - accountedFor} component(s) in the design became neither a part nor ` +
+        `a stated omission. Something is being dropped silently`,
+    },
+  ];
+}
+
 function checkNetCoverage(emitted: EmitResult): Problem[] {
   return emitted.netOutcomes
     .filter((outcome) => outcome.simulatedEndpoints >= 2 && outcome.wires === 0)

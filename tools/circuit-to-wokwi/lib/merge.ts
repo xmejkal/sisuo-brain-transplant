@@ -39,9 +39,11 @@ export function mergeWithExisting(
       top: previous.top ?? part.top,
       left: previous.left ?? part.left,
       ...(previous.rotate !== undefined ? { rotate: previous.rotate } : {}),
-      // A person may have set a control on a chip (a distance, an LED colour); keep it, but let
-      // the mapping table add anything new.
-      attrs: { ...part.attrs, ...previous.attrs },
+      // The mapping table wins for attributes it declares — otherwise an attribute is
+      // write-once: changing a chip's default in mapping.ts would never reach the file, and
+      // `--check` could not see the difference because it compares against this merge.
+      // Anything a person added that the mapping says nothing about is kept.
+      attrs: { ...previous.attrs, ...part.attrs },
     };
   });
 

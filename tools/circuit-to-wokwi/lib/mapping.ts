@@ -148,21 +148,27 @@ export const PARTS: PartMapping[] = [
  * Things deliberately absent from the simulation.
  *
  * Each needs a reason, so the report reads as a set of decisions rather than a list of holes.
+ *
+ * **Anchored patterns only.** An unanchored rule silently swallows parts it was never meant to:
+ * `/Power/` matched a component renamed to `PowerLed`, and the status LED vanished from the
+ * simulation with a cheerful "the simulator powers the board itself". Match whole names.
  */
 export const SKIP: SkipRule[] = [
   {
-    match: /Cap|Decoup|^C\d+$/,
+    match: /^(Decoup|Motor(Bulk|Brush))|Cap$/,
     reason: "decoupling and bulk capacitors do nothing in a digital simulation",
   },
-  { match: /Connector|JST|BinConnector/, reason: "a connector is wiring, not a part to simulate" },
-  { match: /Speaker/, reason: "no Wokwi part; the firmware's log says which cue it played" },
   {
-    match: /MotorOut|CurrentShunt|Pulldown/,
-    reason: "hardware that has no behaviour to simulate: an output terminal, a sense shunt, and "
-      + "the pulldowns that hold the motor still while the board boots",
+    match: /^(BinConnector|MotorOut|LipoBattery)$/,
+    reason: "a connector is wiring, not a part to simulate",
   },
-  { match: /Mp3Player|DFR0534/, reason: "no Wokwi part; cues are visible in the serial log" },
-  { match: /Battery|Lipo|Power/, reason: "the simulator powers the board itself" },
+  { match: /^Speaker$/, reason: "no Wokwi part; the firmware's log says which cue it played" },
+  {
+    match: /^(CurrentShunt|PulldownIa|PulldownIb)$/,
+    reason: "hardware with no behaviour to simulate: a sense shunt, and the pulldowns that hold "
+      + "the motor still while the board boots",
+  },
+  { match: /^Mp3Player$/, reason: "no Wokwi part; cues are visible in the serial log" },
 ];
 
 export function findMapping(componentName: string): PartMapping | undefined {

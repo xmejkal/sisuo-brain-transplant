@@ -53,7 +53,7 @@ async function main() {
   const emitted = emitWokwiDiagram(netlist, { chipsDirectory: DEFAULT_CHIPS });
   const existing = await readExisting(options.out);
   const { diagram, summary } = mergeWithExisting(emitted.diagram, existing);
-  const validation = validate({ ...emitted, diagram });
+  const validation = validate({ ...emitted, diagram }, netlist.components.length);
 
   report({ netlist, emitted, summary, validation, designProblems });
 
