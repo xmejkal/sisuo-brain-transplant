@@ -1,14 +1,19 @@
 # Smart Bin firmware — MicroPython
 
+**Start with [`smartbin/__init__.py`](smartbin/__init__.py)** — its module docstring is the tour:
+what each part is, how they connect, and what happens end to end when someone waves a hand at the
+bin. Everything else is one chapter of that.
+
 Design and rationale: [`../../FIRMWARE_PLAN.md`](../../FIRMWARE_PLAN.md).
 The Arduino v1 sketch in `../arduino/` is kept only as a reference.
 
 ## Layout
 ```
-boot.py              WiFi off, nothing else
+boot.py              deliberately empty (see its docstring for why)
 main.py              two lines; hold MODE at boot to skip auto-start
 config.py            every tunable + pin map; /config.json overrides per unit
 smartbin/            the firmware package
+  __init__.py        START HERE: the tour, plus build() and run()
   states.py          states, triggers and the transition table — the product, as data
   fsm.py             the state machine: hooks, history, event publishing
   lid.py             motion strokes + the hard safety cap
@@ -20,7 +25,8 @@ smartbin/            the firmware package
   factory.py         config strings -> constructed objects (all the wiring)
   hardware.py        the only module that builds peripherals
   platform.py        ESP32-C6 facts: wake pins, deep sleep, watchdog
-  events.py feedback.py ui.py vl6180x.py compat.py log.py app.py
+  smart_bin.py       the running application: three tasks and the wiring between them
+  events.py feedback.py ui.py vl6180x.py compat.py log.py
 bringup/             one script per module, run in order on the bench
 tools/               fsm_diagram.py (the diagram below) and calibrate.py (bench procedures)
 tests/               runs on the Mac, no hardware

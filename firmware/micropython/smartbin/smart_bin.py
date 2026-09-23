@@ -1,5 +1,8 @@
 """
-SmartBin: runs the tasks and passes messages between the hardware and the lid.
+The running bin: the tasks, and the messages between the hardware and the lid.
+
+For how the whole thing fits together, read `smartbin/__init__.py` first — this file is one
+chapter of it.
 
 Three tasks, each doing one thing and firing triggers at the lid's state machine:
   * the sensor poll   -> HAND_DETECTED, or SENSOR_FAILED when a sensor has really gone

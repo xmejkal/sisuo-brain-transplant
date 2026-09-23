@@ -51,6 +51,7 @@ Check routing/DRC from circuit.json (not just CLI): count `pcb_trace` and `pcb_*
 ## Firmware — MicroPython v2 (firmware/micropython/)
 OO package with a **state machine** at its core. Design + rationale: `FIRMWARE_PLAN.md`;
 bench/calibration/deploy: `firmware/micropython/README.md`. Arduino v1 kept only as reference.
+- Read `firmware/micropython/smartbin/__init__.py` first — its docstring is the guided tour.
 - `smartbin/states.py` = states + triggers + TRANSITIONS table — the behaviour, as data.
 - Strategies are named for the JOB first, implementation in the subclass: `ProximitySensor`
   (TimeOfFlight / SelfRangingTimeOfFlight / InfraredBurst / ButtonOnly), `CloseDetector`

@@ -1,6 +1,9 @@
 """
 Production entry point — deliberately the whole file.
 
+**To understand the firmware, read `smartbin/__init__.py`**: it is the guided tour of how the
+parts fit together. This file only decides whether to start them.
+
 Any logic here would be logic you cannot reach from the REPL, so there is none.
 
 Hold the MODE button during boot to skip the auto-start: insurance against a board that
