@@ -5,3 +5,8 @@ _seeed/
 *.log
 __pycache__/
 *.pyc
+
+# Wokwi: firmware binaries and anything holding a token
+firmware/micropython/sim/*.bin
+.env
+*.token
