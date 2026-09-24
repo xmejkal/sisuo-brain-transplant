@@ -33,7 +33,18 @@ which is waiting on two measurements only Petr can take.
    (it previously did not, which meant the MCU had no battery power at all). Polarity was taken
    from Seeed's back-view drawing and mirrored onto the land pattern; Seeed's own text describes
    the pads in a way that cannot be read off this footprint. Reversed LiPo destroys the module.
-6. **GitHub**: run `gh auth login`, then the repo gets created and pushed (see below).
+6. **The MP3 module's idle current** — five minutes with a meter and a cell, module in your
+   drawer, no bin required. It decides three things at once: whether the board needs a high-side
+   switch on the MP3's VBAT feed **before it is fabricated**, whether the deep-sleep work buys
+   months or days, and whether any battery-life claim in this repo is true. Without it the bin
+   has no trustworthy battery figure at all. If it is ~15-25 mA as its class suggests, it is
+   roughly forty times everything else on the board combined.
+7. **Motor winding resistance** — meter across the disconnected, stationary motor. Thirty seconds,
+   no bin, no risk to the meter's fuse. Stall current then falls out as
+   `(V_oc - V_sat) / (R_winding + R_pack + R_shunt)`, which is a better route to the number than
+   stalling the lid by hand. At 17 ohm the design is comfortable; at 3 ohm stall is ~1.2 A, over
+   the L9110S's rating and over the 0805 shunt's power rating.
+8. **GitHub**: run `gh auth login`, then the repo gets created and pushed (see below).
    `~/Development/spark` is a git repo now, at v0.5.0, with no remote.
 7. ~~A Wokwi token~~ — done; `make simulate` runs, and four scenarios pass.
 
@@ -71,7 +82,10 @@ which is waiting on two measurements only Petr can take.
 
 * **Nothing has run on hardware.** All green results come from tests and simulation.
 * The DFR0534 command bytes are from the v1 Arduino sketch and still need checking against
-  `parts/datasheets/DFR0534_mp3.pdf`.
+  **there is no datasheet in the repo**: `parts/datasheets/` held a 6 KB product photo with
+  a `.pdf` extension, now renamed `DFR0534_product_photo.png`. Get the real one from DFRobot's
+  wiki before trusting any command byte, any idle-current figure, or the standby command that
+  might remove the need for a hardware power switch.
 
 * Deep sleep and wake-on-pin: the firmware reaches sleep and arms the right pins, but **Wokwi
   does not wake an ESP32-C6 from a GPIO** (established by experiment — timer wake works), so

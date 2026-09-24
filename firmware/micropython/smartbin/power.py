@@ -54,9 +54,18 @@ class DeepSleepPolicy(PowerPolicy):
     Sleeps the chip once the bin has been idle, waking on the sensor's interrupt or the OPEN
     button.
 
-    The sensor keeps ranging while the chip is off, so idle current becomes the sensor's
-    (~170 uA at one reading per second) rather than the ESP32's ~15 uA. That is the real budget:
-    months on a 1000 mAh cell rather than days.
+    The sensor keeps ranging while the chip is off, so the ESP32's own ~15 uA stops being the
+    budget and the sensor's ~170 uA at one reading per second takes over.
+
+    That is only the budget for the parts this policy can switch off, and on this board it is not
+    the whole draw. **The DFR0534 sits permanently on VBAT with no enable pin** (`board.tsx`, the
+    Mp3Player VCC trace) and a module of that class idles somewhere around 15-25 mA. Nobody has
+    measured this one. If it is anywhere near that, it is roughly forty times everything else put
+    together, and sleeping the chip buys days rather than the months this docstring used to claim.
+
+    Measuring it is five minutes with a meter and a cell, and the answer decides whether the board
+    needs a high-side switch on that rail before it is ever fabricated. Until then, treat any
+    battery-life figure for this bin as unknown rather than good.
 
     Requirements this policy checks rather than assumes:
       * the sensor must be able to watch while asleep (`SENSOR_STRATEGY = "tof_interrupt"`);

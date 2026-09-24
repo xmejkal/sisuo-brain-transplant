@@ -176,9 +176,13 @@ state machine and the sounds are untouched.
 * **Waking is a reset**: `main.py` re-runs, ~100-300 ms, and only `machine.RTC().memory()`
   survives. `DeepSleepPolicy.trigger_for_wake()` turns "which pin woke us" into a trigger, so the hand
   that woke the bin does not have to wave twice.
-* Expect **~200-400 uA** total idle, dominated by the sensor (~340 uA at 500 ms, ~170 uA at 1 s),
-  with the ESP32 itself at ~15 uA — but ~300 uA extra if the LiPo sags toward 3.3 V, because the
-  XIAO's regulator changes mode. Roughly months on a 1000 mAh cell.
+* Expect **~200-400 uA** from the parts this policy controls, dominated by the sensor (~340 uA at
+  500 ms, ~170 uA at 1 s), with the ESP32 itself at ~15 uA — plus ~300 uA more if the LiPo sags
+  toward 3.3 V and the XIAO's regulator changes mode.
+* **That is not the whole board.** The MP3 module has no enable pin and sits on VBAT permanently;
+  its class idles around 15-25 mA, which would be ~40x everything above combined and would turn
+  months into days. It has never been measured. Until it is, this bin has **no** trustworthy
+  battery-life number — see `smartbin/power.py` for what that decides.
 * `machine.wake_pins()` is how the bin tells the sensor from the button. Builds without it report
   only *that* something woke the chip, so the bin reads the pins itself instead.
 * **All wake sources share one polarity** (`config.WAKE_ON_HIGH`), because the chip applies one

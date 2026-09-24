@@ -49,7 +49,8 @@ class Dfr0534Player(Player):
     LiPo its idle level would exceed what the ESP32-C6's pins tolerate. The cost is that failures
     are invisible here — which is why the status LED, not the speaker, is the error channel.
 
-    NOTE: the command bytes still need checking against parts/datasheets/DFR0534_mp3.pdf — they
+    NOTE: the command bytes still need checking against a real DFR0534 datasheet, which this
+    repo does not have (what was filed as one is a product photo) — they
     vary between module firmware revisions. `bringup/04_mp3.py` prints every frame it sends.
     """
 

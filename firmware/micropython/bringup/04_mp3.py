@@ -3,7 +3,8 @@ Bring-up step 4 — DFR0534 MP3 over UART: XIAO D9 (GPIO20, TX) -> module RXD,
 The module's TXD stays UNWIRED: we never need its replies, and powered from the LiPo its idle
 level would exceed what the ESP32-C6's pins tolerate. Speaker on the module; flash needs tracks
 1 and 2. Plays track 1, then track 2, printing every frame it sends.
-Verify the command bytes against parts/datasheets/DFR0534_mp3.pdf if nothing plays.
+If nothing plays, verify the command bytes against a real DFR0534 datasheet from DFRobot's
+wiki. The repo does not have one: what was filed as the datasheet is a product photo.
 """
 import time
 

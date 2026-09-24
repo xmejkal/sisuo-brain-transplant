@@ -154,7 +154,15 @@ export default () => (
         toward the rail, and the capacitor averages the PWM chopping the reading. */}
     <resistor name="CurrentShunt" resistance="0.33" footprint="0805" pcbX={-1} pcbY={1} />
     <resistor name="SenseResistor" resistance="1k" footprint="0603" pcbX={-6} pcbY={-9} />
-    <capacitor name="SenseFilterCap" capacitance="100nF" footprint="0603" pcbX={-6} pcbY={-11} />
+    {/* 1k + 1uF = 159 Hz, against a 5 kHz PWM carrier: about 30x attenuation, so roughly 1% of
+        the ripple survives to the ADC pin. It was 100nF, which puts the corner at 1.6 kHz and
+        leaves ~30% of the carrier on the pin — `STALL_SAMPLES = 8` was averaging that away rather
+        than the ADC's own noise, which is what it says it is for.
+
+        The time constant is 1 ms, so a stall is visible well inside `MOTION_POLL_MS = 10`. Do not
+        grow this much further: the ESP32 ADC wants a low source impedance and a slow settle here
+        turns into a late stall. */}
+    <capacitor name="SenseFilterCap" capacitance="1uF" footprint="0603" pcbX={-6} pcbY={-11} />
 
     <capacitor name="MotorBulkCap" capacitance="220uF" footprint="0805" pcbX={-1} pcbY={5} />
     <capacitor name="Mp3ReservoirCap" capacitance="470uF" footprint="0805" pcbX={14} pcbY={-2} />
