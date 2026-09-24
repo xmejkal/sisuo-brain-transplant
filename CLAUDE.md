@@ -27,11 +27,19 @@ names, named constants, docstrings, focused functions; honest capability assessm
 
 ## Hardware
 Board: **DFRobot FireBeetle 2 ESP32-S3** (DFR0975 N16R8 / DFR1145 N4 — same pinout; 3.3V logic).
-Power: the **LiPo plugs into the module's own JST socket** — it carries an ETA6003 charger, so the
+Power: the **LiPo plugs into the module's own JST socket** (JST PH 2.0, side-entry, "+" is the
+contact further from the USB-C end) — it carries an ETA6003 charger fixed at **1 A**, so the
 board has no battery connector and there is no VBAT rail. Logic and audio both run from the
-module's `3V3`, which is a **TPS62A02 buck good for 2 A** (verified in DFRobot's schematic V1.3),
-where the XIAO had a small LDO. The lid motor keeps its own **6V AA pack** via the bin connector.
-Domains share only GND.
+module's `3V3`. The lid motor keeps its own **6V AA pack** via the bin connector. Domains share
+only GND.
+**One SKU, two power designs — check which board you have.** V1.2 and later use a TPS62A02 buck
+(2 A) and have **no I2C pull-ups anywhere**, so the VL6180X must bring its own. V1.1 and earlier
+use an AXP313A PMIC (1.5 A) which sits on the I2C bus as another device and supplies 5.1k
+pull-ups, and there the MODE button also drives the PMIC's power-off. Tell them apart by the chip
+between BOOT and the USB-C: a QFN marked AXP313A is old, a tiny SOT-563 beside two SOT-23-5 LDOs
+is new. Details and sources: `boards/firebeetle2-esp32s3.json` → `hardware_revisions`.
+**Prefer DFR1145 (N4) for this build:** the DFR0975's octal PSRAM costs ~140 µA in deep sleep
+(Espressif WROOM-1 datasheet v1.1, Table 12 footnote) against a total budget of a few hundred.
 Modules (all real, plug-in): **L9110S** motor driver, DFRobot DFR0534 UART MP3 + speaker,
 **VL6180X** time-of-flight rangefinder on I2C, 2 tactile buttons, a bicolour status LED, JST
 connectors, 0603/0805 passives. No OLED — the bin never had a screen.

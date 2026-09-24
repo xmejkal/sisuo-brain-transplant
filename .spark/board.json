@@ -196,5 +196,46 @@
   "//vendor": "Where the pin map can be RE-DERIVED from, so it is verified rather than trusted. tools/../check_vendor_pins.py fetches this header and compares.",
   "vendor": {
     "arduino_variant": "dfrobot_firebeetle2_esp32s3"
+  },
+  "//hardware_revisions": "One SKU, two different power designs. A board file that states a fact true of only some boards carrying its SKU is asserting something with no stated scope, which is how a correct-looking number becomes wrong on someone else's desk.",
+  "hardware_revisions": {
+    "source": "DFRobot's wiki carries two Board Overview tabs, and the schematics zip carries both V1.0.0 and V1.3.0: https://dfimg.dfrobot.com/wiki/20529/DFR0975_firebeetle-esp32-s3-ai-acceleration-board_schematics_V1.3.zip",
+    "how_to_tell": "Look at the chip between the BOOT button and the USB-C. A QFN marked AXP313A is V1.1 or earlier; a tiny SOT-563 next to two SOT-23-5 LDOs is V1.2 or later. The back silkscreen also carries the revision.",
+    "v1_1_and_earlier": {
+      "3v3_regulator": "AXP313A PMIC, DCDC1, 1.5 A (X-Powers datasheet, not DFRobot)",
+      "i2c_pullups": "5.1k to 3V3 already present on SDA/SCL \u2014 they are the PMIC's own bus pull-ups, and the PMIC is another device on your I2C bus",
+      "user_button": "also drives the PMIC's PWRON through a diode, so a long press can power the board down and the pin reads ~0.7 V pressed, not 0 V"
+    },
+    "v1_2_and_later": {
+      "3v3_regulator": "TPS62A02 buck, 2 A (TI datasheet, not DFRobot)",
+      "i2c_pullups": "NONE anywhere on the board. Every I2C device must bring its own, or the bus does not work at all",
+      "user_button": "a plain button: 5.1k pull-up, 100 nF, switch to ground"
+    }
+  },
+  "//power": "What DFRobot document, and what only the component datasheets say. DFRobot publish no current rating for either rail and no quiescent figure at all.",
+  "power": {
+    "vcc_is_not_tied_to_vsys": {
+      "value": true,
+      "verified": true,
+      "source": "DFRobot schematic V1.3.0",
+      "note": "VCC reaches VSYS through a SI2301 P-FET with a dual-PNP gate drive and a 6.2 V zener clamp. Functionally VCC follows VSYS, but it is a switch, not a short, and the FET is the practical current ceiling \u2014 DFRobot rate neither."
+    },
+    "charge_current_a": {
+      "value": 1.0,
+      "verified": true,
+      "source": "DFRobot wiki 'Max Charging Current: 1A'; schematic V1.3.0 ETA6003 ISET1 = 1k",
+      "note": "Not settable in software or by a jumper \u2014 changing it means replacing R2. Battery temperature protection is disabled on this board: NTC is tied to ground."
+    },
+    "feeding_vcc_charges_the_battery": {
+      "value": false,
+      "verified": true,
+      "source": "DFRobot wiki: '5 V DC for powering the board (cannot charge Li-ion battery)'"
+    },
+    "deep_sleep_ua": {
+      "value": null,
+      "verified": false,
+      "source": "DFRobot publish no quiescent or deep-sleep figure for either SKU. Espressif's WROOM-1 datasheet v1.1 Table 12 gives 8 uA for the module alone, plus a footnote: 140 uA more for 8 MB octal PSRAM",
+      "why_it_matters": "Decides which SKU to buy. The N16R8's PSRAM costs ~140 uA in deep sleep and the N4 does not pay it \u2014 on a budget of a few hundred microamps that is the difference between the two parts, and it is the only electrical reason to prefer one."
+    }
   }
 }
