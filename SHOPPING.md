@@ -1,15 +1,31 @@
 # Shopping list — Czech shops (prices checked 2026-09-23)
 
+> **Updated 2026-09-24 for the board change.** The microcontroller is now a DFRobot
+> FireBeetle 2 ESP32-S3, not a XIAO ESP32-C6. That removes the LiPo connector from the
+> board (the cell plugs into the module) and changes what the MP3 module is fed from.
+
 Petr is in Czechia and buys single pieces. **Hadex** is cheapest and covers nearly everything;
 LaskaKit fills the gaps (JST PH, taller buttons, proper 1/4 W resistors). Shipping costs more
 than the parts, so spares are worth adding. Prices are CZK incl. VAT, per piece.
 
 ## Already owned — do NOT buy
-XIAO ESP32-C6 · LiPo · **L9110S dual motor driver module** (blue, HG7881 type; also owns an L298N
+LiPo · **L9110S dual motor driver module** (blue, HG7881 type; also owns an L298N
 and an A4988 stepper driver, both unsuitable) · DFR0534 MP3 module + DFRobot speaker ·
 **VL6180X ToF sensor** (see [parts/SENSOR_OPTIONS.md](parts/SENSOR_OPTIONS.md)) · breadboards,
 jumper wires, perfboard.
 The original Sisuo board stays **untouched** — nothing gets desoldered from it.
+
+**XIAO ESP32-C6** — owned, but no longer the design's board. Kept as a spare; `boards/` still
+carries its definition, so switching back is one line in `boards/active.json`.
+
+## Confirm before ordering anything else
+**DFRobot FireBeetle 2 ESP32-S3** — the design now assumes one. **Do you already have it?**
+Either SKU works, the header pinout is identical: **DFR0975** (N16R8, 16 MB flash + 8 MB PSRAM)
+or **DFR1145** (N4, 4 MB, no PSRAM). The N4 is the cheaper and entirely sufficient one — nothing
+in this firmware uses PSRAM. Beware **DFR1154**, which is a different product (an ESP32-S3 AI
+camera board) with a different pinout.
+It needs **two 2.54 mm female headers, 1x18 and 1x14** (or a 1x40 strip cut down) to sit on the
+PCB — the rows are **22.86 mm** apart.
 
 ## Buy — Hadex ([hadex.cz](https://www.hadex.cz)), all in stock
 
@@ -19,7 +35,7 @@ The original Sisuo board stays **untouched** — nothing gets desoldered from it
 | LED 5 mm bicolour red/green, common cathode (3 leads) | 3 | 4 | [K130A](https://www.hadex.cz/p/k130a-led-5mm-dvoubarevna-r-g-40-45mcd-20ma-50-cira) |
 | Resistor 330 Ω (status LED) | 10 | 1.50 | [H931](https://www.hadex.cz/p/h931-330r-rc0204-rezistor-0-25w-5) |
 | Capacitor 100 nF X7R, 5 mm pitch | 10 | 2 | [J461B](https://www.hadex.cz/p/j461b-100n-50v-rm-5-keramicky-kondenzator-dielektrikum-x7r) |
-| Capacitor 220 µF / 16 V | 5 | 1 | [I845](https://www.hadex.cz/p/i845-220u-16v-105-6x11x3-5mm-elektrolyt-kondenzator-radialni) |
+| Capacitor 220 µF / 16 V **radial THT, 6×11 mm** | 5 | 1 | [I845](https://www.hadex.cz/p/i845-220u-16v-105-6x11x3-5mm-elektrolyt-kondenzator-radialni) |
 | JST XH 4-pin cable + socket (**only if the bin plug is 2.5 mm pitch**) | 2 | 6 | [D477C](https://www.hadex.cz/p/d477c-konektor-jst-xh-4pin-kabel-15cm-zdirka-jst-xh-4pin) |
 
 ≈ **90 Kč** for the table above, ≈ **55 Kč** for the IR set below → **≈ 145 Kč** total.
@@ -44,8 +60,8 @@ Reasons in `FIRMWARE_PLAN.md` + `parts/SENSOR_OPTIONS.md`.
 
 | Part | Qty | Why |
 | --- | --- | --- |
-| Resistor 10 kΩ | 10 | Pulldowns on both L9110S inputs — the only thing that keeps the motor off while the XIAO's pins are high-Z after a reset, or during a reflash |
-| Capacitor 470–1000 µF / 16 V | 2 | At the DFR0534 VCC. An 8 Ω speaker peak pulls hundreds of mA from the same LiPo; audio thump → brownout reset is a classic failure |
+| Resistor 10 kΩ | 10 | Pulldowns on both L9110S inputs — the only thing that keeps the motor off while the MCU's pins are high-Z after a reset, or during a reflash. Must be external: internal pulls are inactive in exactly that window |
+| Capacitor 470–1000 µF / 16 V **radial THT** | 2 | At the DFR0534 VCC, which now comes from the FireBeetle's 3V3 (a TPS62A02 buck, 2 A) rather than the raw cell. An 8 Ω speaker peak still pulls hundreds of mA; audio thump → brownout reset is a classic failure |
 | Capacitor 100 nF (extra) | — | One goes **across the motor brushes**, at the motor. Brush arcing — not inductive kickback — is what upsets I2C and IR receivers |
 | Capacitor 4.7 µF + resistor 100 Ω | 5 each | Supply filter at the IR receiver. Its datasheet **requires** this, it is not optional |
 | Resistor 470 Ω | 10 | IR LED transistor base (supersedes the 1 kΩ if we drive the LED hard: 470 Ω saturates BC337 at 100 mA) |

@@ -1,13 +1,15 @@
 # Where we are, and what happens next
 
-Updated 2026-09-23. This is the handover note: read it first after a break, then `CLAUDE.md`
+Updated 2026-09-24. This is the handover note: read it first after a break, then `CLAUDE.md`
 for the project map and `firmware/micropython/smartbin/__init__.py` for how the firmware works.
 
 ## In one paragraph
 
 The firmware is written, twice audited, and passes 80 tests, a 13-check simulation on a real
-MicroPython runtime, and four scenarios on a simulated ESP32-C6 in Wokwi. The v2 board is drawn
-and routed (48 traces, no errors) and matches the firmware pin for pin, checked mechanically.
+MicroPython runtime, and four scenarios on a simulated ESP32 in Wokwi. **The microcontroller
+changed on 2026-09-24 from a Seeed XIAO ESP32-C6 to a DFRobot FireBeetle 2 ESP32-S3**, and the
+v3 board is drawn and routed (100 x 50 mm, 53 traces, no errors) and matches the firmware pin
+for pin, checked mechanically.
 Every module now carries its real 3D body, which is how the layout's collisions were found and
 why the rangefinder and speaker moved onto ribbons instead of onto the board.
 **No part of it has ever run on hardware.** The immediate blocker is a small parts order,
@@ -28,14 +30,14 @@ which is waiting on two measurements only Petr can take.
    There is now a second, independent ceiling from the same number: the 0.33 R shunt lifts the
    driver's ground, and the driver's inputs go below their 2.5 V threshold at about **2.4 A**.
    See the L9110S entry in `parts/PARTS.md` for the table. One measurement settles both.
-5. **Confirm the XIAO battery-pad polarity with a meter** before a cell goes near the board —
-   continuity from footprint pin24 to any GND pin. The board now wires the LiPo to the XIAO
-   (it previously did not, which meant the MCU had no battery power at all). Polarity was taken
-   from Seeed's back-view drawing and mirrored onto the land pattern; Seeed's own text describes
-   the pads in a way that cannot be read off this footprint. Reversed LiPo destroys the module.
+5. ~~Confirm the XIAO battery-pad polarity with a meter~~ — **no longer applies.** The FireBeetle
+   carries its own JST battery socket and an ETA6003 charger, so the cell plugs into the module
+   and the board has no battery connector at all. This blocker was removed by the board change,
+   not solved.
 6. **The MP3 module's idle current** — five minutes with a meter and a cell, module in your
    drawer, no bin required. It decides three things at once: whether the board needs a high-side
-   switch on the MP3's VBAT feed **before it is fabricated**, whether the deep-sleep work buys
+   switch on the MP3's 3V3 feed **before it is fabricated** (it used to be a VBAT feed; the
+   VBAT rail is gone), whether the deep-sleep work buys
    months or days, and whether any battery-life claim in this repo is true. Without it the bin
    has no trustworthy battery figure at all. If it is ~15-25 mA as its class suggests, it is
    roughly forty times everything else on the board combined.
@@ -61,7 +63,7 @@ which is waiting on two measurements only Petr can take.
 4. **Calibrate** — `tools/calibrate.py` runs each procedure and saves to `/config.json`:
    stroke times, the distance window, then the ToF offset and crosstalk *through the real lid
    window*.
-5. **Fabricate the board** once the motor current is known — `board.tsx` is the v2 design and
+5. **Fabricate the board** once the motor current is known — `board.tsx` is the v3 design and
    `make` produces the fab package, but nothing has been ordered.
 6. **Enclosure** — pull the DFRobot module STEP files for Fusion.
 
@@ -72,10 +74,14 @@ which is waiting on two measurements only Petr can take.
 | No OLED | The bin never had a screen; a bicolour LED replaces it and frees I2C for the sensor |
 | **L9110S** motor driver (owned), not TB6612 | Right current class, 3.3 V logic, and it is the same simple two-input design the original used. The L298N wastes 2 V; the A4988 is for steppers |
 | **VL6180X** ToF as the primary sensor (owned) | All-digital, no analog maths, and the trigger distance becomes a number in software. Fallback is an IR LED + 38 kHz receiver, which is the only option that fits the lid's existing holes |
-| MP3 module's TXD **not wired** | Powered from the LiPo its idle level exceeds what the C6 tolerates, and we never read it. Frees a pin |
-| Pin map v2 | **Only GPIO0-7 can wake an ESP32-C6**, which on the XIAO is D0/D1/D2 — so those carry the ToF interrupt, the OPEN button and the one ADC |
+| MP3 module's TXD **not wired** | Nothing reads it and the module is not 3.3 V tolerant in that direction. Frees a pin |
+| Pin map v3 | The S3 has **22 RTC pins**, so the C6's three-wake-pin straitjacket is gone. Pins are now spent on purpose: the two that must wake take non-ADC1 RTC pins; the two that never wake take the non-RTC pins D3/D14; both strapping pins are left empty |
+| Board chosen in `boards/active.json` | One field, three consumers. What is *derived* round-trips exactly — switching to the C6 and back regenerated a byte-identical `board_spec.py`. What is **not** automatic: `config.py`'s pin assignments, `mcu-pins.ts`, and the footprint and placement in `board.tsx`. `make check` reports the disagreement; it cannot fix it |
+| MP3 on the module's `3V3` | The FireBeetle's 3V3 is a **TPS62A02 buck good for 2 A** (DFRobot schematic V1.3), not an LDO. The whole reason the MP3 sat on VBAT was the XIAO's weak LDO, so the VBAT rail was deleted |
+| I2C pull-ups 2.2k, not 4.7k | The bus runs at 400 kHz with the sensor on a ribbon. 4.7k x 100 pF = 566 ns against a 300 ns limit; 2.2k gives 265 ns and sinks 1.5 mA of the 3 mA allowed |
+| FireBeetle footprint **generated**, not downloaded | Its pads are obround: a through-hole 1.27 mm inboard plus a castellated half-hole on the edge. Rows are **22.86 mm** apart, not 25.40. At least one public KiCad footprint uses 25.40, and a header fitted to that will not mate |
 | Original board **not desoldered** | Petr wants it intact; all small parts bought new |
-| Deep sleep via `esp32.wake_on_ext1`, active-high | `wake_on_ext0` does not exist on the C6 and `Pin.irq(wake=DEEPSLEEP)` silently does nothing. Low-level wake has an open MicroPython bug |
+| Deep sleep via `esp32.wake_on_ext1` | `Pin.irq(wake=DEEPSLEEP)` silently does nothing on either chip. `wake_on_ext0` does not exist on the C6; it does on the S3 but takes one pin only, and we have two wake sources. The S3 lacks per-pin ext1 polarity, so all wake sources still share one level |
 | Flat module layout, names by job | Recorded with the rejected alternatives in `FIRMWARE_PLAN.md` |
 
 ## What is NOT verified
@@ -88,20 +94,31 @@ which is waiting on two measurements only Petr can take.
   might remove the need for a hardware power switch.
 
 * Deep sleep and wake-on-pin: the firmware reaches sleep and arms the right pins, but **Wokwi
-  does not wake an ESP32-C6 from a GPIO** (established by experiment — timer wake works), so
+  does not wake an ESP32-C6 from a GPIO** (established by experiment — timer wake works). That
+  was measured on the C6 and is *assumed* to hold for the S3 stand-in, not retested. So
   waking on a hand is a bench test.
 * Lid run times, the distance window and any ToF calibration are all placeholders.
 
 ## Changing the microcontroller
 
-One file: `boards/xiao-esp32-c6.json`. It holds the silkscreen-to-GPIO map, which pins can wake
-the chip, which have an ADC, which have a second job, and what the board is physically. The
-firmware's copy (`smartbin/board_spec.py`) is generated from it, the converter reads it, the
-simulator's layout uses its dimensions, and `make check` fails if any of them drift.
+Start at `boards/active.json` — one field naming a file in `boards/`. Each board file holds the
+silkscreen-to-GPIO map, which pins can wake the chip, which have an ADC, which have a second job,
+which MicroPython build it runs, how the Wokwi part names its pins, and what the board is
+physically. The firmware's copy (`smartbin/board_spec.py`) is generated from it, the converter
+and the simulator read it, and `make check` fails if any of them drift.
 
-`boards/README.md` has the steps. The honest part: steps 1, 2, 4 and 5 are mechanical; step 3 —
-deciding which function sits on which pin — is real work, because a different board has
-different constraints. That is exactly the decision that should be revisited rather than copied.
+`boards/README.md` has the steps, and this was done for real on 2026-09-24 (XIAO ESP32-C6 ->
+FireBeetle 2 ESP32-S3), so the honest accounting is:
+
+* **Mechanical, and they worked:** the board file, the selection, the firmware's board facts, the
+  Wokwi part type and pin-naming rule, the MicroPython build name, the wake/ADC capability checks.
+* **Real work, and no structure avoids it:** deciding which function sits on which pin
+  (`config.py` + `mcu-pins.ts`), and the footprint and placement in `board.tsx`. A board with
+  different constraints deserves a fresh pin map rather than a transplanted one — the C6 allowed
+  three wake pins and the S3 allows twenty-two, which changed every assignment.
+* **What rotted anyway, and is now checked:** the Wokwi scenario files addressed a part that no
+  longer existed (every `expect-pin` was dead while `make check` passed), and the flash-image
+  script named the old chip's MicroPython build. Both now fail the build instead.
 
 ## The one command that matters
 
