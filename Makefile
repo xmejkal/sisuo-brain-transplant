@@ -249,6 +249,19 @@ simulation-matches: $(CIRCUIT)
 	@cd $(CONVERTER) && bun run cli.ts --check > /tmp/smartbin-check.log 2>&1 \
 	  || { cat /tmp/smartbin-check.log; exit 1; }
 	@tail -1 /tmp/smartbin-check.log | sed 's/^/   /'
+#	The image builder is not run here — it writes 4 MB and takes seconds — but it IS imported,
+#	because importing it resolves the board and names the MicroPython build, which is where it
+#	broke. It imported a `tools/boards.py` that moved into the plugin, and nothing noticed for
+#	weeks: building a flash image is not part of this gate, so the one step between a green
+#	check and a simulation that runs was the only step nobody checked.
+#	Piped through `tail`, this printed the traceback and still exited 0, because the exit status
+#	of a pipeline is the last command's. Written the way every other gate here is written.
+	@python3 -c "import importlib.util as u; \
+	  s = u.spec_from_file_location('bfi', 'tools/build-flash-image.py'); \
+	  m = u.module_from_spec(s); s.loader.exec_module(m); \
+	  print('   the flash-image builder resolves %s for %s' % (m.MICROPYTHON_IMAGE.name, m.MICROPYTHON_PORT))" \
+	  > /tmp/make-bfi.txt 2>&1 || { tail -5 /tmp/make-bfi.txt; exit 1; }
+	@tail -1 /tmp/make-bfi.txt
 
 # Refuse to commit a repository whose derived files disagree with the design. One-off, opt-in,
 # and skippable with --no-verify; CI is the backstop that cannot be skipped.
