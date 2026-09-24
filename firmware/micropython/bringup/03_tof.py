@@ -1,8 +1,8 @@
 """
 Bring-up step 3 — VL6180X time-of-flight sensor.
 
-Wiring: SDA <- D4 (GPIO22), SCL <- D5 (GPIO23), VIN <- 3V3, GND. For deep sleep later, also wire
-the breakout's GPIO1/INT pin to D0 (GPIO0) — one of the only three pins that can wake this chip. Breakouts with a regulator and
+Wiring: SDA <- the pin named below, SCL <- the pin named below, VIN <- 3V3, GND. For deep sleep later, also wire
+the breakout's GPIO1/INT pin to the pin named below — a wake-capable pin (see boards/*.json). Breakouts with a regulator and
 level shifter (Adafruit 3316, Pololu 2489) are safe on 3.3 V; a bare board may not be — check
 before powering it.
 
@@ -19,8 +19,8 @@ sys.path.insert(0, "/")
 
 from smartbin.vl6180x import VL6180X, RangeError  # noqa: E402
 
-PIN_I2C_SDA = 22  # D4
-PIN_I2C_SCL = 23  # D5
+PIN_I2C_SDA = 1           # SDA
+PIN_I2C_SCL = 2           # SCL
 SAMPLE_MS = 200
 SECONDS = 30
 

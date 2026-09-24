@@ -1,8 +1,9 @@
 # Wokwi simulation of the smart bin.
 #
 # `firmware` is a full 4 MB flash image: MicroPython, plus our own .py files in the filesystem
-# where MicroPython expects them. `make flash-image` builds it from micropython-c6.bin (download
-# one from https://micropython.org/download/ESP32_GENERIC_C6/) and the firmware sources.
+# where MicroPython expects them. `make flash-image` builds it from micropython-<chip>.bin and
+# the firmware sources. Which chip, and which build to download, follow from the active board:
+#   make -s print-micropython   ->  the exact filename and URL for the board in boards/active.json
 #
 # It has to be an image rather than just the interpreter: on real hardware you copy your code
 # over USB afterwards, and a headless simulator has no afterwards.

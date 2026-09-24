@@ -36,12 +36,12 @@ steps:
   # The fault LED also *blinks*, so its own pin cannot be asserted at an instant. The steady
   # assertion is the green half being dark: the bin is not pretending to be open for business.
   - delay: 500ms
-  - expect-pin: { part-id: xiao, name: D10, value: 0 }
+  - expect-pin: { part-id: mcu, name: 7, value: 0 }
 
   # Latched: only a button clears it, and plugging the sensor back in does not.
   - set-control: { part-id: sensorheader, name: unplugged, value: 0 }
   - delay: 1000ms
-  - expect-pin: { part-id: xiao, name: D10, value: 0 }
+  - expect-pin: { part-id: mcu, name: 7, value: 0 }
   - set-control: { part-id: btnopen, name: pressed, value: 1 }
   - wait-serial: "fault --open_pressed--> idle"
   - set-control: { part-id: btnopen, name: pressed, value: 0 }

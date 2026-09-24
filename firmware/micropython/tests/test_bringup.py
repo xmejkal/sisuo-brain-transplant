@@ -41,7 +41,12 @@ PRESS_MS = 120
 # The script is written for a person at a bench: seconds of LED self-test, a quarter-second nudge
 # each way, fifteen seconds to react. None of that is worth waiting for here, and none of it is
 # what this test is about.
-BENCH_PACE = {"PHASE_SECONDS": 2, "MOTOR_NUDGE_MS": 5, "LED_STEP_MS": 5, "SETTLE_MS": 20}
+# The bench script's own pace, shrunk so the test is quick. PHASE_SECONDS is a DEADLINE, not a
+# wait: a phase ends the moment the expected events arrive, so a generous value costs nothing on
+# a normal run and only buys headroom on a slow one. It was 2, and this test failed inside a
+# pre-commit hook while tsci and bun were competing for the same cores — a flaky gate is worse
+# than a slow one, because it teaches everyone to ignore a red build.
+BENCH_PACE = {"PHASE_SECONDS": 8, "MOTOR_NUDGE_MS": 5, "LED_STEP_MS": 5, "SETTLE_MS": 20}
 FAST_LID = {
     "LID_OPEN_RUN_MS": 30, "LID_CLOSE_RUN_MS": 30, "LID_OPEN_HOLD_MS": 40,
     "MAX_OPEN_MS": 400, "MOTOR_MAX_RUN_MS": 200,

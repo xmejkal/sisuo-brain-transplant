@@ -1,11 +1,13 @@
 """
 Bring-up step 2 — buttons and the status LED.
 
-Wiring: OPEN button -> D1 (GPIO1) to GND, MODE button -> D6 (GPIO16) to GND (no external
-resistors: the internal pull-ups do it). Status LED common cathode to GND, red -> D7 (GPIO17)
-through 330R, green -> D10 (GPIO18) through 330R.
+Wiring is printed at startup from the constants below. Both buttons go to GND with no
+external resistors — the internal pull-ups do it. The status LED is common cathode to GND,
+each anode through its own 330R.
 
-OPEN is on D1 because only D0/D1/D2 can wake the chip from deep sleep.
+NOTE: on this board the MODE pin is also the module's OWN on-board button, which carries a
+5.1k pull-up and a 100nF cap. It will read 1 and respond to a press with nothing connected,
+so this step cannot prove the external MODE button is wired. Press the external one.
 
 Press each button; the LED follows (OPEN = green, MODE = red, both = amber).
 """
@@ -14,10 +16,10 @@ import time
 
 from machine import Pin
 
-PIN_BUTTON_OPEN = 1    # D1  [wake-capable]
-PIN_BUTTON_MODE = 16   # D6
-PIN_LED_RED = 17       # D7
-PIN_LED_GREEN = 18     # D10
+PIN_BUTTON_OPEN = 13      # D11  [wake-capable]
+PIN_BUTTON_MODE = 47      # D14
+PIN_LED_RED = 9           # D7
+PIN_LED_GREEN = 7         # D5
 WATCH_SECONDS = 30
 POLL_MS = 20
 

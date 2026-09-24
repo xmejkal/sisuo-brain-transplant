@@ -17,5 +17,5 @@ author: smartbin
 steps:
   - wait-serial: "power=deep_sleep"
   - wait-serial: "power: cold boot"
-  - wait-serial: "power: sleeping, wake on GPIO [1, 0]"
+  - wait-serial: "power: sleeping, wake on GPIO [13, 12]"
   - delay: 200ms

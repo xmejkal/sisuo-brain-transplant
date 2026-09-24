@@ -4,8 +4,8 @@
   "editor": "wokwi",
   "parts": [
     {
-      "type": "board-xiao-esp32-c6",
-      "id": "xiao",
+      "type": "board-esp32-s3-devkitc-1",
+      "id": "mcu",
       "top": 0,
       "left": 0,
       "attrs": {}
@@ -75,13 +75,13 @@
   ],
   "connections": [
     [
-      "xiao:D3",
+      "mcu:14",
       "motordriver:IA",
       "green",
       []
     ],
     [
-      "xiao:D8",
+      "mcu:18",
       "motordriver:IB",
       "green",
       []
@@ -93,49 +93,49 @@
       []
     ],
     [
-      "xiao:D2",
+      "mcu:4",
       "senseresistor:2",
       "green",
       []
     ],
     [
-      "xiao:D4",
+      "mcu:1",
       "sensorheader:SDA",
       "green",
       []
     ],
     [
-      "xiao:D5",
+      "mcu:2",
       "sensorheader:SCL",
       "green",
       []
     ],
     [
-      "xiao:D0",
+      "mcu:12",
       "sensorheader:INT",
       "green",
       []
     ],
     [
-      "xiao:3V3",
-      "sensorheader:VIN",
-      "red",
-      []
-    ],
-    [
-      "xiao:D1",
+      "mcu:13",
       "btnopen:1.l",
       "green",
       []
     ],
     [
-      "xiao:D6",
+      "mcu:3V3.1",
+      "sensorheader:VIN",
+      "red",
+      []
+    ],
+    [
+      "mcu:47",
       "btnmode:1.l",
       "green",
       []
     ],
     [
-      "xiao:D7",
+      "mcu:9",
       "redresistor:1",
       "green",
       []
@@ -147,7 +147,7 @@
       []
     ],
     [
-      "xiao:D10",
+      "mcu:7",
       "greenresistor:1",
       "green",
       []
@@ -159,26 +159,38 @@
       []
     ],
     [
-      "xiao:GND",
+      "mcu:GND.3",
       "statusled:COM",
       "black",
       []
     ],
     [
-      "xiao:GND",
+      "mcu:GND.3",
       "btnmode:2.l",
       "black",
       []
     ],
     [
-      "xiao:GND",
+      "mcu:GND.3",
       "btnopen:2.l",
       "black",
       []
     ],
     [
-      "xiao:GND",
+      "mcu:GND.3",
       "sensorheader:GND",
+      "black",
+      []
+    ],
+    [
+      "mcu:GND.3",
+      "mcu:GND.2",
+      "black",
+      []
+    ],
+    [
+      "mcu:GND.3",
+      "mcu:GND.1",
       "black",
       []
     ]

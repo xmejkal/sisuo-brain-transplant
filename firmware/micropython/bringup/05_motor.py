@@ -1,9 +1,9 @@
 """
 Bring-up step 5 — L9110S + lid motor.
 
-Wiring: A-IA <- D3 (GPIO21), A-IB <- D8 (GPIO19), module VCC <- 6V pack, module GND, XIAO GND and
+Wiring: A-IA <- the pin named below, A-IB <- the pin named below, module VCC <- 6V pack, module GND, the board GND and
 the pack's negative all meeting at ONE point (the module's GND pin). Motor on MOTOR A.
-Add the 10k pulldowns on A-IA and A-IB: they are what keeps the motor still while the XIAO boots.
+Add the 10k pulldowns on A-IA and A-IB: they are what keeps the motor still while the module boots.
 
 Short, slow pulses only, with the motor OUT of the bin or the lid free to move.
 If "open" actually closes, swap the two motor wires in the terminal block.
@@ -13,8 +13,8 @@ import time
 
 from machine import PWM, Pin
 
-PIN_MOTOR_IA = 21  # D3
-PIN_MOTOR_IB = 19  # D8
+PIN_MOTOR_IA = 14         # D10
+PIN_MOTOR_IB = 18         # D6
 PWM_FREQ_HZ = 5000
 TEST_SPEED = 120       # 0-255, gentle
 PULSE_MS = 300         # well under MOTOR_MAX_RUN_MS

@@ -49,8 +49,8 @@ steps:
   # Every other assertion here is the firmware's own account of itself: it would all pass if the
   # code logged perfectly while driving nothing.
   - expect-pin:
-      part-id: xiao
-      name: D10
+      part-id: mcu
+      name: 7
       value: 1
 
   # 4 s later, the hold expires and the lid closes itself.
@@ -62,10 +62,10 @@ steps:
 
   # A bin at rest draws nothing: both halves of the LED dark.
   - expect-pin:
-      part-id: xiao
-      name: D10
+      part-id: mcu
+      name: 7
       value: 0
   - expect-pin:
-      part-id: xiao
-      name: D7
+      part-id: mcu
+      name: 9
       value: 0
