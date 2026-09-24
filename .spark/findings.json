@@ -40,6 +40,346 @@
       "status": "blocked",
       "first_seen": "2026-09-24",
       "found_against": null
+    },
+    {
+      "dimension": "firmware-hardware",
+      "anchors": [
+        "comp:MotorDriver",
+        "file:firmware/micropython/config.py"
+      ],
+      "what": "LID_OPEN_RUN_MS is 900 ms, so the motor stroke alone takes longer than the brief's half-second budget, before any sensing or boot time is counted",
+      "consequence": "The requirement 'open within half a second of a wave' cannot be met by this mechanism in any configuration. Polled sensing adds ~120 ms on top of the stroke; the deep-sleep configuration adds a 500 ms sensor period plus ~300 ms of boot. The two other must-haves pull opposite ways: the only configuration that could reach a month on a charge is the slowest to respond.",
+      "severity": "problem",
+      "rests_on": [
+        "lid-stroke-time"
+      ],
+      "confidence": "high",
+      "key": "9c5dcbf1dc73",
+      "status": "blocked",
+      "first_seen": "2026-09-24",
+      "found_against": null
+    },
+    {
+      "dimension": "firmware-hardware",
+      "anchors": [
+        "comp:LipoBattery",
+        "file:firmware/micropython/config.py",
+        "net:VBAT",
+        "port:XIAO.TOF_INT"
+      ],
+      "what": "The shipped configuration is POWER_POLICY=always_on with SENSOR_STRATEGY=tof, so the chip never sleeps and the D0 interrupt line is wired but never constructed",
+      "consequence": "The pin map was contorted to keep D0/D1/D2 free because only those three can wake an ESP32-C6, and none of that is exercised by the firmware as configured. The board draws active-mode current continuously from the LiPo, which is days rather than the stated month.",
+      "severity": "problem",
+      "rests_on": [],
+      "confidence": "high",
+      "key": "9741e7b2be7a",
+      "status": "open",
+      "first_seen": "2026-09-24",
+      "found_against": null
+    },
+    {
+      "dimension": "firmware-hardware",
+      "anchors": [
+        "comp:SenseResistor",
+        "net:MOTOR_SENSE",
+        "net:SENSE_ADC",
+        "port:XIAO.MOTOR_SENSE"
+      ],
+      "what": "The XIAO pin labelled MOTOR_SENSE is not on net MOTOR_SENSE: the pin sits on net SENSE_ADC behind the 1k series resistor, while net MOTOR_SENSE is the driver's lifted local ground",
+      "consequence": "Two different nodes carry the same name in one file, separated by the resistor that protects the ADC pin. Anything matching ports to nets by label joins them, which connects the ADC straight to the driver's ground and loses the series resistor. The consistency checks between board, firmware and simulation are name-driven.",
+      "severity": "caveat",
+      "rests_on": [],
+      "confidence": "high",
+      "key": "7037b3e36d91",
+      "status": "open",
+      "first_seen": "2026-09-24",
+      "found_against": null
+    },
+    {
+      "dimension": "firmware-hardware",
+      "anchors": [
+        "comp:SensorHeader",
+        "net:V33",
+        "port:XIAO.TOF_INT"
+      ],
+      "what": "The rangefinder interrupt line has no pull-up anywhere on the board, and the firmware builds that pin with the internal pull deliberately omitted on the assumption the breakout provides one",
+      "consequence": "The VL6180X interrupt is open-drain on the die. If the fitted breakout carries no pull-up, the line floats under level-triggered low wake: the chip either wakes continuously and flattens the cell in hours, or never wakes at all. The whole wake path depends on a resistor that appears on no schematic in this repo.",
+      "severity": "caveat",
+      "rests_on": [
+        "vl6180x-breakout-has-int-pullup"
+      ],
+      "confidence": "medium",
+      "key": "a57b135ad2fa",
+      "status": "blocked",
+      "first_seen": "2026-09-24",
+      "found_against": null
+    },
+    {
+      "dimension": "firmware-hardware",
+      "anchors": [
+        "comp:CurrentShunt",
+        "file:firmware/micropython/config.py",
+        "net:SENSE_ADC"
+      ],
+      "what": "Stall sensing reads an ADC at 11 dB attenuation (~3.1 V full scale) for a signal the design's own arithmetic caps at 76 mV",
+      "consequence": "The running-versus-stalled decision is made in the bottom 2.4% of the converter's range, where the ESP32-C6 ADC's offset and non-linearity are worst \u2014 which is why eight-sample averaging is needed at all. At 0 dB attenuation the same 76 mV would use roughly four times the range.",
+      "severity": "caveat",
+      "rests_on": [
+        "motor-stall-current"
+      ],
+      "confidence": "medium",
+      "key": "6680a610dad4",
+      "status": "blocked",
+      "first_seen": "2026-09-24",
+      "found_against": null
+    },
+    {
+      "dimension": "signals",
+      "anchors": [
+        "comp:MotorDriver",
+        "net:MOTOR6V",
+        "net:V33",
+        "port:MotorDriver.AIA"
+      ],
+      "what": "The L9110S runs from a 6 V rail while its inputs are driven from 3.3 V logic",
+      "consequence": "If the input-high threshold were ratiometric at 0.7 x VCC it would be 4.2 V and the motor would never turn.",
+      "severity": "problem",
+      "rests_on": [],
+      "confidence": "medium",
+      "key": "8f6228d5a61b",
+      "status": "rejected",
+      "first_seen": "2026-09-24",
+      "found_against": null,
+      "decisions": [
+        {
+          "status": "rejected",
+          "reason": "Datasheet checked 2026-09-24: VH in is 2.5 V min absolute, not 0.7 x VCC. 3.3 V logic drives it with 0.8 V margin. Recorded in parts/PARTS.md.",
+          "date": "2026-09-24"
+        }
+      ]
+    },
+    {
+      "dimension": "signals",
+      "anchors": [
+        "comp:SclPullup",
+        "comp:SdaPullup",
+        "comp:SensorHeader",
+        "net:SCL",
+        "net:SDA"
+      ],
+      "what": "4.7k is the only pull-up on a 400 kHz bus whose single device sits at the far end of a ribbon",
+      "consequence": "At 400 kHz the rise-time limit is 300 ns, which with 4.7k allows roughly 75 pF of total bus capacitance. Two device loads, the board traces and 20-30 cm of five-way ribbon plausibly consume all of it, so edges stretch past spec and the bus fails intermittently once the cable is routed for real. 2.2k would roughly double the margin at 1.4 mA sink, well inside what both ends can pull down.",
+      "severity": "caveat",
+      "rests_on": [
+        "ribbon-capacitance-per-conductor",
+        "final-ribbon-length"
+      ],
+      "confidence": "medium",
+      "key": "fe10f4a6cbb3",
+      "status": "blocked",
+      "first_seen": "2026-09-24",
+      "found_against": null
+    },
+    {
+      "dimension": "signals",
+      "anchors": [
+        "comp:SclPullup",
+        "comp:SdaPullup",
+        "net:V33",
+        "port:SensorHeader.VIN"
+      ],
+      "what": "The bus is pulled to 3.3 V while the VL6180X die runs at 2.8 V from the breakout's own regulator, and typical breakouts carry their own pull-ups to that 2.8 V rail",
+      "consequence": "Two consequences. The sensor's digital pins are specified to AVDD+0.5 V, so a 3.3 V idle is at or past absolute maximum unless the breakout level-shifts. And if the breakout does pull up to 2.8 V, each line becomes a divider carrying roughly 34 uA continuously, about 68 uA for the pair, flowing in deep sleep with the bus idle \u2014 a standing drain that exists only because two pull-up sets reference different rails.",
+      "severity": "caveat",
+      "rests_on": [
+        "which-vl6180x-breakout-is-fitted"
+      ],
+      "confidence": "medium",
+      "key": "2cbd8b90f49c",
+      "status": "blocked",
+      "first_seen": "2026-09-24",
+      "found_against": null
+    },
+    {
+      "dimension": "signals",
+      "anchors": [
+        "comp:CurrentShunt",
+        "comp:MotorDriver",
+        "net:MOTOR_SENSE",
+        "net:SENSE_ADC"
+      ],
+      "what": "The shunt sits in the bridge's ground return rather than in series with the motor, so what the ADC averages depends on the PWM decay mode rather than on motor current",
+      "consequence": "With both inputs low in the off-phase \u2014 the coast state this design chooses \u2014 recirculating current reverses through the shunt, so the filtered average is roughly (2D-1) times the true drop. At the closing duty of 200/255 a stall would read about 900 counts against a threshold of 1000, so a stall while closing never trips and the retry-and-fault path never engages. The stall option cannot be switched on from a datasheet number; it needs the waveform measured.",
+      "severity": "caveat",
+      "rests_on": [
+        "shunt-waveform-under-stall"
+      ],
+      "confidence": "medium",
+      "key": "a45054ebbaa1",
+      "status": "blocked",
+      "first_seen": "2026-09-24",
+      "found_against": null
+    },
+    {
+      "dimension": "signals",
+      "anchors": [
+        "comp:BtnMode",
+        "net:GND",
+        "port:XIAO.BTN_MODE"
+      ],
+      "what": "The MODE button shorts D6 straight to ground with no series resistor, and D6 is U0TXD, which the ROM bootloader drives as a push-pull output on every reset",
+      "consequence": "For the few hundred milliseconds after each reset that pin is actively driving. A MODE press held across a reset shorts a driven output to ground, limited only by the pad. It also blocks a UART reflash while held. A 330 ohm in series costs nothing and removes both; the OPEN button does not have this problem because D1 is never driven.",
+      "severity": "caveat",
+      "rests_on": [],
+      "confidence": "medium",
+      "key": "4c72fc79f39d",
+      "status": "open",
+      "first_seen": "2026-09-24",
+      "found_against": null
+    },
+    {
+      "dimension": "signals",
+      "anchors": [
+        "net:VBAT",
+        "port:Mp3Player.RXD",
+        "port:XIAO.MP3_TX"
+      ],
+      "what": "The MP3 module's UART input is driven at 3.3 V while the module's logic is referenced to VBAT, which is 4.2 V on a full cell",
+      "consequence": "If that input threshold scales with supply at the usual 0.7 x VCC it sits at 2.94 V on a full cell, leaving about 0.36 V of margin on a line with no series resistor. The margin improves as the cell drains, so the failure mode is the bin going silent just after charging. And because TXD is deliberately unwired, every command is sent blind: a missed byte or a missing card produces silence rather than an error the firmware can see.",
+      "severity": "caveat",
+      "rests_on": [
+        "mp3-rxd-threshold-vs-supply"
+      ],
+      "confidence": "medium",
+      "key": "390703643148",
+      "status": "blocked",
+      "first_seen": "2026-09-24",
+      "found_against": null
+    },
+    {
+      "dimension": "thermal-mechanical",
+      "anchors": [
+        "comp:MotorBulkCap",
+        "comp:Mp3ReservoirCap"
+      ],
+      "what": "MotorBulkCap (220uF) and Mp3ReservoirCap (470uF) are both on 0805 footprints, a 2.0 x 1.25 mm land",
+      "consequence": "No such part exists. The largest low-voltage MLCC in 0805 is roughly 22-47 uF; a 470 uF part is an aluminium or tantalum can several millimetres across and 5-7 mm tall. Two lines of the BOM cannot be bought in the package the board is laid out for, and the real parts bring new lands, new height, and a collision with the speaker connector 6 mm away that no clearance check catches because capacitors carry no 3D body.",
+      "severity": "problem",
+      "rests_on": [],
+      "confidence": "high",
+      "key": "197d55f15d84",
+      "status": "open",
+      "first_seen": "2026-09-24",
+      "found_against": null
+    },
+    {
+      "dimension": "thermal-mechanical",
+      "anchors": [
+        "comp:LipoBattery",
+        "comp:MotorOut",
+        "comp:Speaker",
+        "net:VBAT"
+      ],
+      "what": "LipoBattery, MotorOut and Speaker are three mechanically identical jst_ph_2 sockets, two of them 7 mm apart in the same column",
+      "consequence": "JST keying stops a plug going in backwards; nothing stops it going into the wrong socket. The cell into MotorOut puts 4.2 V across the H-bridge output. The motor lead into LipoBattery puts the motor, its stall current and its brush noise straight onto VBAT, which is the MP3 module's supply and the XIAO's battery pads, neither with any series protection. Both mistakes are one-handed and silent, made in a dark cavity during service.",
+      "severity": "problem",
+      "rests_on": [],
+      "confidence": "high",
+      "key": "726f2bad23d9",
+      "status": "open",
+      "first_seen": "2026-09-24",
+      "found_against": null
+    },
+    {
+      "dimension": "thermal-mechanical",
+      "anchors": [
+        "comp:SensorHeader",
+        "port:SensorHeader.INT",
+        "port:SensorHeader.VIN"
+      ],
+      "what": "SensorHeader is a bare unkeyed 2.54 mm pinrow5, on the one cable that gets unplugged most often",
+      "consequence": "Reversed end for end, VIN meets INT and GND meets SCL: 3.3 V is fed into the sensor's interrupt output and the XIAO's wake pin, SCL is shorted to the module's ground, and the sensor is unpowered. Nothing prevents it, marks it, or survives it \u2014 and this is the connector a person handles every time the lid assembly comes apart.",
+      "severity": "problem",
+      "rests_on": [],
+      "confidence": "high",
+      "key": "bdd0e7ab02a8",
+      "status": "open",
+      "first_seen": "2026-09-24",
+      "found_against": null
+    },
+    {
+      "dimension": "thermal-mechanical",
+      "anchors": [
+        "comp:MotorDriver",
+        "comp:Mp3Player",
+        "port:MotorDriver.GND",
+        "port:MotorDriver.VCC"
+      ],
+      "what": "Both plug-in modules sit on unkeyed 6-pin rows, and the schematic states no pin-1 convention",
+      "consequence": "Inserted 180 degrees out, pin 1 meets pin 6. On the motor driver that swaps GND and VCC, putting the bin's 6 V pack backwards across the L9110S and tying it to the shunt-referenced sense node. On the MP3 module it puts VBAT onto a speaker output. One reversed module at assembly destroys it.",
+      "severity": "problem",
+      "rests_on": [],
+      "confidence": "medium",
+      "key": "029fa1b02817",
+      "status": "open",
+      "first_seen": "2026-09-24",
+      "found_against": null
+    },
+    {
+      "dimension": "thermal-mechanical",
+      "anchors": [
+        "comp:MotorDriver",
+        "comp:MotorOut",
+        "comp:Mp3Player"
+      ],
+      "what": "The driver's screw terminals are at (-19,10.5) and MotorOut is at (31,-11), so the 'short leads' in the comment are about 54 mm of hand-made flying wire per conductor",
+      "consequence": "The motor's high-current loop is an unrestrained air wire the length of the board, made by hand after both modules are seated, arcing over the MP3 module and the sense and I2C parts in the middle. Nothing holds it down inside a bin whose lid is the thing the motor moves, and it is precisely the loop the brush capacitor and the I2C pull-ups exist to defend against.",
+      "severity": "problem",
+      "rests_on": [],
+      "confidence": "high",
+      "key": "72102f597ec6",
+      "status": "open",
+      "first_seen": "2026-09-24",
+      "found_against": null
+    },
+    {
+      "dimension": "thermal-mechanical",
+      "anchors": [
+        "comp:BtnMode",
+        "comp:BtnOpen",
+        "comp:StatusLed"
+      ],
+      "what": "The LED is an 8.6 mm cylinder on a rigid 3-pin row and the two buttons are 6x6 tactiles with roughly 4-5 mm actuators, all three needing to meet the same bin surface",
+      "consequence": "The board would have to sit about 8.6 mm below the face for the LED and 4-5 mm below it for the buttons at the same time. One of them needs a light pipe or a plunger that does not exist. Separately the LED on a 3-pin row is reversible: flipped, red and green swap \u2014 the shared cathode is in the centre so it survives, and the bin reports the opposite of what it means.",
+      "severity": "problem",
+      "rests_on": [
+        "bin-face-to-board-distance"
+      ],
+      "confidence": "medium",
+      "key": "465978027707",
+      "status": "blocked",
+      "first_seen": "2026-09-24",
+      "found_against": null
+    },
+    {
+      "dimension": "thermal-mechanical",
+      "anchors": [
+        "comp:MotorDriver",
+        "comp:Mp3Player",
+        "comp:XIAO"
+      ],
+      "what": "The board defines no mounting holes and no standoff keepouts, and the perimeter where they would go is occupied: the MP3 module's body reaches within 0.5 mm of the top edge",
+      "consequence": "The board's retention inside the bin is undefined. There is no room along the top edge for a wall, a boss or a screw head, and any cavity check against 70 x 45 x PCB-thickness passes a board that is really about 70 x 45 x 15 mm once the modules stand on their headers and the LED is counted.",
+      "severity": "problem",
+      "rests_on": [
+        "sisuo-cavity-dimensions"
+      ],
+      "confidence": "high",
+      "key": "760d29b6c805",
+      "status": "blocked",
+      "first_seen": "2026-09-24",
+      "found_against": null
     }
-  ]
+  ],
+  "measurements": {}
 }
