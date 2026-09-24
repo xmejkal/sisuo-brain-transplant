@@ -15,7 +15,7 @@
       ],
       "confidence": "high",
       "key": "520a2164a94a",
-      "status": "open",
+      "status": "blocked",
       "first_seen": "2026-09-24",
       "found_against": null,
       "resolution": {
@@ -37,17 +37,9 @@
       ],
       "confidence": "medium",
       "key": "36b7268d70e2",
-      "status": "open",
+      "status": "blocked",
       "first_seen": "2026-09-24",
       "found_against": null
     }
-  ],
-  "measurements": {
-    "mp3-idle-current": {
-      "value": "18.4",
-      "unit": "mA",
-      "instrument": "DMM in series with VBAT, module idle",
-      "date": "2026-09-24"
-    }
-  }
+  ]
 }
