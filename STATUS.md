@@ -88,10 +88,19 @@ which is waiting on two measurements only Petr can take.
 
 * **Nothing has run on hardware.** All green results come from tests and simulation.
 * The DFR0534 command bytes are from the v1 Arduino sketch and still need checking against
-  **there is no datasheet in the repo**: `parts/datasheets/` held a 6 KB product photo with
-  a `.pdf` extension, now renamed `DFR0534_product_photo.png`. Get the real one from DFRobot's
-  wiki before trusting any command byte, any idle-current figure, or the standby command that
-  might remove the need for a hardware power switch.
+  DFRobot's own 11-page datasheet, which carries the full `AA ..` command table:
+  <https://media.digikey.com/pdf/Data%20Sheets/DFRobot%20PDFs/DFR0534_Web.pdf>. (`parts/datasheets/`
+  held a 6 KB product photo with a `.pdf` extension, now renamed `DFR0534_product_photo.png`.)
+
+  **The standby question is settled, and the answer is no.** Neither DFRobot's datasheet nor the
+  JQ8400 decoder's own manual documents a sleep or standby opcode — both list 0x01-0x26 and
+  neither includes one. The JQ8400 manual says sleep is entered over a one-wire protocol it then
+  describes as untested. A third-party measurement of the same decoder gives 18 mA idle, 4.5 mA
+  after that one-wire command, and 140 µA only after removing the BUSY LED and cutting the
+  amplifier's shutdown pin to a GPIO. DFRobot publish no schematic for this board, so its floor
+  cannot be established from documentation at all. **The high-side power switch on the PCB is
+  therefore necessary, not a precaution** — even the optimistic figure is ten times the rest of
+  the sleeping system.
 
 * Deep sleep and wake-on-pin: the firmware reaches sleep and arms the right pins, but **Wokwi
   does not wake an ESP32-C6 from a GPIO** (established by experiment — timer wake works). That

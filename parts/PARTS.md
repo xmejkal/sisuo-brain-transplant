@@ -21,7 +21,11 @@ Two ways a module reaches the board, and the difference decides the board size:
 - Wiki: https://wiki.seeedstudio.com/xiao_esp32c6_getting_started/
 
 ## DFRobot DFR0534  (UART MP3 module + built-in amp)
-- Wiki: https://wiki.dfrobot.com/DFR0534  ·  Product (STEP + schematic under Download tab): https://www.dfrobot.com/product-1121.html
+- Wiki: https://wiki.dfrobot.com/dfr0534  ·  Product: https://www.dfrobot.com/product-1741.html
+- Dimension drawing (the only mechanical source DFRobot publish): https://dfimg.dfrobot.com/wiki/19342/DFR0534_mp3-player-module_dimension_V1.0.pdf
+- Datasheet, 11 pp, DFRobot-authored, with the full `AA ..` command table: https://media.digikey.com/pdf/Data%20Sheets/DFRobot%20PDFs/DFR0534_Web.pdf
+- **No STEP and no schematic exist for this SKU.** An earlier version of this line linked
+  product-1121, which is the DFPlayer Mini — a different module — and promised both.
 - Interface: UART (RXD/TXD), VCC 3.3-5V, SPK+/SPK- to the speaker.
 
 ## L9110S motor driver  (the one in the design)
