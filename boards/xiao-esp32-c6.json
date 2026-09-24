@@ -46,10 +46,16 @@
     1,
     2
   ],
-  "//special": "Pins with a second job that matters.",
-  "special": {
-    "16": "U0TXD - the ROM bootloader prints its log here on every reset. Safe for a button, never for a module that parses serial.",
-    "15": "the on-board user LED (not on the header)"
+  "//pin_roles": "What a pin IS, beyond its number. Typed so a program can read it: the arrays are for checks, the notes are for people. A pin with a role is not unusable - it is usable with a caveat, and the caveat is the note.",
+  "pin_roles": {
+    "boot_log_tx": {
+      "gpio": [16],
+      "note": "U0TXD - the ROM bootloader prints its log here on every reset. Safe for a button, never for a module that parses serial."
+    },
+    "onboard_led": {
+      "gpio": [15],
+      "note": "the on-board user LED (not on the header)"
+    }
   },
   "//deep_sleep": "How this chip is woken. esp32.wake_on_ext0 does not exist on the C6 and Pin.irq(wake=DEEPSLEEP) silently does nothing; wake_on_ext1 and wake_on_gpio both exist. Verified on MicroPython v1.29.",
   "deep_sleep": {

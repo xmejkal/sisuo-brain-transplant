@@ -31,7 +31,9 @@ export function checkBringUpPins(
   const compared: BringUpPinCheck["compared"] = [];
 
   const firmware = readPinAssignments(configPython);
-  const documented = new Set(Object.keys(board.special ?? {}).map(Number));
+  const documented = new Set(
+    Object.values(board.pin_roles ?? {}).flatMap((role) => role.gpio),
+  );
 
   for (const script of scripts) {
     for (const [setting, gpio] of readPinAssignments(script.source)) {

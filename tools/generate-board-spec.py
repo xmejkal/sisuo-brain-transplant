@@ -26,7 +26,11 @@ def render(board: dict) -> str:
     pin_lines = "\n".join(
         f'    "{label}": {gpio},' for label, gpio in sorted(pins.items(), key=lambda p: p[1])
     )
-    special = "\n".join(f"#   GPIO{gpio}: {note}" for gpio, note in board.get("special", {}).items())
+    special = "\n".join(
+        f"#   GPIO{gpio}: {role['note']}"
+        for role in board.get("pin_roles", {}).values()
+        for gpio in role["gpio"]
+    )
 
     return f'''"""
 {board["name"]} — the facts, generated from boards/{board["id"]}.json.

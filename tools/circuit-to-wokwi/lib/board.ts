@@ -23,7 +23,8 @@ export interface BoardDefinition {
   pins: Record<string, number>;
   wake_capable_gpio: number[];
   adc_gpio: number[];
-  special?: Record<string, string>;
+  /** What a pin is beyond its number: typed for checks, with a note for people. */
+  pin_roles?: Record<string, { gpio: number[]; note: string }>;
   /** What the board is physically: its footprint in the PCB design, and its size. */
   physical: {
     footprint_module: string;
