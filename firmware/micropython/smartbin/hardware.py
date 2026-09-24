@@ -15,12 +15,14 @@ judgement, and which judgement you want is a config choice.
 With board.py this is the only module that touches `machine`, which is what lets everything
 else be tested on a PC. Constructing it moves nothing: pins go to their resting state, no more.
 
-Pin numbers are ESP32-C6 GPIO numbers, not XIAO D-numbers; config.py maps between them.
+Pin numbers here are raw GPIO numbers. The silkscreen label each one corresponds to is a
+fact about the board and lives in boards/<id>.json, reaching this code through board_spec.py;
+config.py says which GPIO carries which function.
 """
 
 from machine import ADC, I2C, PWM, Pin, UART
 
-from . import audio, buttons, log, motor, status_led
+from . import audio, buttons, log, motor, status_led, timing
 
 
 class Hardware:
@@ -36,6 +38,11 @@ class Hardware:
         self.config = config
 
         # Always fitted.
+        #
+        # The MP3 rail's switch comes first because building the player powers the module, and
+        # the P-channel gate is ACTIVE LOW: `value=1` at construction is OFF, which is the state
+        # the gate resistor already holds through reset. Constructing this changes nothing.
+        self.mp3_power = Pin(config.PIN_MP3_ENABLE, Pin.OUT, value=1)
         self.motor = self._build_motor(config)
         self.button_open, self.button_mode, self.led = self._build_controls(config)
         self.player = self._build_player(config)
@@ -143,7 +150,12 @@ class Hardware:
     def _build_close_detection_devices(self, config):
         if config.CLOSE_DETECTOR == "stall":
             self.current_sense = ADC(Pin(config.PIN_SHUNT_ADC))
-            self.current_sense.atten(ADC.ATTN_11DB)  # the full ~0-3.1 V span
+            # 0 dB (~0-0.95 V), not 11 dB (~0-3.1 V). The board's shunt is 0.1 ohm, so even a
+            # 2 A stall develops only 200 mV — the signal cannot reach the rail, and putting it
+            # against a 0.95 V span instead of a 3.1 V one recovers more than three times the
+            # counts. The ESP32's ADC is also at its worst in the bottom tenth of its range,
+            # which is exactly where the old combination put both the running and stall points.
+            self.current_sense.atten(ADC.ATTN_0DB)
         elif config.CLOSE_DETECTOR == "limit":
             self.limit_switch = Pin(config.PIN_LIMIT_SWITCH, Pin.IN, Pin.PULL_UP)
 
@@ -156,8 +168,39 @@ class Hardware:
         return [hex(address) for address in self.sensor_bus.scan()]
 
     def enter_safe_state(self):
-        """Motor stopped, LED dark, IR emitter off. On shutdown, before sleep, and by hand."""
+        """Motor stopped, LED dark, IR emitter off, MP3 rail cut. Before sleep, and by hand."""
         self.motor.stop()
         self.led.set(status_led.OFF)
         if self.ir_emitter is not None:
             self.ir_emitter.duty_u16(0)
+        self.set_mp3_power(False)
+
+    async def power_up_audio(self):
+        """
+        Bring the MP3 module's rail up and give it time to boot, before its first frame.
+
+        Separate from construction on purpose. `Hardware(...)` is required to move nothing — it
+        puts pins in their resting state and stops — and powering a module and then blocking for
+        its boot is both of the things that rule forbids. It is also asynchronous rather than a
+        blocking sleep, so the bin is answering buttons while the module wakes up.
+        """
+        if self.mp3_power is None:
+            return
+        self.set_mp3_power(True)
+        await timing.async_sleep_ms(self.config.MP3_POWER_ON_MS)
+
+    def set_mp3_power(self, on):
+        """
+        Switch the MP3 module's rail.
+
+        The DFR0534 has no enable pin and its idle draw has never been measured; its class idles
+        around 15-25 mA, which would be roughly forty times everything else on this board put
+        together. Rather than wait for that measurement, the board carries a high-side switch and
+        this cuts the rail whenever the bin sleeps — so the answer changes how much is saved, not
+        whether the design works.
+
+        The switch is P-channel on the high side, so the GPIO is ACTIVE LOW.
+        """
+        if self.mp3_power is None:
+            return
+        self.mp3_power.value(0 if on else 1)

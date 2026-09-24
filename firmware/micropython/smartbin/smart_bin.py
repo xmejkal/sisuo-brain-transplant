@@ -145,9 +145,18 @@ class SmartBin:
     _sensor_task = None
     _tasks: list = []
 
+    async def _start_audio(self):
+        """Power the MP3 rail, wait for the module to boot, then configure it."""
+        await self.hardware.power_up_audio()
+        self.hardware.player.initialize()
+
     async def main(self):
         """Run the bin. Returns only on cancellation; everything is left safe on the way out."""
-        self.hardware.player.initialize()
+        # Audio comes up in the background. The MP3 rail is switched now, and the module boots
+        # from cold every time it returns — a few hundred milliseconds during which it cannot be
+        # talked to. Awaiting that here would hold the whole bin closed while a speaker warms up,
+        # which is the wrong trade: a lid that opens late is worse than a chirp that plays late.
+        asyncio.create_task(self._start_audio())
         log.info(
             "smartbin ready: sensor=%s close=%s power=%s",
             self.config.SENSOR_STRATEGY,

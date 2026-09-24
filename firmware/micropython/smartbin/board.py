@@ -66,12 +66,15 @@ def deep_sleep(wake_gpio_numbers, wake_on_high):
     Stop the chip until one of `wake_gpio_numbers` is asserted. Does not return: waking is a
     full reset, so execution resumes at boot.py.
 
-    Uses `esp32.wake_on_ext1`, which is the call that works on this chip. Note that
-    `esp32.wake_on_ext0` does not exist on the C6 at all, and `Pin.irq(wake=machine.DEEPSLEEP)`
-    silently does nothing there — both are easy and expensive mistakes.
+    Uses `esp32.wake_on_ext1`, which is the one call that works on every chip this project has
+    run on. Two expensive mistakes it avoids: `esp32.wake_on_ext0` does not exist at all on the
+    ESP32-C6 (it does on the S3), and `Pin.irq(wake=machine.DEEPSLEEP)` silently does nothing on
+    either.
 
-    All wake pins share one polarity, which is a hardware constraint of ext1 and the reason
-    `config.WAKE_ON_HIGH` has to agree with how the buttons and the sensor interrupt are wired.
+    All ext1 wake pins share one polarity, which is why `config.WAKE_ON_HIGH` has to agree with
+    how the buttons and the sensor interrupt are wired. On the S3 that is a hardware constraint
+    — it has no per-pin trigger mode. On the C6 the silicon does support per-pin levels, but
+    MicroPython's API takes a single level for the whole mask, so the constraint holds there too.
     """
     import esp32
     import machine

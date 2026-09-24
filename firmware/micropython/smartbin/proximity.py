@@ -182,8 +182,13 @@ class SelfRangingTimeOfFlightSensor(TimeOfFlightSensor):
         """The most recent continuous reading — no new measurement, so it is cheap to poll."""
         try:
             return self._driver.last_range()
-        except OSError as exception:
-            return self._note_failure(exception)
+        except BUS_FAILURE as exception:
+            # `_note_bus_failure`, not `_note_failure`: the latter never existed. Because this is
+            # the interrupt strategy's only error branch, the typo turned the FIRST bus hiccup
+            # into an AttributeError, which `SmartBin.poll_sensor`'s blanket handler turned into
+            # an immediate FAULT — so `TOF_MAX_FAILURES` was dead on the shipped strategy and the
+            # "one bad transaction is not a dead sensor" tolerance did not apply to it at all.
+            return self._note_bus_failure(exception)
 
     def read_distance_mm(self):
         return self.read_last_distance_mm()

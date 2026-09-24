@@ -9,39 +9,64 @@ Two layers, on purpose:
 So calibrating on the bench is "edit numbers, soft reset" and git never fills up with
 calibration churn.
 
-Pin numbers are ESP32-C6 GPIO numbers. The XIAO's D-labels are in the comments; they are not the
-same numbers, which is the single easiest mistake to make on this board.
+Pin numbers are ESP32-S3 GPIO numbers. The FireBeetle's D-labels are in the comments; they are
+not the same numbers — D9 is GPIO0 and D13 is GPIO21 — which is the single easiest mistake to
+make on this board. The authority for that map is `boards/firebeetle2-esp32s3.json`, reaching
+the firmware through the generated `smartbin/board_spec.py`.
 """
 
 import json
 
 # ----------------------------------------------------------------- which parts are fitted
-SENSOR_STRATEGY = "tof"     # "tof" (polled I2C) | "tof_interrupt" (the sensor watches by itself
-                            #   and can wake the chip) | "ir" | "none" (buttons only)
-POWER_POLICY = "always_on"  # "always_on" (bench, USB) | "deep_sleep" (battery)
+# The bin runs on a battery, so it sleeps. Deep sleep only works with "tof_interrupt": the
+# sensor has to keep ranging and assert its interrupt pin while the chip is off, because a
+# sleeping chip cannot poll an I2C bus. The two settings therefore move together.
+#
+# Both are calibratable, so bench work over USB is a /config.json away and needs no edit here:
+#   {"POWER_POLICY": "always_on", "SENSOR_STRATEGY": "tof"}
+SENSOR_STRATEGY = "tof_interrupt"   # "tof" (polled I2C) | "tof_interrupt" (the sensor watches by
+                            #   itself and can wake the chip) | "ir" | "none" (buttons only)
+POWER_POLICY = "deep_sleep"  # "always_on" (bench, USB) | "deep_sleep" (battery)
 CLOSE_DETECTOR = "timed"    # "timed" | "limit" (microswitch) | "stall" (shunt + ADC)
 AUDIO_ENABLED = True
 REPL_ENABLED = True         # live REPL via aiorepl while the bin runs
 LOG_EVENTS = True
 
 # ----------------------------------------------------------------- pins (GPIO, not D-numbers)
-# Only GPIO0-7 can wake an ESP32-C6 from deep sleep, and on the XIAO that is D0, D1 and D2 and
-# nothing else. Those three are therefore spent on the things that must wake the bin (the ToF
-# interrupt and the OPEN button) plus the one analogue input we may want (stall sensing).
-PIN_TOF_INTERRUPT = 0       # D0  <- VL6180X GPIO1   [wake-capable]
-PIN_BUTTON_OPEN = 1         # D1  to GND             [wake-capable]
-PIN_SHUNT_ADC = 2           # D2  stall sense, or PIN_LIMIT_SWITCH — ADC-capable
-PIN_LIMIT_SWITCH = 2        # D2  (alternative use of the same pin)
-PIN_MOTOR_IA = 21           # D3  -> L9110S A-IA
-PIN_I2C_SDA = 22            # D4  (ToF config)
-PIN_I2C_SCL = 23            # D5  (ToF config)
-PIN_IR_EMITTER = 22         # D4  (IR config) -> BC337 base
-PIN_IR_RECEIVER = 23        # D5  (IR config) <- receiver OUT
-PIN_BUTTON_MODE = 16        # D6  (also the ROM console TX; fine for a button, never for the MP3)
-PIN_LED_RED = 17            # D7
-PIN_MOTOR_IB = 19           # D8  -> L9110S A-IB
-PIN_MP3_TX = 20             # D9  -> module RXD. The module's TXD stays unwired.
-PIN_LED_GREEN = 18          # D10
+# On the ESP32-S3 almost every header pin can wake the chip (GPIO0-21 are RTC pins), so unlike
+# the C6 — where three usable wake pins dictated the whole map — the pins here are spent on
+# purpose. Three scarcities remain, and each one is honoured below:
+#
+#   * ADC1 is GPIO1-10 and nothing else. ADC2 exists but cannot be read while WiFi is on, so
+#     A5 (GPIO11) is an analogue pin we may not use. Only the shunt needs an ADC, so it takes
+#     A0 and the other analogue pins stay free.
+#   * D3 (GPIO38), D14 (GPIO47), TX and RX are outside the RTC domain and cannot wake the chip.
+#     They are therefore given to things that never need to: the MP3 module's serial line and
+#     the MODE button.
+#   * D9 (GPIO0) is the BOOT strap and D2 (GPIO3) the JTAG strap. Nothing is put on either —
+#     a button on GPIO0 would drop the board into the bootloader if held during a reset.
+#
+# The two that must wake the bin — the ToF interrupt and the OPEN button — take D12 and D11,
+# which are RTC-capable but NOT on ADC1, so they cost us no analogue headroom.
+PIN_TOF_INTERRUPT = 12      # D12 <- VL6180X GPIO1   [wake-capable]
+PIN_BUTTON_OPEN = 13        # D11 to GND             [wake-capable]
+PIN_SHUNT_ADC = 4           # A0  stall sense, or PIN_LIMIT_SWITCH — the one ADC1 pin we spend
+PIN_LIMIT_SWITCH = 4        # A0  (alternative use of the same pin)
+PIN_MOTOR_IA = 14           # D10 -> L9110S A-IA
+PIN_MOTOR_IB = 18           # D6  -> L9110S A-IB
+PIN_I2C_SDA = 1             # SDA (ToF config) — the board's dedicated I2C pins
+PIN_I2C_SCL = 2             # SCL (ToF config)
+PIN_IR_EMITTER = 1          # SDA (IR config) -> BC337 base
+PIN_IR_RECEIVER = 2         # SCL (IR config) <- receiver OUT
+PIN_BUTTON_MODE = 47        # D14 — cannot wake, and does not need to. This is also the on-board
+                            #   user button, so the board's own button works as MODE on the bench.
+PIN_MP3_ENABLE = 5          # A1  -> the MP3 rail's high-side switch. LOW turns the module ON;
+                            #   the gate resistor holds it OFF whenever this pin is not driving,
+                            #   which is during deep sleep, during reset and during a reflash.
+PIN_MP3_TX = 38             # D3  -> module RXD. Cannot wake, and does not need to. The module's
+                            #   TXD stays unwired — it is not 3.3V tolerant in that direction.
+PIN_LED_RED = 9             # D7
+PIN_LED_GREEN = 7           # D5
 
 # ----------------------------------------------------------------- motion (CALIBRATE THESE)
 MOTOR_OPEN_SPEED = 220      # 0-255
@@ -76,16 +101,25 @@ TOF_MAX_FAILURES = 10       # unreadable this many times in a row -> the bin fau
 IR_CARRIER_HZ = 38000
 IR_BURST_US = 600
 
-# Raw ADC counts at stall, across the board's 0.33 ohm shunt, read at 11 dB attenuation (~3.1 V
-# full scale, 16-bit). The patent literature's ~230 mA stall is ~76 mV is ~1600 counts; running
-# at ~70 mA is ~23 mV is ~490. The threshold sits between them.
+# Raw ADC counts at stall, across the board's 0.1 ohm shunt, read at 0 dB attenuation
+# (~0.95 V full scale, 16-bit). The conversion, so the number can be derived from any
+# measurement rather than guessed:
 #
-# A starting point only: it MUST be measured on the real motor with tools/calibrate.py. If that
-# motor's stall current is much higher than the literature's, this number changes and so might
-# the driver — see STATUS.md.
-STALL_COUNTS = 1000
+#     counts = amps * SHUNT_OHMS * 65535 / ADC_FULL_SCALE_V   ->   about 6900 counts per amp
+#
+# so 0.25 A is ~1700 counts, 1 A is ~6900, and 2 A is ~13800 — the whole plausible range fits
+# inside the ADC's span with room to spare, which is the reason for the 0 dB setting. At the
+# previous 0.33 ohm and 11 dB, a 2 A stall would have put 660 mV of lift on the driver's ground
+# reference; at 0.1 ohm it is 200 mV.
+#
+# UNCALIBRATED. This value is a placeholder chosen to sit above a plausible running current and
+# below a plausible stall, and it is the reason CLOSE_DETECTOR defaults to "timed" rather than
+# "stall". Measure the real motor with tools/calibrate.py before switching the detector over.
+SHUNT_OHMS = 0.1
+ADC_FULL_SCALE_V = 0.95
+STALL_COUNTS = 4000
 STALL_BLANKING_MS = 200     # ignore start-up inrush
-STALL_SAMPLES = 8           # ADC reads averaged per check (the C6's ADC is noisy)
+STALL_SAMPLES = 8           # ADC reads averaged per check
 STALL_CONSECUTIVE_HITS = 3  # checks above the threshold before believing it
 
 # ----------------------------------------------------------------- audio
@@ -125,6 +159,8 @@ WAKE_ON_HIGH = False
 
 # ----------------------------------------------------------------- housekeeping
 I2C_FREQ_HZ = 400000
+MP3_POWER_ON_MS = 400      # the DFR0534 boots from cold every time its rail returns;
+                            #   nothing may be sent before it has. Bench-verify this.
 MP3_UART_ID = 1
 MP3_BAUD = 9600
 FAULT_BLINK_MS = 400        # blink period while faulted
@@ -171,6 +207,23 @@ LIMITS = {
     "CLOSE_DETECTOR": (str, None, None),
     "POWER_POLICY": (str, None, None),
     "LOG_EVENTS": (bool, None, None),
+}
+
+# Keys whose value must be one of a fixed set, not merely a non-empty string.
+#
+# Without this a single typo in /config.json is a silent product change. `{"SENSOR_STRATEGY":
+# "tof-interrupt"}` — a hyphen where the code has an underscore — passes the (str, None, None)
+# check, reaches `build_sensor`, does not match, logs one line and falls back to buttons only.
+# The bin then deep-sleeps happily and opens only when pressed. On a deployed unit with nothing
+# attached to the serial port, the product has quietly become a different product and the only
+# evidence is a log line nobody will ever read.
+#
+# `tests/test_assembly.py` proves these agree with the implementations that dispatch on them, so
+# adding a strategy without listing it here fails the build rather than the bin.
+ALLOWED_VALUES = {
+    "SENSOR_STRATEGY": ("tof", "tof_interrupt", "ir", "none"),
+    "CLOSE_DETECTOR": ("timed", "limit", "stall"),
+    "POWER_POLICY": ("always_on", "deep_sleep"),
 }
 
 CALIBRATABLE = (
@@ -231,13 +284,47 @@ def is_within_limits(key, value):
     if expected_type is bool:
         return isinstance(value, bool)
     if expected_type is str:
-        return isinstance(value, str) and len(value) > 0
+        if not isinstance(value, str) or not value:
+            return False
+        allowed = ALLOWED_VALUES.get(key)
+        return allowed is None or value in allowed
     if isinstance(value, bool) or not isinstance(value, int):
         return False
     return minimum <= value <= maximum
 
 
+def relation_problems(settings=None):
+    """
+    Settings that are each individually legal but wrong together.
+
+    Per-key bounds cannot see these. `TOF_FAR_MM = 0` is a legal distance and passes (int, 0,
+    255); it also makes `near < d < far` unsatisfiable, so the bin never sees a hand again and
+    reports nothing. Same silent-different-product failure as an unknown strategy, through a
+    different door.
+    """
+    source = settings if settings is not None else globals()
+    get = source.get if hasattr(source, "get") else lambda key, default=None: source[key]
+
+    problems = []
+    near, far = get("TOF_NEAR_MM"), get("TOF_FAR_MM")
+    if isinstance(near, int) and isinstance(far, int) and near >= far:
+        problems.append(
+            "TOF_NEAR_MM (%d) must be below TOF_FAR_MM (%d), or no distance is ever a hand"
+            % (near, far))
+
+    profile = get("ACTIVE_PROFILE")
+    profiles = get("SOUND_PROFILES") or {}
+    if profile is not None and profiles and profile not in profiles:
+        problems.append(
+            "ACTIVE_PROFILE %r is not one of %s, so the bin would be silent"
+            % (profile, ", ".join(sorted(profiles))))
+    return problems
+
+
 _OVERLAY = _load_overlay()
+
+for _problem in relation_problems():
+    print("W config: %s" % _problem)
 
 
 def save(overrides):
