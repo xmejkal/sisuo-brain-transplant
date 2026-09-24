@@ -1,5 +1,45 @@
 {
   "//": "Things no netlist format records: which nets are an I2C bus, and which pins must never float. Each is a rule that was previously only written in prose.",
-  "i2c_buses": ["SDA", "SCL"],
-  "must_not_float": [["MotorDriver", "BIA"], ["MotorDriver", "BIB"]]
+  "i2c_buses": [
+    "SDA",
+    "SCL"
+  ],
+  "must_not_float": [
+    [
+      "MotorDriver",
+      "BIA"
+    ],
+    [
+      "MotorDriver",
+      "BIB"
+    ]
+  ],
+  "//physics": "Facts about the world that no netlist records: what each rail actually carries and sits at. A rail with max_current_a = null is REPORTED as needing a measurement, never assumed safe \u2014 an unchecked rail must not look like a passing one.",
+  "physics": {
+    "trace_temperature_rise_c": 10,
+    "i2c_hz": 400000,
+    "//i2c_bus_capacitance_pf": "A 15 cm ribbon is ~6-10 pF, two PCB fan-outs ~10-20 pF, plus device pin capacitance. 50 pF is the defensible estimate; fast-mode's entire budget is 400 pF.",
+    "i2c_bus_capacitance_pf": 50,
+    "rails": {
+      "MOTOR6V": {
+        "nominal_volts": 6.4,
+        "//nominal_volts": "4xAA alkaline, fresh and unloaded. Not 6.0.",
+        "max_current_a": 1.5,
+        "//max_current_a": "1.5 A is the L9110S's own limit, NOT a measurement of this motor. Copper sized for what the driver can pass is sufficient whatever the motor wants, because the driver is in series with it. The unmeasured stall current decides whether the DRIVER is right - it does not change the trace width.",
+        "capacitor_chemistry": "tantalum"
+      },
+      "GND": {
+        "max_current_a": 1.5,
+        "//max_current_a": "1.5 A is the L9110S's own limit, NOT a measurement of this motor. Copper sized for what the driver can pass is sufficient whatever the motor wants, because the driver is in series with it. The unmeasured stall current decides whether the DRIVER is right - it does not change the trace width.",
+        "served_by_pour": true,
+        "//served_by_pour": "GND carries the motor return AND every signal return, so a single max_current_a is not true of the whole net - a button's ground does not see 1.5 A. The return is a copper pour, which a trace-width rule cannot size, so the check reports it as unverified rather than pretending either way."
+      },
+      "V33": {
+        "nominal_volts": 3.3,
+        "max_current_a": 0.5,
+        "//max_current_a": "The DFR0534 plus the ESP32. An estimate, not a measurement - the module's idle draw has never been measured.",
+        "capacitor_chemistry": "ceramic"
+      }
+    }
+  }
 }
