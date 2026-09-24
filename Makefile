@@ -150,7 +150,7 @@ $(GERBERS): $(CIRCUIT)
 	@echo "==> exporting fab package"
 	@tsci export -f gerbers board.tsx -o $@ > /dev/null
 	@echo "==> the order matches the schematic"
-	@python3 tools/check-bom.py
+	@python3 $(SPARK)/scripts/check_bom.py $(GERBERS) --circuit $(CIRCUIT)
 
 $(PCB_SVG): $(CIRCUIT)
 	@echo "==> exporting PCB view"
@@ -176,7 +176,7 @@ check: boards-valid vendor-pins-agree bom-matches-design physics-holds board-spe
 # exactly the bug the module-clearance check had.
 bom-matches-design: $(GERBERS)
 	@echo "==> the fab package orders the parts the schematic specifies"
-	@python3 tools/check-bom.py
+	@python3 $(SPARK)/scripts/check_bom.py $(GERBERS) --circuit $(CIRCUIT)
 
 # The only check that looks OUTSIDE this repo. A board definition is a transcription, and every
 # other check compares things TO it — so a transcription error is invisible to all of them.
