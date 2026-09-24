@@ -15,6 +15,7 @@
 import { readdirSync } from "node:fs";
 
 import { board, canWake, hasAdc, labelForGpio } from "./lib/board";
+import { checkScenarioPins, findScenarios } from "./lib/checks/scenario-pins";
 import { checkBringUpPins } from "./lib/checks/bringup-pins";
 import { checkFirmwarePins } from "./lib/checks/firmware-pins";
 import { buildNetlist } from "./lib/netlist";
@@ -75,21 +76,30 @@ for (const pin of compared) {
   console.log(`  ${pin.setting.padEnd(20)} GPIO${String(pin.gpio).padStart(2)} = ${pin.dpin.padEnd(3)} = ${pin.boardLabel}`);
 }
 
+// The scenarios are the only part of the simulation that asserts anything, and they are
+// hand-written while the diagram is generated — so they are exactly where a board change rots.
+const DIAGRAM = `${import.meta.dir}/../../firmware/micropython/sim/diagram.json`;
+const SCENARIOS = `${import.meta.dir}/../../firmware/micropython/sim`;
+const scenarios = checkScenarioPins(await Bun.file(DIAGRAM).json(), findScenarios(SCENARIOS));
+
 const designErrors = circuitJson.filter((element: any) => String(element.type).includes("error"));
 if (designErrors.length) {
   console.error(`\nthe board design has ${designErrors.length} error(s):`);
   for (const error of designErrors.slice(0, 5)) console.error(`  ${error.message}`);
 }
 
-if (problems.length || capabilityProblems.length || bringUp.problems.length) {
+if (problems.length || capabilityProblems.length || bringUp.problems.length || scenarios.problems.length) {
   console.error("\nout of step:");
   for (const problem of problems) console.error(`  - ${problem.message}`);
   for (const problem of capabilityProblems) console.error(`  - ${problem}`);
   for (const problem of bringUp.problems) console.error(`  - ${problem.message}`);
+  for (const problem of scenarios.problems) console.error(`  - ${problem.message}`);
 }
 
-if (problems.length || capabilityProblems.length || bringUp.problems.length || designErrors.length) {
+if (problems.length || capabilityProblems.length || bringUp.problems.length ||
+    scenarios.problems.length || designErrors.length) {
   process.exit(1);
 }
 console.log(`bench scripts <-> firmware: ${bringUp.compared.length} pins compared`);
+console.log(`simulation scenarios: ${scenarios.compared} assertion(s) over ${scenarios.files.length} file(s)`);
 console.log("\nfirmware, board, bench scripts and simulation all describe the same bin");

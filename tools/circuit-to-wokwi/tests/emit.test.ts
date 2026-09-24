@@ -3,7 +3,14 @@ import { describe, expect, test } from "bun:test";
 import { emitWokwiDiagram } from "../lib/emitters/wokwi";
 import { buildNetlist } from "../lib/netlist";
 import { validate } from "../lib/validate";
-import { circuit, net, part, tinyCircuit } from "./fixtures";
+import { circuit, MCU_GND, MCU_NAME, MCU_SDA, net, part, tinyCircuit } from "./fixtures";
+import { BOARD } from "../lib/mapping";
+import { MCU } from "../../../mcu-pins";
+
+/** Wokwi part ids are the component name, lowercased. */
+const MCU_ID = MCU_NAME.toLowerCase();
+/** What the Wokwi part calls the pin the design calls SDA. Board-dependent. */
+const MCU_SDA_IN_WOKWI = BOARD.pins!.SDA as string;
 
 const CHIPS = `${import.meta.dir}/../../../firmware/micropython/sim/chips`;
 
@@ -13,25 +20,31 @@ function emitFrom(circuitJson: any[]) {
 }
 
 describe("emitting a Wokwi diagram", () => {
-  test("uses the board's silkscreen pin names, not GPIO numbers", () => {
+  test("renames the design's pins to whatever the Wokwi part calls them", () => {
+    // Which naming that is depends on the board and is recorded in boards/<id>.json: Wokwi's
+    // XIAO part names pins by silkscreen (D4), while the generic S3 devkit that stands in for
+    // the FireBeetle names them by raw GPIO ("1"). Either way the DESIGN's own name for the pin
+    // must not survive into the diagram, or the simulator silently drops the wire.
     const { emitted } = emitFrom(tinyCircuit());
 
     const pinsUsed = emitted.diagram.connections
       .map(([from]) => from)
-      .filter((from) => from.startsWith("xiao:"));
-    expect(pinsUsed).toContain("xiao:D4");   // the design calls this pin SDA; Wokwi calls it D4
-    expect(pinsUsed.some((pin) => /xiao:(22|GPIO)/.test(pin))).toBe(false);
+      .filter((from) => from.startsWith(`${MCU_ID}:`));
+    expect(pinsUsed).toContain(`${MCU_ID}:${MCU_SDA_IN_WOKWI}`);
+    if (MCU_SDA_IN_WOKWI !== MCU_SDA) {
+      expect(pinsUsed).not.toContain(`${MCU_ID}:${MCU_SDA}`);
+    }
   });
 
   test("wires a net as a star from the board, so wires stay short", () => {
     const { emitted } = emitFrom(
       circuit(
-        [part("XIAO", ["D4"]), part("OledDisplay", ["SDA"]), part("BtnOpen", ["A"])],
-        [net(undefined, ["XIAO:D4", "OledDisplay:SDA", "BtnOpen:A"])],
+        [part(MCU_NAME, [MCU_SDA]), part("OledDisplay", ["SDA"]), part("BtnOpen", ["A"])],
+        [net(undefined, [`${MCU_NAME}:${MCU_SDA}`, "OledDisplay:SDA", "BtnOpen:A"])],
       ),
     );
 
-    const sdaWires = emitted.diagram.connections.filter(([from]) => from === "xiao:D4");
+    const sdaWires = emitted.diagram.connections.filter(([from]) => from === `${MCU_ID}:${MCU_SDA_IN_WOKWI}`);
     expect(sdaWires).toHaveLength(2); // one to each of the other two members
   });
 
@@ -45,8 +58,8 @@ describe("emitting a Wokwi diagram", () => {
   test("reports an unmapped component instead of silently leaving it out", () => {
     const { emitted } = emitFrom(
       circuit(
-        [part("XIAO", ["D4"]), part("MysteryModule", ["X"])],
-        [net(undefined, ["XIAO:D4", "MysteryModule:X"])],
+        [part(MCU_NAME, [MCU_SDA]), part("MysteryModule", ["X"])],
+        [net(undefined, [`${MCU_NAME}:${MCU_SDA}`, "MysteryModule:X"])],
       ),
     );
 
@@ -56,8 +69,8 @@ describe("emitting a Wokwi diagram", () => {
   test("records a deliberately unsimulated part as a decision, with its reason", () => {
     const { emitted } = emitFrom(
       circuit(
-        [part("XIAO", ["GND"]), part("MotorBulkCap", ["A"])],
-        [net("GND", ["XIAO:GND", "MotorBulkCap:A"])],
+        [part(MCU_NAME, [MCU_GND]), part("MotorBulkCap", ["A"])],
+        [net("GND", [`${MCU_NAME}:${MCU_GND}`, "MotorBulkCap:A"])],
       ),
     );
 
@@ -69,8 +82,8 @@ describe("emitting a Wokwi diagram", () => {
     // chip-l9110s has IA/IB/OA/OB/GND and no such pin as WRONG.
     const { emitted } = emitFrom(
       circuit(
-        [part("MotorDriver", ["WRONG"]), part("XIAO", ["D0"])],
-        [net(undefined, ["MotorDriver:WRONG", "XIAO:D0"])],
+        [part("MotorDriver", ["WRONG"]), part(MCU_NAME, [MCU.TOF_INT])],
+        [net(undefined, ["MotorDriver:WRONG", `${MCU_NAME}:${MCU.TOF_INT}`])],
       ),
     );
 
@@ -83,8 +96,8 @@ describe("emitting a Wokwi diagram", () => {
     // The board's TB6612 has PWMA; the L9110S standing in for it does not, and mapping.ts says so.
     const { emitted } = emitFrom(
       circuit(
-        [part("MotorDriver", ["PWMA"]), part("XIAO", ["D3"])],
-        [net(undefined, ["MotorDriver:PWMA", "XIAO:D3"])],
+        [part("MotorDriver", ["PWMA"]), part(MCU_NAME, [MCU.MOTOR_IA])],
+        [net(undefined, ["MotorDriver:PWMA", `${MCU_NAME}:${MCU.MOTOR_IA}`])],
       ),
     );
 

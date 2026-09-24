@@ -11,6 +11,15 @@ import { describe, expect, test } from "bun:test";
 import { emitWokwiDiagram } from "../lib/emitters/wokwi";
 import { buildNetlist } from "../lib/netlist";
 import { validate } from "../lib/validate";
+import { board } from "../lib/board";
+import { BOARD } from "../lib/mapping";
+import { MCU } from "../../../mcu-pins";
+
+/** Wokwi part ids are the component name, lowercased. */
+const MCU_ID = (BOARD.match as string).toLowerCase();
+
+/** The name the Wokwi part gives the pin carrying a signal, e.g. MOTOR_IA -> "14". */
+const wokwiPinFor = (signal: keyof typeof MCU) => BOARD.pins![MCU[signal]] as string;
 
 const CIRCUIT = `${import.meta.dir}/../../../dist/board/circuit.json`;
 const CHIPS = `${import.meta.dir}/../../../firmware/micropython/sim/chips`;
@@ -25,21 +34,29 @@ describe("the real board", () => {
     expect(emitted.problems).toEqual([]);
   });
 
-  test("the pin map in the diagram is the pin map in the firmware", () => {
-    // config.py drives the motor from D3 and D8, and the design labels those MOTOR_IA/MOTOR_IB.
-    // If these ever disagree, the simulation is not simulating the firmware's board.
+  test("the pin map in the diagram is the pin map in the design", () => {
+    // Which pins these are is board-specific and deliberately not written here; what must hold
+    // on every board is that the motor driver is wired to whatever mcu-pins.ts calls MOTOR_IA
+    // and MOTOR_IB. If these disagree, the simulation is not simulating the firmware's board.
     const motorWires = emitted.diagram.connections.filter(([, to]) => to.startsWith("motordriver:"));
-    expect(motorWires).toContainEqual(["xiao:D3", "motordriver:IA", "green", []]);
-    expect(motorWires).toContainEqual(["xiao:D8", "motordriver:IB", "green", []]);
+    expect(motorWires).toContainEqual([`${MCU_ID}:${wokwiPinFor("MOTOR_IA")}`, "motordriver:IA", "green", []]);
+    expect(motorWires).toContainEqual([`${MCU_ID}:${wokwiPinFor("MOTOR_IB")}`, "motordriver:IB", "green", []]);
   });
 
   test("the sensor interrupt is on a pin that can wake the chip", () => {
-    // Only GPIO0-7 can wake an ESP32-C6, which on this board is D0, D1 and D2. A sensor
-    // interrupt anywhere else would make deep sleep impossible, silently.
-    const wakeCapable = ["D0", "D1", "D2"];
+    // The bin sleeps between uses, so the pin the sensor interrupts on must be one this chip
+    // can wake from — otherwise deep sleep is impossible, silently. Which pins those are comes
+    // from boards/<id>.json, because it is a fact about the chip and changes with the board:
+    // the ESP32-C6 could wake from eight GPIOs, the S3 from twenty-two.
     const interrupt = emitted.diagram.connections.find(([, to]) => to === "sensorheader:INT");
     expect(interrupt).toBeDefined();
-    expect(wakeCapable).toContain(interrupt![0].replace("xiao:", ""));
+
+    const interruptPin = interrupt![0].replace(`${MCU_ID}:`, "");
+    expect(interruptPin).toBe(wokwiPinFor("TOF_INT"));
+
+    const gpio = board.pins[MCU.TOF_INT];
+    expect(gpio).toBeDefined();
+    expect(board.wake_capable_gpio).toContain(gpio!);
   });
 
   test("it passes Wokwi's own linter and loses no net", () => {

@@ -145,3 +145,62 @@ class _FakeAdc:
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ConfigAndImplementationsAgree(unittest.TestCase):
+    """
+    Every value `config.ALLOWED_VALUES` permits must actually build something.
+
+    These two can drift in both directions and each way is silent. Add a strategy to the code and
+    forget the list, and a correct `/config.json` is rejected as a typo. List one that was never
+    implemented, and the overlay accepts it, the factory does not recognise it, and the bin
+    quietly falls back — becoming a different product with one log line as the only evidence.
+
+    So this asserts the thing the log line reports: that nothing fell back.
+    """
+
+    def setUp(self):
+        self.fallbacks = []
+        self._real_error = assembly.log.error
+        assembly.log.error = lambda message, *args: self.fallbacks.append(message % args)
+        self.addCleanup(setattr, assembly.log, "error", self._real_error)
+
+    def _build_all(self, key, build):
+        import config as real_config
+
+        for value in real_config.ALLOWED_VALUES[key]:
+            with self.subTest(**{key: value}):
+                self.fallbacks = []
+                built = build(value)
+                self.assertIsNotNone(built)
+                self.assertEqual(
+                    self.fallbacks, [],
+                    "config permits %s=%r but the factory does not implement it" % (key, value))
+
+    def test_every_permitted_sensor_strategy_is_implemented(self):
+        self._build_all("SENSOR_STRATEGY", build_sensor)
+
+    def test_every_permitted_close_detector_is_implemented(self):
+        def build(value):
+            config = FakeConfig()
+            config.CLOSE_DETECTOR = value
+            return assembly.build_close_detector(config, FakeHardware())
+
+        self._build_all("CLOSE_DETECTOR", build)
+
+    def test_every_permitted_power_policy_is_implemented(self):
+        import config as real_config
+
+        for value in real_config.ALLOWED_VALUES["POWER_POLICY"]:
+            with self.subTest(POWER_POLICY=value):
+                self.assertIn(value, power.POLICIES,
+                              "config permits POWER_POLICY=%r but power.POLICIES has no such "
+                              "policy" % value)
+
+    def test_a_typo_is_rejected_rather_than_quietly_falling_back(self):
+        import config as real_config
+
+        # The exact shape of the bug: a hyphen where the code has an underscore.
+        self.assertFalse(real_config.is_within_limits("SENSOR_STRATEGY", "tof-interrupt"))
+        self.assertFalse(real_config.is_within_limits("POWER_POLICY", "deepsleep"))
+        self.assertTrue(real_config.is_within_limits("SENSOR_STRATEGY", "tof_interrupt"))

@@ -27,11 +27,18 @@ from pathlib import Path
 
 from littlefs import LittleFS
 
+import boards
+
 REPO = Path(__file__).resolve().parent.parent
 FIRMWARE = REPO / "firmware" / "micropython"
 SIM = FIRMWARE / "sim"
 
-MICROPYTHON_IMAGE = SIM / "micropython-c6.bin"
+# Named after the chip, not hard-coded: the Makefile guards this target on a file called
+# micropython-<chip>.bin, and a constant here that named a different chip made the guard pass
+# and the script then fail looking for the previous board's build. Which is exactly what
+# happened when the board changed from an ESP32-C6 to an S3.
+MICROPYTHON_IMAGE = SIM / ("micropython-%s.bin" % boards.get("chip"))
+MICROPYTHON_PORT = boards.get("micropython_port")
 OUTPUT_IMAGE = SIM / "flash-with-firmware.bin"
 
 # Settings written into /config.json inside the image, for simulating a bin configured
@@ -95,7 +102,7 @@ def build_filesystem(overrides: dict) -> bytes:
 def main() -> int:
     if not MICROPYTHON_IMAGE.exists():
         print(f"missing {MICROPYTHON_IMAGE}")
-        print("download a build from https://micropython.org/download/ESP32_GENERIC_C6/")
+        print("download a build from https://micropython.org/download/%s/" % MICROPYTHON_PORT)
         return 1
 
     overrides = dict(CONFIG_OVERRIDES)

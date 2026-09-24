@@ -6,13 +6,16 @@
  * This builder emits ports and traces the way tscircuit does, so a passing test means something.
  *
  *   circuit([
- *     part("XIAO", ["D4", "GND"]),
+ *     part(MCU_NAME, [MCU_SDA, MCU_GND]),
  *     part("OledDisplay", ["SDA", "GND"]),
  *   ], [
  *     net("SDA", ["XIAO:D4", "OledDisplay:SDA"]),
  *     net("GND", ["XIAO:GND", "OledDisplay:GND"]),
  *   ])
  */
+
+import { BOARD } from "../lib/mapping";
+import { MCU } from "../../../mcu-pins";
 
 export interface PartSpec {
   name: string;
@@ -24,6 +27,7 @@ export interface NetSpec {
   /** Endpoints as "ComponentName:pinName". */
   members: string[];
 }
+
 
 export function part(name: string, pins: string[]): PartSpec {
   return { name, pins };
@@ -85,13 +89,24 @@ export function circuit(parts: PartSpec[], nets: NetSpec[]): any[] {
   return elements;
 }
 
-/** The circuit most tests start from: a board, a display, and the two nets between them. */
+/**
+ * The circuit most tests start from: a board, a display, and the two nets between them.
+ *
+ * The board is named by `BOARD.match` and its pin by a signal from `mcu-pins.ts`, not by any
+ * particular board's silkscreen — otherwise every one of these tests has to be rewritten the
+ * next time the microcontroller changes, which is exactly what happened once already.
+ */
+export const MCU_NAME = BOARD.match as string;
+export const MCU_SDA = MCU.SDA;
+/** The module's ground pad. Named, not literal: this board has three of them. */
+export const MCU_GND = MCU.GND;
+
 export function tinyCircuit(): any[] {
   return circuit(
-    [part("XIAO", ["D4", "GND"]), part("OledDisplay", ["SDA", "GND"])],
+    [part(MCU_NAME, [MCU_SDA, MCU_GND]), part("OledDisplay", ["SDA", "GND"])],
     [
-      net(undefined, ["XIAO:D4", "OledDisplay:SDA"]),
-      net("GND", ["XIAO:GND", "OledDisplay:GND"]),
+      net(undefined, [`${MCU_NAME}:${MCU_SDA}`, "OledDisplay:SDA"]),
+      net("GND", [`${MCU_NAME}:${MCU_GND}`, "OledDisplay:GND"]),
     ],
   );
 }

@@ -1,14 +1,14 @@
 import { describe, expect, test } from "bun:test";
 
 import { buildNetlist } from "../lib/netlist";
-import { circuit, net, part, tinyCircuit } from "./fixtures";
+import { circuit, MCU_GND, MCU_NAME, MCU_SDA, net, part, tinyCircuit } from "./fixtures";
 
 describe("reading a design", () => {
   test("finds every component and its pins", () => {
     const { netlist } = buildNetlist(tinyCircuit());
 
-    expect(netlist.components.map((component) => component.name)).toEqual(["XIAO", "OledDisplay"]);
-    expect(netlist.components[0]!.pins.map((pin) => pin.name)).toEqual(["D4", "GND"]);
+    expect(netlist.components.map((component) => component.name)).toEqual([MCU_NAME, "OledDisplay"]);
+    expect(netlist.components[0]!.pins.map((pin) => pin.name)).toEqual([MCU_SDA, MCU_GND]);
   });
 
   test("groups pins into nets", () => {
@@ -16,7 +16,7 @@ describe("reading a design", () => {
 
     expect(netlist.nets).toHaveLength(2);
     const ground = netlist.nets.find((net) => net.name === "GND");
-    expect(ground?.members.map((member) => member.pinName).sort()).toEqual(["GND", "GND"]);
+    expect(ground?.members.map((member) => member.pinName).sort()).toEqual([MCU_GND, "GND"].sort());  // the display calls its pad GND; the module may not
   });
 
   test("keeps the designer's name for a net, where there is one", () => {
@@ -27,7 +27,8 @@ describe("reading a design", () => {
 
   test("reports a component with no pins rather than emitting a part nothing can reach", () => {
     const { problems } = buildNetlist(
-      circuit([part("XIAO", ["D4"]), part("Orphan", [])], [net(undefined, ["XIAO:D4"])]),
+      circuit([part(MCU_NAME, [MCU_SDA]), part("Orphan", [])],
+              [net(undefined, [`${MCU_NAME}:${MCU_SDA}`])]),
     );
 
     expect(problems.some((problem) => problem.context?.component === "Orphan")).toBe(true);

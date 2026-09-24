@@ -5,14 +5,19 @@
  * the third side of the triangle, and the one that would otherwise be checked by a person
  * remembering to, which is to say not checked.
  *
- * It reads the GPIO numbers out of config.py and the pin labels out of the design, translates
- * both into XIAO D-pins, and compares. A mismatch here is the bug that wastes a bench evening:
- * the firmware drives D3 while the board wired the motor to D0, and nothing complains until the
- * lid does not move.
+ * Three independent statements have to agree, and this compares them:
+ *   1. `config.py`          - this signal is on GPIO n
+ *   2. `boards/<id>.json`   - GPIO n is the pin silkscreened X
+ *   3. `mcu-pins.ts`        - the signal is wired to the pin silkscreened X
+ *
+ * None is derived from another, which is what gives the check teeth. A mismatch here is the bug
+ * that wastes a bench evening: the firmware drives one pin while the board wired the motor to
+ * another, and nothing complains until the lid does not move.
  */
 
 import { board, labelForGpio } from "../board";
 import { BOARD } from "../mapping";
+import { MCU } from "../../../../mcu-pins";
 import type { Netlist, Problem } from "../types";
 
 /**
@@ -62,12 +67,20 @@ export function checkFirmwarePins(configPython: string, netlist: Netlist): Firmw
       continue;
     }
 
-    const boardDpin = BOARD.pins?.[boardLabel];
-    if (!boardLabels.has(boardLabel)) {
+    const boardDpin = (MCU as Record<string, string>)[boardLabel];
+    if (boardDpin === undefined) {
       problems.push({
         message:
-          `the firmware sets ${setting}, but the board design has no pin labelled ` +
-          `${boardLabel}. Either the board or config.py is out of date`,
+          `the firmware sets ${setting}, but mcu-pins.ts does not say which pin carries ` +
+          `${boardLabel}. Either that table or config.py is out of date`,
+      });
+      continue;
+    }
+    if (!boardLabels.has(boardDpin)) {
+      problems.push({
+        message:
+          `mcu-pins.ts puts ${boardLabel} on ${boardDpin}, but the board design has no such ` +
+          `pin on the module. Either the footprint or that table is wrong`,
       });
       continue;
     }

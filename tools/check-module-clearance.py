@@ -22,6 +22,12 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 MODEL = REPO / "board.glb"
 
+#: Parts that are MEANT to hang over the board edge, and by how much at most.
+#:
+#: The microcontroller module's USB-C receptacle has to be reachable with a cable, so it sits
+#: proud of the outline on purpose. Everything else overhanging is a mistake.
+DELIBERATE_OVERHANG_MM = {"Mcu": 4.0}
+
 CIRCUIT = REPO / "dist" / "board" / "circuit.json"
 IGNORE_BELOW_MM = 3.0     # passives; their bodies are smaller than their pads
 CLEARANCE_MM = 0.5        # touching is not fitting
@@ -88,6 +94,17 @@ def main():
     if not MODEL.exists():
         raise SystemExit("no board.glb — run `make` first")
 
+    # This check reads the outline from circuit.json and the bodies from board.glb, so a stale
+    # model silently answers a question about a board that no longer exists. It did exactly that
+    # once: after the board changed it reported "nothing overlaps" while listing two components
+    # that had been deleted, because `make` had rebuilt circuit.json but not yet the model. A
+    # clearance check that cannot fail is worse than no clearance check.
+    if MODEL.stat().st_mtime < CIRCUIT.stat().st_mtime:
+        raise SystemExit(
+            f"{MODEL.name} is older than the design it would be checked against.\n"
+            f"  It describes a previous version of this board, so any answer here would be\n"
+            f"  about the wrong board. Run `make` to rebuild it first.")
+
     board_width, board_height = board_size()
     parts = list(footprints(read_gltf(MODEL)))
     print(f"{len(parts)} module bodies, board {board_width:.0f} x {board_height:.0f} mm\n")
@@ -100,8 +117,17 @@ def main():
         over_y = max(0.0, -half_height - box[1], box[3] - half_height)
         flag = ""
         if over_x or over_y:
-            flag = f"   overhangs the edge by {max(over_x, over_y):.1f} mm"
-            problems += 1
+            overhang = max(over_x, over_y)
+            allowed = DELIBERATE_OVERHANG_MM.get(name)
+            if allowed is not None and overhang <= allowed:
+                # A connector that must be reachable from outside SHOULD hang over the edge.
+                # Without this the tool reports the one thing the layout got right, and a warning
+                # that is always on is a warning nobody reads.
+                flag = f"   overhangs by {overhang:.1f} mm (intended: {allowed} mm allowed)"
+                over_x = over_y = 0.0
+            else:
+                flag = f"   overhangs the edge by {overhang:.1f} mm"
+                problems += 1
         print(f"  {name:<16} {size[0]:5.1f} x {size[1]:5.1f} mm{flag}")
 
     print()

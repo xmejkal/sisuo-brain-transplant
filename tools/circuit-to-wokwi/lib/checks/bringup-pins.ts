@@ -23,6 +23,12 @@ export interface BringUpPinCheck {
   compared: { script: string; setting: string; gpio: number }[];
 }
 
+/**
+ * Roles that identify one specific pin on the module, as opposed to describing a caveat that
+ * happens to apply to many. A bench script may name one of these without config.py knowing it.
+ */
+const FIXED_FUNCTION_ROLES = new Set(["onboard_led", "onboard_button", "boot_log_tx", "strapping"]);
+
 export function checkBringUpPins(
   configPython: string,
   scripts: { name: string; source: string }[],
@@ -31,8 +37,14 @@ export function checkBringUpPins(
   const compared: BringUpPinCheck["compared"] = [];
 
   const firmware = readPinAssignments(configPython);
+  // Only roles that name a FIXED on-board function count as "the board documents this pin".
+  // Taking every role let GPIO15 through as an on-board LED, because it appears in this board's
+  // "adc2_unusable_with_wifi" list — a caveat covering ten pins, which was accidentally acting
+  // as a whitelist. Bring-up step 1 then blinked a bare header pin and the guard said fine.
   const documented = new Set(
-    Object.values(board.pin_roles ?? {}).flatMap((role) => role.gpio),
+    Object.entries(board.pin_roles ?? {})
+      .filter(([role]) => FIXED_FUNCTION_ROLES.has(role))
+      .flatMap(([, role]) => role.gpio),
   );
 
   for (const script of scripts) {
