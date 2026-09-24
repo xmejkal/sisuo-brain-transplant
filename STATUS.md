@@ -86,6 +86,31 @@ which is waiting on two measurements only Petr can take.
 
 ## What is NOT verified
 
+* **BLOCKING, AND IT DECIDES THE BOARD: nobody knows which MP3 module this is.**
+  `SHOPPING.md` has said "DFR0534" under *Already owned* since the first commit and nothing
+  records who checked. Petr now thinks it may be the **DFPlayer Mini (DFR0299)**. They are not
+  variants of each other — they are different products with different pin counts, different
+  protocols and different storage:
+
+  | | pads | protocol | storage |
+  | --- | --- | --- | --- |
+  | **this board's footprint** | **6, one row** | — | — |
+  | **this firmware** | — | **`0xAA` frames** | — |
+  | DFR0534 (Gravity MP3 Player) | 10, two rows of 5 | `0xAA` | onboard flash + micro-USB |
+  | DFR0299 (DFPlayer Mini) | 16, two rows of 8 | `0x7E FF .. EF` | **microSD / TF card** |
+
+  So the board fits **neither**, and the firmware was written for the DFR0534. DFRobot make at
+  least four audio modules — DFR0299, DFR0534, DFR0768 (DFPlayer Pro) and DFR1173 (MP3 Voice
+  Prompt) — so "the DFRobot MP3 one" does not identify a part.
+
+  **The five-second test: does the module have a memory-card slot?**
+  A microSD/TF slot means DFPlayer Mini, and then the firmware's protocol is wrong as well as the
+  footprint. A micro-USB socket and no card slot means DFR0534, the firmware is right, and only
+  the footprint needs fixing. Either way **the MP3 footprint must change before the board is
+  ordered**, and every DFR0534 fact in the parts library is scoped to a part that may not be the
+  one in the drawer.
+
+
 * **Nothing has run on hardware.** All green results come from tests and simulation — but the
   simulation now includes the real thing: 2026-09-24, the 4 MB flash image booted on a simulated
   ESP32-S3 in Wokwi and the `lid-cycle` scenario passed end to end (idle → opening → open →
