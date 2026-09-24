@@ -1,0 +1,19 @@
+{
+  "goal": "a sensor bin whose lid opens when you wave at it, rebuilt around an ESP32",
+  "must": [
+    "run on one LiPo charge for at least a month",
+    "fit inside the original Sisuo SS-01 cavity",
+    "open within half a second of a wave"
+  ],
+  "parts_on_hand": [
+    "Seeed XIAO ESP32-C6", "L9110S motor driver", "DFR0534 MP3 + speaker",
+    "VL6180X rangefinder", "LiPo 1000 mAh", "the bin's original 6V AA pack and lid motor"
+  ],
+  "prefer": "reuse what I already own before buying",
+  "decided": [
+    "L9110S rather than TB6612 - right current class, two inputs not three",
+    "VL6180X on I2C rather than the original IR pair",
+    "no OLED - the bin never had a screen",
+    "rangefinder and speaker live on ribbons, not on the board"
+  ]
+}

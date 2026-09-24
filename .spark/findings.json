@@ -1,0 +1,53 @@
+{
+  "schema": 1,
+  "findings": [
+    {
+      "dimension": "power",
+      "anchors": [
+        "net:VBAT",
+        "port:Mp3Player.VCC"
+      ],
+      "what": "Mp3Player.VCC connects directly to net.VBAT with no switch, enable or load gate",
+      "consequence": "A DFR0534-class module idles at an estimated 15-25 mA. Against everything else on the board asleep (~0.4 mA) that is roughly 40x, and it turns the stated one-month requirement into about 2-3 days on a 1000 mAh cell. The deep-sleep design that shaped the whole pin map buys almost nothing while this part is unswitched.",
+      "severity": "caveat",
+      "rests_on": [
+        "mp3-idle-current"
+      ],
+      "confidence": "high",
+      "key": "520a2164a94a",
+      "status": "open",
+      "first_seen": "2026-09-24",
+      "found_against": null,
+      "resolution": {
+        "reason": "needs the module's real idle current",
+        "date": "2026-09-24"
+      }
+    },
+    {
+      "dimension": "power",
+      "anchors": [
+        "comp:CurrentShunt",
+        "net:MOTOR_SENSE"
+      ],
+      "what": "CurrentShunt is 0.33R in an 0805, in the motor driver's ground return",
+      "consequence": "A standard 0805 is rated 0.125 W, which caps it at about 0.61 A continuous. If the lid motor stalls above that the shunt is over its rating before the driver is, and it fails open in the driver's ground return.",
+      "severity": "caveat",
+      "rests_on": [
+        "motor-stall-current"
+      ],
+      "confidence": "medium",
+      "key": "36b7268d70e2",
+      "status": "open",
+      "first_seen": "2026-09-24",
+      "found_against": null
+    }
+  ],
+  "measurements": {
+    "mp3-idle-current": {
+      "value": "18.4",
+      "unit": "mA",
+      "instrument": "DMM in series with VBAT, module idle",
+      "date": "2026-09-24"
+    }
+  }
+}
