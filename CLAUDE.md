@@ -86,9 +86,15 @@ bench/calibration/deploy: `firmware/micropython/README.md`. Arduino v1 kept only
   `machine` module in tests/fake_machine.py, so device construction and the VL6180X driver run
   on the Mac). **Simulate: `micropython sim/run_on_micropython.py`** (brew install micropython) —
   the whole firmware on a real MicroPython runtime, 13 checks, exit code = pass/fail. Also
-  `mpy-cross` every module to catch on-device compile errors. Wokwi setup in `sim/` (it has no
-  FireBeetle part, so the generic S3 devkit stands in — same silicon, superset of pins, named by
-  raw GPIO; `wokwi_is_stand_in` in the board file says so. Needs a token for CI).
+  `mpy-cross` every module to catch on-device compile errors. **Wokwi runs**, in
+  `firmware/micropython/sim/` (not `sim/`): `make simulate` — the real 4 MB flash image on a
+  simulated S3, with hand-written `vl6180x` and `l9110s` chips. `lid-cycle` passes: full
+  idle→opening→open→closing→idle with the motor-pin assertions holding. `wave-to-open`,
+  `obstruction`, `sensor-trouble` and `deep-sleep` are written and **not yet run** — Wokwi CI
+  minutes are a limited free quota, so run them deliberately, not on every change.
+  Needs `WOKWI_CLI_TOKEN` (wokwi.com/dashboard/ci) and `wokwi-cli` on PATH.
+  Wokwi has no FireBeetle part, so the generic S3 devkit stands in — same silicon, superset of
+  pins, named by raw GPIO; `wokwi_is_stand_in` in the board file says so.
 - Safety: hard `MOTOR_MAX_RUN_MS` inside the motion loop, motor stop in `finally` + on every
   transition out, WDT only in `run()` (default OFF — it survives Ctrl-C and would reset you at
   the REPL), **10k pulldowns on both L9110S inputs** (hardware).

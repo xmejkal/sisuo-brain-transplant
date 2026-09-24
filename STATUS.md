@@ -86,7 +86,14 @@ which is waiting on two measurements only Petr can take.
 
 ## What is NOT verified
 
-* **Nothing has run on hardware.** All green results come from tests and simulation.
+* **Nothing has run on hardware.** All green results come from tests and simulation — but the
+  simulation now includes the real thing: 2026-09-24, the 4 MB flash image booted on a simulated
+  ESP32-S3 in Wokwi and the `lid-cycle` scenario passed end to end (idle → opening → open →
+  closing → idle, with the motor pins asserted low at rest). Our own `vl6180x` and `l9110s` chip
+  models drove it. That is the strongest evidence short of a bench, and it is still not a bench:
+  no real motor, no real current, no real sensor.
+  **`wave-to-open`, `obstruction`, `sensor-trouble` and `deep-sleep` are written and unrun** —
+  Wokwi CI minutes are a limited free quota, so run them deliberately rather than on every change.
 * The DFR0534 command bytes are from the v1 Arduino sketch and still need checking against
   DFRobot's own 11-page datasheet, which carries the full `AA ..` command table:
   <https://media.digikey.com/pdf/Data%20Sheets/DFRobot%20PDFs/DFR0534_Web.pdf>. (`parts/datasheets/`
