@@ -9,10 +9,10 @@ single easiest mistake to make here, and the reason this table exists in exactly
 # Pins with a second job:
 #   D9, D2: D9 is GPIO0, the BOOT pin - held low at reset it enters the bootloader, so nothing may drive it low during power-up. D2 is GPIO3, the JTAG source select strap. Both are usable as ordinary I/O once running; neither is safe for something that idles low.
 #   A5, D12, D11, D10, MOSI, MISO, SCK, D6, GPIO19, GPIO20: on ADC2, which shares hardware with the radio. A5 (GPIO11) is the one that matters here: it is labelled analogue but cannot be read with WiFi active. Use A0-A4 or D5/D7 for analogue instead.
-#   TX: U0TXD - the ROM bootloader prints its log here on every reset. Safe for a button, never for a module that parses serial.
 #   D13: the on-board user LED, silkscreened D13. Usable, but it will blink whatever you put on it.
 #   D14: the on-board user button, silkscreened D14. Already has a button on it, and cannot wake the chip from deep sleep.
 #   D3, TX, RX, D14: outside the RTC domain, so these cannot wake the chip however they are configured. Everything else on the header can.
+#   TX, RX: U0TXD and U0RXD — the ROM bootloader prints here on every reset and the serial console uses both. TX is driven push-pull at boot, so anything that acts on a level (a motor driver input, an enable line) twitches every time the board resets. Usable in a pinch, never a first choice, and taking them costs you the console you need during bring-up.
 """
 
 NAME = "DFRobot FireBeetle 2 ESP32-S3"

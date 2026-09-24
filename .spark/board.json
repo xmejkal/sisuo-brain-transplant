@@ -153,12 +153,6 @@
       ],
       "note": "on ADC2, which shares hardware with the radio. A5 (GPIO11) is the one that matters here: it is labelled analogue but cannot be read with WiFi active. Use A0-A4 or D5/D7 for analogue instead."
     },
-    "boot_log_tx": {
-      "gpio": [
-        43
-      ],
-      "note": "U0TXD - the ROM bootloader prints its log here on every reset. Safe for a button, never for a module that parses serial."
-    },
     "onboard_led": {
       "gpio": [
         21
@@ -179,6 +173,13 @@
         47
       ],
       "note": "outside the RTC domain, so these cannot wake the chip however they are configured. Everything else on the header can."
+    },
+    "console_uart": {
+      "gpio": [
+        43,
+        44
+      ],
+      "note": "U0TXD and U0RXD \u2014 the ROM bootloader prints here on every reset and the serial console uses both. TX is driven push-pull at boot, so anything that acts on a level (a motor driver input, an enable line) twitches every time the board resets. Usable in a pinch, never a first choice, and taking them costs you the console you need during bring-up."
     }
   },
   "//deep_sleep": "How this chip is woken. Unlike the C6, the S3 has real RTC IO and defines SOC_PM_SUPPORT_EXT0_WAKEUP, so esp32.wake_on_ext0 exists - it takes a single pin at either polarity. What the S3 does NOT have is SOC_PM_SUPPORT_EXT1_WAKEUP_MODE_PER_PIN, which the C6 does: its ext1 applies one trigger level to every pin at once. So with two wake sources the shared-polarity constraint is back, for the opposite reason to the C6's.",
