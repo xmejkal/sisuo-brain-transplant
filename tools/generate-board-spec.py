@@ -12,12 +12,16 @@ silkscreen-to-GPIO map, and the whole point of boards/ is that there is one.
 check` uses.
 """
 
+import json
 import sys
 from pathlib import Path
 
-import boards
-
 REPO = Path(__file__).resolve().parent.parent
+
+#: The active board, already resolved and validated by spark's boards.py. Reading this rather
+#: than searching for a definition keeps the search and the schema check in exactly one place,
+#: in one language — there used to be a second, partial copy of both in TypeScript.
+RESOLVED_BOARD = REPO / ".spark" / "board.json"
 OUTPUT = REPO / "firmware" / "micropython" / "smartbin" / "board_spec.py"
 
 #: Above this fraction of the header able to wake the chip, the short thing to say is which pins
@@ -101,12 +105,12 @@ def label_for(gpio):
 
 
 def main() -> int:
-    try:
-        board = boards.load()
-        definition = boards.definition_path()
-    except boards.BoardError as broken:
-        print(f"cannot generate the board facts: {broken}", file=sys.stderr)
+    if not RESOLVED_BOARD.is_file():
+        print(f"no {RESOLVED_BOARD.relative_to(REPO)} — run `make` to resolve the active board",
+              file=sys.stderr)
         return 1
+    board = json.loads(RESOLVED_BOARD.read_text())
+    definition = RESOLVED_BOARD
     generated = render(board)
 
     if "--check" in sys.argv:

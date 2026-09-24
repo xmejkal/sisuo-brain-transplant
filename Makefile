@@ -31,15 +31,18 @@ CONVERTER  := tools/circuit-to-wokwi
 
 # --- the sources of truth ------------------------------------------------------------------
 # Which microcontroller this is, chosen in exactly one place: boards/active.json. Everything
-# below derives from it — see boards/README.md. Resolved through tools/boards.py rather than
+# below derives from it — see the plugin's boards/README.md. Resolved through spark rather than
 # named here, so that switching board never means editing this file.
-BOARD_DEFINITION := $(shell python3 tools/boards.py --path)
-BOARD_ID         := $(shell python3 tools/boards.py --id)
-BOARD_FILES      := $(shell python3 tools/boards.py --paths)
-BOARD_CHIP       := $(shell python3 tools/boards.py --get chip)
-MICROPYTHON_PORT := $(shell python3 tools/boards.py --get micropython_port)
+# Resolved once, into one file, by the plugin's resolver — so Make, the firmware's generator and
+# the TypeScript tools all read the same validated board instead of each searching for it.
+RESOLVED_BOARD   := .spark/board.json
+BOARD_DEFINITION := $(shell python3 $(SPARK)/scripts/boards.py --path)
+BOARD_ID         := $(shell python3 $(SPARK)/scripts/boards.py --id)
+BOARD_FILES      := $(shell python3 $(SPARK)/scripts/boards.py --paths)
+BOARD_CHIP       := $(shell python3 $(SPARK)/scripts/boards.py --get chip)
+MICROPYTHON_PORT := $(shell python3 $(SPARK)/scripts/boards.py --get micropython_port)
 # Every footprint module at the repo root, because which one is the board's changes with it.
-BOARD_SOURCES   := $(wildcard *.tsx) $(BOARD_DEFINITION) boards/active.json
+BOARD_SOURCES   := $(wildcard *.tsx) $(RESOLVED_BOARD)
 CIRCUIT         := dist/board/circuit.json
 BOARD_SPEC      := $(FIRMWARE)/smartbin/board_spec.py
 
@@ -69,7 +72,11 @@ all: $(DERIVED)
 # --- derivations ---------------------------------------------------------------------------
 
 # The firmware cannot read boards/*.json at runtime, so it gets a generated module.
-$(BOARD_SPEC): $(BOARD_DEFINITION) boards/active.json tools/generate-board-spec.py tools/boards.py
+$(RESOLVED_BOARD): boards/active.json $(BOARD_DEFINITION)
+	@echo "==> resolving the active board"
+	@python3 $(SPARK)/scripts/boards.py --resolve > /dev/null
+
+$(BOARD_SPEC): $(RESOLVED_BOARD) tools/generate-board-spec.py
 	@echo "==> generating the firmware's board facts"
 	@python3 tools/generate-board-spec.py
 
@@ -83,7 +90,7 @@ $(CIRCUIT): $(BOARD_SOURCES)
 	   [print('   -', x.get('message','')[:120]) for x in e[:5]]; sys.exit(1 if e else 0)"
 
 # The simulation is generated from the board, so it cannot describe a different bin.
-$(DIAGRAM): $(CIRCUIT) $(BOARD_DEFINITION) $(CONVERTER_SRC) $(wildcard $(SIM)/chips/*.chip.json)
+$(DIAGRAM): $(CIRCUIT) $(RESOLVED_BOARD) $(CONVERTER_SRC) $(wildcard $(SIM)/chips/*.chip.json)
 	@echo "==> generating the Wokwi diagram from the board"
 	@cd $(CONVERTER) && bun run cli.ts > /tmp/smartbin-diagram.log 2>&1 \
 	  || { cat /tmp/smartbin-diagram.log; exit 1; }
@@ -146,7 +153,7 @@ $(SIM)/%.chip.wasm: $(SIM)/%.chip.c $(SIM)/%.chip.json
 
 $(GERBERS): $(CIRCUIT)
 	@echo "==> checking the board is ready to fabricate"
-	@python3 tools/boards.py --validate --for-fab
+	@python3 $(SPARK)/scripts/boards.py --validate --for-fab
 	@echo "==> exporting fab package"
 	@tsci export -f gerbers board.tsx -o $@ > /dev/null
 	@echo "==> the order matches the schematic"
@@ -196,7 +203,7 @@ physics-holds: $(CIRCUIT)
 
 boards-valid:
 	@echo "==> every board definition meets the contract"
-	@python3 tools/boards.py --validate
+	@python3 $(SPARK)/scripts/boards.py --validate
 
 board-spec-current:
 	@echo "==> the firmware's board facts match the board definition"

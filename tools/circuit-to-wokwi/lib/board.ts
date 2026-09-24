@@ -1,36 +1,20 @@
 /**
  * Which board this project is built around.
  *
- * One file describes it (`boards/<id>.json`) and everything here derives from that, so the
- * silkscreen-to-GPIO map exists once rather than in the firmware, the PCB design, the simulator
- * project and two checkers.
+ * Read from `.spark/board.json` — the active board, already found and validated by spark's
+ * `boards.py`. This file used to do that work itself: read `boards/active.json`, look up the
+ * definition, check the schema version, check the id. All of that was a second implementation
+ * of a resolver that already existed in Python, and it would have needed a third change the
+ * moment board definitions could also come from the plugin's shared library.
  *
- * Which board that is comes from `boards/active.json`, the single place it is chosen — the same
- * file the Makefile and the firmware's spec generator read. Switching board is editing that one
- * line; nothing here names a board. See `boards/README.md`.
+ * So the search lives in one place and the answer lands in one file. Switching board is still
+ * one line in `boards/active.json`; `make` regenerates this.
  */
 
 import { readFileSync } from "node:fs";
 
-/** Relative to this file (lib/), so: tools/circuit-to-wokwi/lib -> repo root -> boards/. */
-const BOARDS_DIR = "../../../boards/";
-const SELECTION_FILE = "active.json";
-const DEFINITION_SUFFIX = ".json";
-
-/** The only board-file schema this code understands; see tools/boards.py for the contract. */
-const SUPPORTED_SCHEMA = 1;
-
-function readBoardsFile<T>(name: string): T {
-  return JSON.parse(readFileSync(new URL(BOARDS_DIR + name, import.meta.url), "utf8")) as T;
-}
-
-const selection = readBoardsFile<{ board: string }>(SELECTION_FILE);
-if (!selection.board) {
-  throw new Error(`${BOARDS_DIR}${SELECTION_FILE} names no board (expected a "board" key)`);
-}
-
-/** The active board's definition file, for error messages that have to name it. */
-export const BOARD_DEFINITION = `${BOARDS_DIR}${selection.board}${DEFINITION_SUFFIX}`;
+/** Relative to this file (lib/): tools/circuit-to-wokwi/lib -> repo root -> .spark/. */
+const RESOLVED_BOARD = "../../../.spark/board.json";
 
 export interface BoardDefinition {
   schema: number;
@@ -66,22 +50,12 @@ export interface BoardDefinition {
   };
 }
 
-export const board: BoardDefinition = readBoardsFile<BoardDefinition>(
-  selection.board + DEFINITION_SUFFIX,
+export const board: BoardDefinition = JSON.parse(
+  readFileSync(new URL(RESOLVED_BOARD, import.meta.url), "utf8"),
 );
 
-if (board.schema !== SUPPORTED_SCHEMA) {
-  throw new Error(
-    `${BOARD_DEFINITION} declares schema ${board.schema}, but this code understands only ` +
-      `${SUPPORTED_SCHEMA}. Reading it anyway risks a wrong pin map, which is silent until the ` +
-      `hardware is built.`,
-  );
-}
-if (board.id !== selection.board) {
-  throw new Error(
-    `${BOARD_DEFINITION} has id "${board.id}" but is selected as "${selection.board}"`,
-  );
-}
+/** The active board's definition file, for error messages that have to name it. */
+export const BOARD_DEFINITION = RESOLVED_BOARD;
 
 /** The label a person reads on the silkscreen, for a GPIO number. */
 export function labelForGpio(gpio: number): string | undefined {
