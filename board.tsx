@@ -54,6 +54,19 @@ export default () => (
         pin10: "MP3_TX",    // D9
         pin11: "LED_GREEN", // D10
         pin12: "V33", pin13: "GND", pin14: "V5",
+        // The LiPo pads on the underside. Without these the battery reaches the MP3 module and
+        // nothing else, and the bin is mains-only — which is what this board did until now.
+        //
+        // Polarity is from Seeed's own back-view pinout (parts/xiao/pinout_back.png): looking at
+        // the back with USB at the top, BAT- is left and BAT+ is right. This footprint is the
+        // top-side land pattern, so it is mirrored: pin23 (x=7.11) is BAT+, pin24 (x=9.65) is
+        // BAT-. Cross-checked by scaling the drawing against the 17.78 mm board width.
+        //
+        // CONFIRM WITH A METER BEFORE CONNECTING A CELL: continuity from pin24 to any GND pin.
+        // parts/xiao/getting_started.md says the negative pad is "closest to the USB port", which
+        // cannot be read off this footprint at all — both pads share y=4.97. Reversed LiPo
+        // polarity destroys the module, so this is worth thirty seconds with a multimeter.
+        pin23: "BAT_POS", pin24: "BAT_NEG",
       }} />
 
     {/* L9110S module on a 6-pin header. Its two motor terminals are screw terminals on the
@@ -148,6 +161,17 @@ export default () => (
     <capacitor name="DecoupMotor" capacitance="100nF" footprint="0603" pcbX={-1} pcbY={9} />
     <capacitor name="DecoupMp3" capacitance="100nF" footprint="0603" pcbX={19} pcbY={-2} />
     <capacitor name="DecoupSensor" capacitance="100nF" footprint="0603" pcbX={-6} pcbY={-6} />
+
+    {/* I2C has no push-pull high side: without these the bus never leaves logic 0 and no device
+        answers. DESIGN_RULES.md has required them since it was written; the board did not have
+        them. The rule and the board disagreed and nothing compared the two.
+
+        4.7k is the usual starting point. It is a budget, not a constant: every extra breakout
+        with its own pull-ups puts another resistor in parallel, and the ToF sensor sits on a
+        ribbon whose capacitance slows the rising edge. If the bus misbehaves at 400 kHz, the
+        numbers to reach for are the total parallel resistance and the cable length. */}
+    <resistor name="SdaPullup" resistance="4.7k" footprint="0603" pcbX={-10} pcbY={-6} />
+    <resistor name="SclPullup" resistance="4.7k" footprint="0603" pcbX={-10} pcbY={-10} />
     {/* Across the motor terminals: brush arcing, not inductive kickback, is what upsets I2C. */}
     <capacitor name="MotorBrushCap" capacitance="100nF" footprint="0603" pcbX={24} pcbY={-14.5} />
 
@@ -163,6 +187,9 @@ export default () => (
     <trace from=".XIAO > .V33" to="net.V33" />
     <trace from=".LipoBattery > .POS" to="net.VBAT" />
     <trace from=".LipoBattery > .NEG" to="net.GND" />
+    {/* The cell feeds the XIAO's own charger and regulator, not just the amplifier. */}
+    <trace from=".XIAO > .BAT_POS" to="net.VBAT" />
+    <trace from=".XIAO > .BAT_NEG" to="net.GND" />
     <trace from=".Mp3Player > .VCC" to="net.VBAT" />
     <trace from=".Mp3Player > .GND" to="net.GND" />
     <trace from=".Mp3ReservoirCap > .pin1" to="net.VBAT" />
@@ -193,8 +220,17 @@ export default () => (
     {/* ---- sensor (I2C + interrupt) --------------------------------------------------- */}
     <trace from=".SensorHeader > .VIN" to="net.V33" />
     <trace from=".SensorHeader > .GND" to="net.GND" />
-    <trace from=".XIAO > .SDA" to=".SensorHeader > .SDA" />
-    <trace from=".XIAO > .SCL" to=".SensorHeader > .SCL" />
+    {/* Through named nets rather than pin-to-pin, because the pull-ups are a third member of
+        each. A resistor wired straight to a chip pin is the trace that trips tscircuit's
+        unsatisfiable 1 mm rule and makes the autorouter skip the whole board. */}
+    <trace from=".XIAO > .SDA" to="net.SDA" />
+    <trace from=".SensorHeader > .SDA" to="net.SDA" />
+    <trace from=".SdaPullup > .pin1" to="net.SDA" />
+    <trace from=".SdaPullup > .pin2" to="net.V33" />
+    <trace from=".XIAO > .SCL" to="net.SCL" />
+    <trace from=".SensorHeader > .SCL" to="net.SCL" />
+    <trace from=".SclPullup > .pin1" to="net.SCL" />
+    <trace from=".SclPullup > .pin2" to="net.V33" />
     <trace from=".XIAO > .TOF_INT" to=".SensorHeader > .INT" />
     <trace from=".DecoupSensor > .pin1" to="net.V33" />
     <trace from=".DecoupSensor > .pin2" to="net.GND" />

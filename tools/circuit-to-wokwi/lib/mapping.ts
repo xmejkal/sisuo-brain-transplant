@@ -63,6 +63,11 @@ export const BOARD: PartMapping = {
     V33: "3V3",
     V5: "5V",
     GND: "GND",
+    // The LiPo pads on the module's underside. Wokwi's XIAO models the chip and its header, not
+    // the charger, so there is nothing to connect them to. Real on the board, absent in the
+    // simulation — which is what `null` says here.
+    BAT_POS: null,
+    BAT_NEG: null,
   },
 };
 
@@ -169,6 +174,12 @@ export const SKIP: SkipRule[] = [
       + "the motor still while the board boots",
   },
   { match: /^Mp3Player$/, reason: "no Wokwi part; cues are visible in the serial log" },
+  {
+    match: /^(Sda|Scl)Pullup$/,
+    reason: "Wokwi's I2C is idealised — its bus reads back correctly with no pull-ups at all, "
+      + "so simulating them proves nothing. Which is exactly why their absence on the real "
+      + "board went unnoticed: no simulation could ever have caught it",
+  },
 ];
 
 export function findMapping(componentName: string): PartMapping | undefined {

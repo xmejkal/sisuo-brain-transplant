@@ -66,7 +66,6 @@ SENSOR_COOLDOWN_MS = 1500   # ignore the sensor for this long after acting
 
 TOF_INTERRUPT_PERIOD_MS = 500   # how often the sensor ranges by itself while the chip sleeps;
                                 # ~340 uA at 500 ms, ~170 uA at 1000 ms, max 2550
-TOF_INTERRUPT_ACTIVE_HIGH = True  # low-level wake has an open MicroPython bug on the C6
 TOF_NEAR_MM = 30            # below this is the lid or a dirty window, not a hand
 TOF_FAR_MM = 100            # the datasheet guarantees 100 mm; do not raise this hopefully
 TOF_OFFSET_MM = None        # from the offset calibration, once mounted behind the window
@@ -119,6 +118,10 @@ SLEEP_AFTER_FAULT_MS = 300000   # a faulted bin sleeps too, just later (5 min of
 # firmware refuses to sleep when it detects the mismatch rather than bricking itself quietly —
 # see power.DeepSleepPolicy.sleep_now.
 WAKE_ON_HIGH = False
+# This one setting decides the polarity for BOTH wake sources, because ext1 applies a single
+# level to every pin in the mask. There used to be a second constant, TOF_INTERRUPT_ACTIVE_HIGH,
+# which said True while this said False; nothing read it, so the contradiction sat here unnoticed.
+# The sensor's interrupt polarity is not free to choose — it follows from this.
 
 # ----------------------------------------------------------------- housekeeping
 I2C_FREQ_HZ = 400000

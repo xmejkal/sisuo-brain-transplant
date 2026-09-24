@@ -40,7 +40,9 @@ all bare-chip decoupling are **already done**. You're a pin-allocation + power-b
 - [ ] **Motor VM off battery/5 V, never the 3V3 LDO.** The 3V3 pad only feeds logic-level
       peripherals (OLED, IR, amp logic, L9110S *VCC*). Give VM its own bulk cap.
 - [ ] **0.1 µF at every peripheral** (OLED, amp, IR, driver) + the VM bulk cap.
-- [ ] **I2C pull-ups (4.7 kΩ)** on D4/SDA (GPIO22) and D5/SCL (GPIO23) — the module doesn't add them.
+- [x] **I2C pull-ups (4.7 kΩ)** on D4/SDA (GPIO22) and D5/SCL (GPIO23) — the module does not add
+      them. `SdaPullup`/`SclPullup` in board.tsx. Missing until 2026-09-24: this checklist and the
+      board disagreed from the day the rule was written, because nothing compared them.
 - [ ] **Only use the 11 broken-out GPIOs**; none are strapping/flash/USB/antenna, so the
       classic boot-strap failure is designed out. Respect default roles:
       D6/D7 = UART0 TX/RX (GPIO16/17), D8/D9/D10 = SPI (GPIO19/20/18), D3 = SS (GPIO21),
