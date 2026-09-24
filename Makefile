@@ -21,14 +21,25 @@
 SHELL := /bin/sh
 export PATH := $(CURDIR)/node_modules/.bin:$(HOME)/.local/bin:$(PATH)
 
+# The spark plugin's generic checkers. Overridable, because they live outside this repo:
+#   make check SPARK=/somewhere/else
+SPARK      ?= $(HOME)/Development/spark
+
 FIRMWARE   := firmware/micropython
 SIM        := $(FIRMWARE)/sim
 CONVERTER  := tools/circuit-to-wokwi
 
 # --- the sources of truth ------------------------------------------------------------------
-# Which microcontroller this is, in one file. Everything else derives from it — see boards/.
-BOARD_DEFINITION := boards/xiao-esp32-c6.json
-BOARD_SOURCES   := board.tsx XIAO-ESP32-C6-SMD.tsx $(BOARD_DEFINITION)
+# Which microcontroller this is, chosen in exactly one place: boards/active.json. Everything
+# below derives from it — see boards/README.md. Resolved through tools/boards.py rather than
+# named here, so that switching board never means editing this file.
+BOARD_DEFINITION := $(shell python3 tools/boards.py --path)
+BOARD_ID         := $(shell python3 tools/boards.py --id)
+BOARD_FILES      := $(shell python3 tools/boards.py --paths)
+BOARD_CHIP       := $(shell python3 tools/boards.py --get chip)
+MICROPYTHON_PORT := $(shell python3 tools/boards.py --get micropython_port)
+# Every footprint module at the repo root, because which one is the board's changes with it.
+BOARD_SOURCES   := $(wildcard *.tsx) $(BOARD_DEFINITION) boards/active.json
 CIRCUIT         := dist/board/circuit.json
 BOARD_SPEC      := $(FIRMWARE)/smartbin/board_spec.py
 
@@ -42,13 +53,13 @@ CONVERTER_SRC   := $(wildcard $(CONVERTER)/lib/*.ts $(CONVERTER)/lib/**/*.ts) $(
 FIRMWARE_SOURCES := $(wildcard $(FIRMWARE)/smartbin/*.py) $(FIRMWARE)/config.py \
                     $(FIRMWARE)/main.py $(FIRMWARE)/boot.py
 FLASH_IMAGE     := $(SIM)/flash-with-firmware.bin
-MICROPYTHON_BIN := $(SIM)/micropython-c6.bin
+MICROPYTHON_BIN := $(SIM)/micropython-$(BOARD_CHIP).bin
 CHIP_SOURCES    := $(wildcard $(SIM)/chips/*.chip.c)
 CHIP_BINARIES   := $(CHIP_SOURCES:.chip.c=.chip.wasm)
 
 DERIVED := $(BOARD_SPEC) $(CIRCUIT) $(DIAGRAM) $(FLASH_IMAGE) $(GERBERS) $(PCB_SVG) $(SCHEMATIC_SVG) $(MODEL_3D) $(CHIP_BINARIES)
 
-.PHONY: all check clean install-hooks flash-image simulate simulate-all board-spec-current \
+.PHONY: all check clean install-hooks print-micropython flash-image simulate simulate-all boards-valid bom-matches-design vendor-pins-agree refresh-vendor-pins physics-holds board-spec-current \
         diagram-current firmware-tests firmware-compiles firmware-simulates \
         board-builds pins-agree simulation-matches
 
@@ -58,7 +69,7 @@ all: $(DERIVED)
 # --- derivations ---------------------------------------------------------------------------
 
 # The firmware cannot read boards/*.json at runtime, so it gets a generated module.
-$(BOARD_SPEC): $(BOARD_DEFINITION) tools/generate-board-spec.py
+$(BOARD_SPEC): $(BOARD_DEFINITION) boards/active.json tools/generate-board-spec.py tools/boards.py
 	@echo "==> generating the firmware's board facts"
 	@python3 tools/generate-board-spec.py
 
@@ -88,8 +99,14 @@ $(FLASH_IMAGE): $(FIRMWARE_SOURCES) tools/build-flash-image.py
 	   tail -2 /tmp/smartbin-image.log | sed 's/^/   /'; \
 	 else \
 	   echo "==> flash image skipped: download $(MICROPYTHON_BIN) from"; \
-	   echo "    https://micropython.org/download/ESP32_GENERIC_C6/"; \
+	   echo "    https://micropython.org/download/$(MICROPYTHON_PORT)/"; \
 	 fi
+
+# Which MicroPython build this board needs, and where to get it. Printed rather than written
+# down anywhere, so it cannot disagree with boards/active.json.
+print-micropython:
+	@echo "$(MICROPYTHON_BIN)"
+	@echo "https://micropython.org/download/$(MICROPYTHON_PORT)/"
 
 flash-image: $(FLASH_IMAGE)
 
@@ -128,8 +145,12 @@ $(SIM)/%.chip.wasm: $(SIM)/%.chip.c $(SIM)/%.chip.json
 	@tail -2 /tmp/smartbin-chip.log | sed 's/^/   /'
 
 $(GERBERS): $(CIRCUIT)
+	@echo "==> checking the board is ready to fabricate"
+	@python3 tools/boards.py --validate --for-fab
 	@echo "==> exporting fab package"
 	@tsci export -f gerbers board.tsx -o $@ > /dev/null
+	@echo "==> the order matches the schematic"
+	@python3 tools/check-bom.py
 
 $(PCB_SVG): $(CIRCUIT)
 	@echo "==> exporting PCB view"
@@ -145,9 +166,37 @@ $(MODEL_3D): $(CIRCUIT)
 
 # --- verification: changes nothing, fails if anything disagrees -----------------------------
 
-check: board-spec-current diagram-current firmware-tests firmware-compiles firmware-simulates board-builds \
+check: boards-valid vendor-pins-agree bom-matches-design physics-holds board-spec-current diagram-current firmware-tests firmware-compiles firmware-simulates board-builds \
        pins-agree simulation-matches
 	@echo "\neverything is in step."
+
+# The BOM is the one artefact that stops being a design and becomes an order, and until this
+# existed nothing compared it to the schematic it came from.
+# Depends on the package, or it checks a stale zip and reports yesterday's BOM — which is
+# exactly the bug the module-clearance check had.
+bom-matches-design: $(GERBERS)
+	@echo "==> the fab package orders the parts the schematic specifies"
+	@python3 tools/check-bom.py
+
+# The only check that looks OUTSIDE this repo. A board definition is a transcription, and every
+# other check compares things TO it — so a transcription error is invisible to all of them.
+# Offline here on purpose: `make check` must not depend on the network, and a verification step
+# that silently degrades when a fetch fails is worse than none. Refresh it deliberately.
+vendor-pins-agree:
+	@echo "==> the board definitions match the vendor's own pin headers"
+	@python3 $(SPARK)/scripts/check_vendor_pins.py $(BOARD_FILES) --offline
+
+refresh-vendor-pins:
+	@python3 $(SPARK)/scripts/check_vendor_pins.py $(BOARD_FILES)
+
+# Physics, not self-consistency. A board can agree with itself perfectly and still melt.
+physics-holds: $(CIRCUIT)
+	@echo "==> the board obeys physics, not just itself"
+	@python3 $(SPARK)/scripts/check_physics.py $(CIRCUIT) --rules .spark/rules.json
+
+boards-valid:
+	@echo "==> every board definition meets the contract"
+	@python3 tools/boards.py --validate
 
 board-spec-current:
 	@echo "==> the firmware's board facts match the board definition"

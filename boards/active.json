@@ -1,0 +1,7 @@
+{
+  "//": "Which board this project is currently built around. THIS IS THE ONE PLACE IT IS CHOSEN, and everything DERIVED follows from it: the firmware's board facts, the simulator's diagram and part type, the MicroPython build, and the capability checks. Run `make` after changing it.",
+  "//value": "The `id` of a file in this directory: boards/<board>.json. `python3 tools/boards.py --list` prints what is available.",
+  "schema": 1,
+  "board": "firebeetle2-esp32s3",
+  "//not_automatic": "Changing this line is necessary but NOT sufficient. Two things are hand-written and must follow: the pin assignments in firmware/micropython/config.py and mcu-pins.ts, and the footprint and placement in board.tsx. `make check` will tell you what still disagrees, but it cannot do that work. See boards/README.md steps 5-6."
+}

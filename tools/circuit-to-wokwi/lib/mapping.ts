@@ -40,35 +40,40 @@ export interface SkipRule {
 }
 
 /**
- * The board itself. Its pins are the XIAO silkscreen names — D0..D10, 3V3, 5V, GND — and
- * crucially NOT GPIO numbers, which Wokwi rejects for this part.
+ * The board itself.
+ *
+ * Its pin NAMES are whatever the Wokwi part uses, which is not the same from board to board:
+ * Wokwi's XIAO part names pins by silkscreen (D0..D10) and rejects GPIO numbers, while the
+ * generic S3 devkit that stands in for the FireBeetle names them by raw GPIO ("12"). The board
+ * definition says which, so this table is derived rather than retyped — and a third copy of the
+ * pin map is one more chance to be wrong.
  */
+const WOKWI_NAMES_PINS_BY_GPIO = board.wokwi_pin_naming === "gpio";
+
+/**
+ * The design's name for a pad -> the name the Wokwi part gives it.
+ *
+ * Built from the board definition alone. This deliberately knows nothing about signals: the
+ * design's pads are named for what is printed on the module, and which signal is on which pad
+ * is a separate decision living in `mcu-pins.ts`. Keeping the two apart is what lets the board
+ * be swapped without touching the simulation, and the wiring be changed without touching this.
+ */
+const WOKWI_PINS: Record<string, string> = {
+  ...Object.fromEntries(
+    Object.entries(board.pins).map(([silkscreen, gpio]) => [
+      silkscreen,
+      WOKWI_NAMES_PINS_BY_GPIO ? String(gpio) : silkscreen,
+    ]),
+  ),
+  ...(board.wokwi_power_pins ?? {}),
+};
+
 export const BOARD: PartMapping = {
-  match: "XIAO",
+  // The design calls the module "Mcu" rather than after any one board, so that swapping the
+  // board does not rename a component in every trace and every check.
+  match: "Mcu",
   wokwiType: board.wokwi_part_type,
-  // The design names pins by function; Wokwi names them by silkscreen. This table is the pin map
-  // in config.py, read the other way round — and the reason all three stay in step.
-  pins: {
-    TOF_INT: "D0",
-    BTN_OPEN: "D1",
-    MOTOR_SENSE: "D2",
-    MOTOR_IA: "D3",
-    SDA: "D4",
-    SCL: "D5",
-    BTN_MODE: "D6",
-    LED_RED: "D7",
-    MOTOR_IB: "D8",
-    MP3_TX: "D9",
-    LED_GREEN: "D10",
-    V33: "3V3",
-    V5: "5V",
-    GND: "GND",
-    // The LiPo pads on the module's underside. Wokwi's XIAO models the chip and its header, not
-    // the charger, so there is nothing to connect them to. Real on the board, absent in the
-    // simulation — which is what `null` says here.
-    BAT_POS: null,
-    BAT_NEG: null,
-  },
+  pins: WOKWI_PINS,
 };
 
 export const PARTS: PartMapping[] = [
@@ -164,7 +169,7 @@ export const SKIP: SkipRule[] = [
     reason: "decoupling and bulk capacitors do nothing in a digital simulation",
   },
   {
-    match: /^(BinConnector|MotorOut|LipoBattery)$/,
+    match: /^BinConnector$/,
     reason: "a connector is wiring, not a part to simulate",
   },
   { match: /^Speaker$/, reason: "no Wokwi part; the firmware's log says which cue it played" },
@@ -174,6 +179,20 @@ export const SKIP: SkipRule[] = [
       + "the motor still while the board boots",
   },
   { match: /^Mp3Player$/, reason: "no Wokwi part; cues are visible in the serial log" },
+  {
+    match: /^Mp3(Switch|GateHold)$/,
+    reason: "the high-side switch on the MP3 rail, and the resistor holding its gate off. There "
+      + "is no MP3 module in the simulation for it to switch, and the condition it exists for — "
+      + "a GPIO going high-impedance in deep sleep, leaving the gate to the resistor — is one "
+      + "Wokwi does not model at all. Bench only",
+  },
+  {
+    match: /^(TofInt|BtnOpen)Pullup$/,
+    reason: "these hold a deep-sleep wake input at a defined level while the chip is off. Wokwi "
+      + "does not wake this chip from a GPIO at all and has no floating-input model, so every "
+      + "part it drives is driven — the exact condition these resistors exist for cannot be "
+      + "simulated here, and must be checked on the bench",
+  },
   {
     match: /^(Sda|Scl)Pullup$/,
     reason: "Wokwi's I2C is idealised — its bus reads back correctly with no pull-ups at all, "

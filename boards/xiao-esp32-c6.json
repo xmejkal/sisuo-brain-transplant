@@ -1,9 +1,19 @@
 {
+  "schema": 1,
   "id": "xiao-esp32-c6",
   "name": "Seeed XIAO ESP32-C6",
   "chip": "esp32c6",
+  "//micropython_port": "The MicroPython build this board runs \u2014 https://micropython.org/download/ESP32_GENERIC_C6/.",
+  "micropython_port": "ESP32_GENERIC_C6",
   "//": "Everything the rest of the project needs to know about which board this is. The firmware, the PCB design, the simulator project and the consistency checks all derive from this file, so changing board starts here. See boards/README.md.",
   "wokwi_part_type": "board-xiao-esp32-c6",
+  "//wokwi_pin_naming": "Wokwi's XIAO part names its pins by silkscreen - D0..D10, 3V3, 5V, GND - and rejects GPIO numbers.",
+  "wokwi_pin_naming": "silkscreen",
+  "wokwi_power_pins": {
+    "V33": "3V3",
+    "GND": "GND",
+    "V5": "5V"
+  },
   "//physical": "What the board *is*, physically. The PCB design needs the footprint and the outline; the simulator needs a size to place parts around. Both change when the board does, which is why they live here and not in the files that use them.",
   "physical": {
     "footprint_module": "XIAO-ESP32-C6-SMD",
@@ -49,11 +59,15 @@
   "//pin_roles": "What a pin IS, beyond its number. Typed so a program can read it: the arrays are for checks, the notes are for people. A pin with a role is not unusable - it is usable with a caveat, and the caveat is the note.",
   "pin_roles": {
     "boot_log_tx": {
-      "gpio": [16],
+      "gpio": [
+        16
+      ],
       "note": "U0TXD - the ROM bootloader prints its log here on every reset. Safe for a button, never for a module that parses serial."
     },
     "onboard_led": {
-      "gpio": [15],
+      "gpio": [
+        15
+      ],
       "note": "the on-board user LED (not on the header)"
     }
   },
@@ -63,7 +77,11 @@
     "single_polarity_for_all_pins": true,
     "simulated_by_wokwi": false,
     "//simulated_by_wokwi": "Wokwi wakes this chip from a timer but not from a GPIO - established by experiment, see firmware/micropython/sim/README.md. Deep sleep is a bench test.",
-    "//wake_level": "All ext1 wake pins share one polarity on this chip, so every wake source must idle at the opposite level. Buttons wired to GND idle HIGH and go LOW when pressed, so wake is LOW-going and the sensor's interrupt must be configured active-low to match.",
-    "wake_on_high": false
+    "//polarity_is_a_wiring_decision": "Which level wakes the chip follows from how the buttons are wired, not from this board, so it lives in config.WAKE_ON_HIGH. See boards/README.md."
+  },
+  "//wokwi_power_pins": "Pads that are not GPIOs, so no naming rule covers them. Keyed by the name the footprint gives the pad, because that is what the emitter looks up.",
+  "//vendor": "Where the pin map can be RE-DERIVED from, so it is verified rather than trusted. tools/../check_vendor_pins.py fetches this header and compares.",
+  "vendor": {
+    "arduino_variant": "XIAO_ESP32C6"
   }
 }
