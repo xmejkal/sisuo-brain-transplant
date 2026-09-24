@@ -31,6 +31,26 @@ Two ways a module reaches the board, and the difference decides the board size:
 - No enable or PWM pin: direction and speed both live on the two inputs. See
   `firmware/micropython/smartbin/motor.py` for what that means in code.
 - Datasheet: <https://www.elecrow.com/download/datasheet-l9110.pdf>
+- **Input thresholds, read off that datasheet (2026-09-24):** `VH in` = **2.5 V min** / 5.0 typ /
+  9.0 max; `VL in` = 0 / 0.5 / **0.7 V max**. The high threshold is an **absolute voltage, not
+  0.7 x VCC** — which is why 3.3 V logic drives a 6 V-powered L9110S at all. Worth checking
+  because the ratiometric case would have meant 4.2 V and a motor that never turns.
+- **The shunt eats that margin, and there is a hard ceiling.** The driver's GND sits on
+  `net.MOTOR_SENSE`, above system ground by `I x 0.33 R`. The chip judges its inputs against *its
+  own* ground, so the effective input high is `3.3 - 0.33 x I`:
+
+  | Motor current | Effective V_in | Margin over 2.5 V |
+  | --- | --- | --- |
+  | 0.5 A | 3.14 V | 0.64 V |
+  | 1.0 A | 2.97 V | 0.47 V |
+  | 2.0 A | 2.64 V | 0.14 V |
+  | **2.42 A** | **2.50 V** | **zero** |
+
+  Above ~2.4 A the inputs fall below threshold and the driver stops seeing a valid high. It is
+  self-limiting rather than destructive — current falls, the input recovers, and it may chatter —
+  but it is a real ceiling that the 0.33 R shunt imposes on top of the driver's own ~0.8 A rating.
+  **One more reason the stall measurement matters**, and a reason to prefer a smaller shunt with
+  gain over a larger one.
 
 ## VL6180X time-of-flight rangefinder  (the wave sensor in the design)
 - I2C at 0x29, 0-100 mm guaranteed, 850 nm. Reports millimetres, so the trigger distance is a

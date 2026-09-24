@@ -25,9 +25,16 @@ which is waiting on two measurements only Petr can take.
 4. **Motor current, running and stalled** (multimeter in series, stall the lid by hand). The
    70 mA / 230 mA figures are from patent literature, not this motor. **Above ~500 mA the L9110S
    has no margin and the driver choice changes.** This single number can invalidate the design.
-5. **A name for the `spark` plugin** (in `~/Development/spark`, not a git repo, never installed).
-   Asked several times; still unanswered, so the rename and install never happened.
+   There is now a second, independent ceiling from the same number: the 0.33 R shunt lifts the
+   driver's ground, and the driver's inputs go below their 2.5 V threshold at about **2.4 A**.
+   See the L9110S entry in `parts/PARTS.md` for the table. One measurement settles both.
+5. **Confirm the XIAO battery-pad polarity with a meter** before a cell goes near the board —
+   continuity from footprint pin24 to any GND pin. The board now wires the LiPo to the XIAO
+   (it previously did not, which meant the MCU had no battery power at all). Polarity was taken
+   from Seeed's back-view drawing and mirrored onto the land pattern; Seeed's own text describes
+   the pads in a way that cannot be read off this footprint. Reversed LiPo destroys the module.
 6. **GitHub**: run `gh auth login`, then the repo gets created and pushed (see below).
+   `~/Development/spark` is a git repo now, at v0.5.0, with no remote.
 7. ~~A Wokwi token~~ — done; `make simulate` runs, and four scenarios pass.
 
 ## Next steps, in order
