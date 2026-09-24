@@ -212,6 +212,16 @@ export default () => (
     <trace from=".PulldownIa > .pin2" to="net.MOTOR_SENSE" />
     <trace from=".PulldownIb > .pin1" to=".MotorDriver > .AIB" />
     <trace from=".PulldownIb > .pin2" to="net.MOTOR_SENSE" />
+    {/* Channel B is unused — one motor, one channel — but its inputs are still inputs on a
+        powered chip, and a floating CMOS input has no defined level. It drifts, and on an
+        H-bridge an undefined input is how both halves of a bridge end up conducting at once.
+
+        Tied to the driver's own ground rather than the board's, for the same reason the channel A
+        pulldowns are: the shunt lifts the driver's GND above system ground, and an input judged
+        against the wrong reference is the bug those pulldowns exist to avoid. Both low is the
+        L9110's coast state, which is what an unused channel should be doing. */}
+    <trace from=".MotorDriver > .BIA" to="net.MOTOR_SENSE" />
+    <trace from=".MotorDriver > .BIB" to="net.MOTOR_SENSE" />
     <trace from=".MotorDriver > .GND" to="net.MOTOR_SENSE" />
     <trace from=".CurrentShunt > .pin1" to="net.MOTOR_SENSE" />
     <trace from=".CurrentShunt > .pin2" to="net.GND" />

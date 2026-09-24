@@ -1,0 +1,5 @@
+{
+  "//": "Things no netlist format records: which nets are an I2C bus, and which pins must never float. Each is a rule that was previously only written in prose.",
+  "i2c_buses": ["SDA", "SCL"],
+  "must_not_float": [["MotorDriver", "BIA"], ["MotorDriver", "BIB"]]
+}
