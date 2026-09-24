@@ -49,7 +49,9 @@ export default () => (
   <board width="100mm" height="62mm" autorouter="auto"
       thickness="1.6mm"
       fabricatorPreset="jlcpcb_economy"
-      automaticPoursEnabled>
+      automaticPoursEnabled
+      minViaHoleDiameter="0.3mm"
+      minViaPadDiameter="0.6mm">
     {/* The module lies along the board with its USB-C at the left edge, so a cable can reach it
         without opening the bin further than the lid already opens.
 
