@@ -59,6 +59,13 @@ def build_bin(**overrides):
     return assembly.build(Settings(**overrides))
 
 
+#: Which level is a press on the OPEN button. Derived, because the board wires it to match
+#: the deep-sleep trigger level and hard-coding either value here would silently stop testing a
+#: press the moment that direction changed.
+PRESSED = 1 if config.WAKE_ON_HIGH else 0
+RELEASED = 1 - PRESSED
+
+
 def pin(number):
     return fake_machine.FakePin.by_number[number]
 
@@ -71,12 +78,34 @@ class TestDeviceConstruction(unittest.TestCase):
         self.assertIsNotNone(hardware.rangefinder)
         self.assertIsNotNone(hardware.sensor_bus)
 
-    def test_buttons_idle_high_so_pressed_reads_zero(self):
-        """The whole button layer assumes the internal pull-up; assert it is actually asked for."""
-        build_bin()
-        for number in (config.PIN_BUTTON_OPEN, config.PIN_BUTTON_MODE):
-            self.assertEqual(pin(number).pull, fake_machine.PULL_UP)
-            self.assertEqual(pin(number).value(), 1)
+    def test_each_button_is_pulled_AGAINST_its_pressed_level(self):
+        """
+        The invariant, rather than one wiring of it.
+
+        This asserted that both buttons used the internal pull-up and idled at 1, which stopped
+        being true when OPEN was rewired to 3V3: every armed deep-sleep pin shares one trigger
+        level, so the wake sources have to assert HIGH and MODE — which cannot wake this chip —
+        stayed on the cheaper arrangement. Two buttons, two directions, both correct.
+
+        What must hold either way is that the pull OPPOSES the pressed level. A pull agreeing
+        with it reads "pressed" forever; no pull at all leaves the pin floating, which during
+        deep sleep wakes the bin at random.
+        """
+        binned = build_bin()
+        for button, number in ((binned.hardware.button_open, config.PIN_BUTTON_OPEN),
+                               (binned.hardware.button_mode, config.PIN_BUTTON_MODE)):
+            with self.subTest(pin=number):
+                expected_pull = (fake_machine.PULL_DOWN if button.pressed_level
+                                 else fake_machine.PULL_UP)
+                self.assertEqual(pin(number).pull, expected_pull)
+                self.assertNotEqual(pin(number).value(), button.pressed_level,
+                                    "idles at its pressed level, so it always reads pressed")
+
+    def test_the_open_button_asserts_in_the_direction_deep_sleep_wakes_on(self):
+        # If these two disagree the bin either never wakes or wakes constantly, and neither
+        # shows up anywhere but on a battery.
+        self.assertEqual(build_bin().hardware.button_open.pressed_level,
+                         1 if config.WAKE_ON_HIGH else 0)
 
     def test_the_motor_is_left_stopped_after_construction(self):
         """Constructing the bin must never move the lid."""
@@ -121,9 +150,9 @@ class TestFullCycleOnFakeHardware(unittest.TestCase):
         async def scenario():
             tasks = smart_bin._start_tasks()
             try:
-                pin(config.PIN_BUTTON_OPEN).value(0)      # press
+                pin(config.PIN_BUTTON_OPEN).value(PRESSED)      # press
                 await asyncio.sleep(0.05)
-                pin(config.PIN_BUTTON_OPEN).value(1)      # release
+                pin(config.PIN_BUTTON_OPEN).value(RELEASED)   # release
                 opening_duty = smart_bin.hardware.motor_pwm_a.duty
                 await asyncio.sleep(0.25)                 # open, hold, close
                 return opening_duty
@@ -215,12 +244,29 @@ class TestDeepSleep(unittest.TestCase):
             )
 
     def test_it_refuses_to_sleep_when_nothing_could_wake_it(self):
-        """A bin asleep with no way back is worse than a flat battery."""
+        """
+        A bin asleep with no way back is worse than a flat battery.
+
+        The mismatch is DERIVED from how the button is actually wired, so this stays a real
+        scenario whichever direction the board asserts in. It used to set WAKE_ON_HIGH twice —
+        once derived, then unconditionally to True, which overwrote it — and the second line's
+        comment said "buttons assert LOW". Both were true of the old wiring and neither was
+        checked, so when OPEN moved to 3V3 the test stopped describing a mismatch at all and
+        the bin slept.
+
+        `tof` rather than `tof_interrupt`: a polled sensor cannot watch while the chip is off,
+        so with the button also unable to assert, nothing is left.
+        """
         smart_bin = build_bin(SENSOR_STRATEGY="tof", POWER_POLICY="deep_sleep")
-        smart_bin.config.WAKE_ON_HIGH = not (smart_bin.hardware.button_open.pressed_level == 1)
-        smart_bin.config.WAKE_ON_HIGH = True  # buttons assert LOW, so nothing can assert HIGH
+        smart_bin.config.WAKE_ON_HIGH = not smart_bin.hardware.button_open.pressed_level
 
         self.assertFalse(smart_bin.sleep_now())  # returns rather than raising DeepSleepRequested
+
+    def test_it_does_sleep_when_the_wiring_and_the_armed_level_agree(self):
+        # The other half, without which the test above passes for a bin that never sleeps at all.
+        smart_bin = build_bin(SENSOR_STRATEGY="tof_interrupt", POWER_POLICY="deep_sleep")
+        with self.assertRaises(fake_machine.DeepSleepRequested):
+            smart_bin.sleep_now()
 
     def test_waking_on_the_button_opens_the_lid_without_a_second_press(self):
         smart_bin = build_bin(SENSOR_STRATEGY="tof_interrupt", POWER_POLICY="deep_sleep")

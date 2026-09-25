@@ -71,9 +71,22 @@ class Hardware:
         return motor.L9110MotorDriver(self.motor_pwm_a, self.motor_pwm_b)
 
     def _build_controls(self, config):
-        """Buttons wire to ground and use the internal pull-ups, so a pressed button reads 0."""
+        """
+        The two buttons are wired in OPPOSITE directions, on purpose.
+
+        OPEN is a deep-sleep wake source, and every armed wake pin shares one trigger level, so
+        it goes to 3V3 behind a pull-down and reads 1 when pressed. MODE cannot wake this chip
+        (GPIO47 is outside the RTC range) and needs no external part, so it keeps the cheaper
+        arrangement: to ground, through the internal pull-up, reading 0 when pressed.
+
+        `WAKE_ON_HIGH` is the single statement of that direction, and the board follows it —
+        which is why this reads it rather than hard-coding either level.
+        """
+        pressed_high = 1 if config.WAKE_ON_HIGH else 0
         button_open = buttons.Button(
-            Pin(config.PIN_BUTTON_OPEN, Pin.IN, Pin.PULL_UP), config.BUTTON_DEBOUNCE_MS
+            Pin(config.PIN_BUTTON_OPEN, Pin.IN,
+                Pin.PULL_DOWN if config.WAKE_ON_HIGH else Pin.PULL_UP),
+            config.BUTTON_DEBOUNCE_MS, pressed_level=pressed_high
         )
         button_mode = buttons.Button(
             Pin(config.PIN_BUTTON_MODE, Pin.IN, Pin.PULL_UP), config.BUTTON_DEBOUNCE_MS

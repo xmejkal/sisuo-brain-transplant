@@ -250,6 +250,11 @@ def install():
     """Put the fakes in `sys.modules` and hand back the machine module for a test to drive."""
     sys.modules["machine"] = FakeMachineModule
     sys.modules["esp32"] = FakeEsp32Module
+    try:
+        import config
+        FakeVL6180X.interrupt_gpio = config.PIN_TOF_INTERRUPT
+    except (ImportError, AttributeError):
+        pass    # a caller testing something else entirely; the interrupt is simply not modelled
     return FakeMachineModule
 
 
@@ -281,8 +286,28 @@ class FakeVL6180X:
     RANGE_STATUS = 0x04D
     RETURN_RATE = 0x066
 
-    def __init__(self, distance_mm=50, status=0):
-        self.distance_mm = distance_mm
+    #: Registers this fake needs to model the INTERRUPT, not just the bus.
+    SYSTEM_MODE_GPIO1 = 0x011
+    SYSRANGE_THRESH_LOW = 0x01A
+    GPIO1_ACTIVE_HIGH = 0x30
+
+    #: Which GPIO this chip's interrupt line is wired to, so the fake can find the pin the
+    #: FIRMWARE built rather than one made here that nothing reads. Set once by `install()` from
+    #: the project's own config, because five call sites threading a pin through would be five
+    #: chances to forget one — and a forgotten one is a test that silently stops checking.
+    interrupt_gpio = None
+
+    def __init__(self, distance_mm=50, status=0, interrupt_pin=None):
+        #: The pin this chip drives when something comes within its threshold.
+        #:
+        #: Modelled because it was not, and the omission hid a passing test that proved nothing.
+        #: The firmware builds the interrupt pin with NO pull — correct, since the board carries
+        #: an external one — so in these fakes it simply read 0. The strategy was configured
+        #: active-LOW at the time, so "0" meant asserted, and the bring-up script's WAVE phase
+        #: passed on a pin nothing had ever driven. Flipping the wake polarity to HIGH is what
+        #: exposed it: the same test went red without anything about the sensor changing.
+        self.interrupt_pin = interrupt_pin
+        self._distance_mm = distance_mm
         #: Range status, as the real chip reports it: 0 is a good reading, 7 is "could not
         #: converge", which is what an empty field of view produces.
         self.status = status
@@ -308,7 +333,39 @@ class FakeVL6180X:
             value = self.writes.get(register, 0)
         return bytes((value,)) if length == 1 else bytes((0, value))
 
+    @property
+    def distance_mm(self):
+        return self._distance_mm
+
+    @distance_mm.setter
+    def distance_mm(self, value):
+        self._distance_mm = value
+        self._drive_interrupt()
+
+    def _drive_interrupt(self):
+        """
+        Assert the line when something is within the threshold the firmware asked for.
+
+        Polarity and threshold both come from what the driver WROTE, so this follows the
+        firmware's own configuration rather than a second copy of it that could disagree.
+        """
+        pin = self.interrupt_pin
+        if pin is None and self.interrupt_gpio is not None:
+            # Resolved late: the firmware constructs its pins after the sensor exists.
+            pin = FakePin.by_number.get(self.interrupt_gpio)
+        if pin is None:
+            return
+        threshold = self.writes.get(self.SYSRANGE_THRESH_LOW)
+        if threshold is None:
+            return
+        active_high = self.writes.get(self.SYSTEM_MODE_GPIO1) == self.GPIO1_ACTIVE_HIGH
+        asserted = 1 if active_high else 0
+        within = self._distance_mm is not None and self._distance_mm <= threshold
+        pin.value(asserted if within else 1 - asserted)
+
     def write_register(self, register, data):
         self.writes[register] = data[0] if len(data) == 1 else (data[0] << 8) | data[1]
         if register == self.FRESH_OUT_OF_RESET:
             self.fresh_out_of_reset = data[0]
+        if register in (self.SYSTEM_MODE_GPIO1, self.SYSRANGE_THRESH_LOW):
+            self._drive_interrupt()

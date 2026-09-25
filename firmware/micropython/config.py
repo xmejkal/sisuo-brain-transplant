@@ -165,19 +165,23 @@ IDLE_TICK_MS = 200          # how often the power policy gets a say
 SLEEP_AFTER_MS = 30000      # idle this long -> deep sleep (deep_sleep policy only)
 SLEEP_AFTER_FAULT_MS = 300000   # a faulted bin sleeps too, just later (5 min of visible red)
 
-# All deep-sleep wake sources share one polarity, because the chip applies one level to all of
-# them — so this follows the board, and the board wires both buttons to GND. A button that idles
-# HIGH and goes LOW when pressed can only wake a chip that is waiting for a LOW, and the sensor's
-# interrupt is configured to match.
+# All deep-sleep wake sources share one polarity, because the chip applies ONE trigger level to
+# the whole mask and the S3 has no per-pin setting. This follows the board, and since 2026-09-25
+# the board wires the OPEN button to 3V3 behind a pull-down and configures the sensor's
+# interrupt to match.
 #
-# The cost is that low-level wake has an open MicroPython bug on this chip (#17334, "stuck pin"),
-# which is a bench risk to check early. The alternative is rewiring both buttons to 3V3 with
-# pull-downs and flipping this to True.
+# IT HAS TO BE True, and that is the bug this line used to be. `False` selects
+# esp32.WAKEUP_ALL_LOW, which is an AND across every armed pin: with both the button and the
+# sensor armed, the bin woke only if you held OPEN *while* waving at it. `True` selects
+# WAKEUP_ANY_HIGH, a genuine OR, so either source wakes it on its own.
+#
+# It also drops a second risk: low-level wake has an open MicroPython bug on this chip
+# (#17334, "stuck pin"), which the high-level path does not go near.
 #
 # Get this wrong in either direction and the bin never wakes, or wakes instantly forever. The
 # firmware refuses to sleep when it detects the mismatch rather than bricking itself quietly —
 # see power.DeepSleepPolicy.sleep_now.
-WAKE_ON_HIGH = False
+WAKE_ON_HIGH = True
 # This one setting decides the polarity for BOTH wake sources, because ext1 applies a single
 # level to every pin in the mask. There used to be a second constant, TOF_INTERRUPT_ACTIVE_HIGH,
 # which said True while this said False; nothing read it, so the contradiction sat here unnoticed.

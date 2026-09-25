@@ -124,6 +124,12 @@
     ],
     [
       "mcu:3V3.1",
+      "btnopen:2.l",
+      "red",
+      []
+    ],
+    [
+      "mcu:3V3.1",
       "sensorheader:VIN",
       "red",
       []
@@ -167,12 +173,6 @@
     [
       "mcu:GND.3",
       "btnmode:2.l",
-      "black",
-      []
-    ],
-    [
-      "mcu:GND.3",
-      "btnopen:2.l",
       "black",
       []
     ],

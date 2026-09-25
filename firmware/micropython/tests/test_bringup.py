@@ -108,11 +108,19 @@ class BenchOperator:
 
         The script builds its own hardware, so a pin object made here would be a different object
         that nothing reads — which is exactly how this test failed the first time it ran.
+
+        Which level IS a press is read off the pin's own pull rather than assumed. The two
+        buttons assert in opposite directions — OPEN to 3V3 because every armed deep-sleep pin
+        shares one trigger level, MODE to ground because it cannot wake this chip and needs no
+        external part — and this pressed both with a 0, so it stopped pressing OPEN at all the
+        moment that direction changed. A pull always opposes the press, on any wiring, which
+        makes it the one thing worth deriving from.
         """
         button = fake_machine.FakePin.by_number[gpio]
-        button.value(0)
+        pressed = 1 if button.pull == fake_machine.PULL_DOWN else 0
+        button.value(pressed)
         await async_sleep_ms(PRESS_MS)
-        button.value(1)
+        button.value(1 - pressed)
 
 
 class BringUpScriptTest(unittest.TestCase):

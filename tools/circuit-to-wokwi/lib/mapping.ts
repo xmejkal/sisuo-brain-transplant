@@ -189,11 +189,14 @@ export const SKIP: SkipRule[] = [
   },
   { match: /^AudioAmp$/, reason: "no Wokwi part for the I2S amplifier; cues are visible in the serial log" },
   {
-    match: /^(TofInt|BtnOpen)Pullup$/,
+    match: /^(TofInt|BtnOpen)Pull(up|down)$/,
     reason: "these hold a deep-sleep wake input at a defined level while the chip is off. Wokwi "
       + "does not wake this chip from a GPIO at all and has no floating-input model, so every "
       + "part it drives is driven — the exact condition these resistors exist for cannot be "
-      + "simulated here, and must be checked on the bench",
+      + "simulated here, and must be checked on the bench. Matched in BOTH directions because "
+      + "which one they are is the board's decision, not this file's: they became pull-DOWNS "
+      + "when the wake sources moved to 3V3, and a rule naming only one spelling silently "
+      + "stopped covering them",
   },
   {
     match: /^(Sda|Scl)Pullup$/,

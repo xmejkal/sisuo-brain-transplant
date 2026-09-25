@@ -84,9 +84,18 @@ def motor_state(smart_bin):
 
 
 async def press_open(smart_bin, hold_ms=60):
-    fake_machine.FakePin.by_number[OPEN_BUTTON].value(0)
+    """
+    Press the OPEN button, in whichever direction the board asserts.
+
+    Read off the pin's own pull rather than assumed, because a pull always opposes the press.
+    This drove a 0 unconditionally, which was right only while the button went to ground — and
+    when the wake sources moved to 3V3 it started releasing the button instead of pressing it.
+    """
+    button = fake_machine.FakePin.by_number[OPEN_BUTTON]
+    pressed = 1 if button.pull == fake_machine.PULL_DOWN else 0
+    button.value(pressed)
     await async_sleep_ms(hold_ms)
-    fake_machine.FakePin.by_number[OPEN_BUTTON].value(1)
+    button.value(1 - pressed)
     await async_sleep_ms(40)
 
 

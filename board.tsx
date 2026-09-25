@@ -270,8 +270,8 @@ export default () => (
         is a bin that wakes spontaneously all night or never wakes again. 100k costs 33 uA only
         while a button is actually held, which is never during sleep, so it is free in the power
         budget and removes the question entirely. It cannot be added after fabrication. */}
-    <resistor name="TofIntPullup" resistance="100k" footprint="0603" pcbX={-21} pcbY={4} />
-    <resistor name="BtnOpenPullup" resistance="100k" footprint="0603" pcbX={-17} pcbY={4} />
+    <resistor name="TofIntPulldown" resistance="100k" footprint="0603" pcbX={-21} pcbY={4} />
+    <resistor name="BtnOpenPulldown" resistance="100k" footprint="0603" pcbX={-17} pcbY={4} />
 
     {/* I2C has no push-pull high side: without these the bus never leaves logic 0 and no device
         answers. DESIGN_RULES.md has required them since it was written; the board did not have
@@ -377,8 +377,12 @@ export default () => (
     <trace from=".SclPullup > .pin1" to="net.SCL" />
     <trace from=".SclPullup > .pin2" to="net.V33" />
     <trace from={`.Mcu > .${MCU.TOF_INT}`} to=".SensorHeader > .INT" />
-    <trace from=".TofIntPullup > .pin1" to=".SensorHeader > .INT" />
-    <trace from=".TofIntPullup > .pin2" to="net.V33" />
+    {/* Same reason as the OPEN button: both wake sources must assert in the SAME direction,
+        because one trigger level covers the whole mask. The VL6180X's GPIO1 drives push-pull
+        with selectable polarity, so the firmware configures it active-high to match, and this
+        resistor holds the line down while the sensor is between measurements. */}
+    <trace from=".TofIntPulldown > .pin1" to=".SensorHeader > .INT" />
+    <trace from=".TofIntPulldown > .pin2" to="net.GND" />
     <trace from=".DecoupSensor > .pin1" to="net.V33" />
     <trace from=".DecoupSensor > .pin2" to="net.GND" />
 
@@ -405,10 +409,20 @@ export default () => (
     <trace from=".AudioAmp > .SPKN" to=".Speaker > .N" />
 
     {/* ---- buttons and status --------------------------------------------------------- */}
+    {/* OPEN is wired ACTIVE HIGH — to 3V3, held down by a resistor — and that is not a style
+        choice, it is what makes deep sleep work at all.
+
+        `esp32.wake_on_ext1` applies ONE trigger level to every armed pin, and the S3 has no
+        per-pin polarity. The low-level mode is WAKEUP_ALL_LOW, which is an AND: with two wake
+        sources armed, the bin woke only if you held OPEN *while* waving at the sensor. The
+        high-level mode is WAKEUP_ANY_HIGH, a genuine OR, so either source wakes it alone.
+
+        The resistor holds the pin defined while the chip is asleep and the button is open. It
+        conducts only while the button is held, which is the same as the pull-up it replaced. */}
     <trace from=".BtnOpen > .A" to={`.Mcu > .${MCU.BTN_OPEN}`} />
-    <trace from=".BtnOpenPullup > .pin1" to=".BtnOpen > .A" />
-    <trace from=".BtnOpenPullup > .pin2" to="net.V33" />
-    <trace from=".BtnOpen > .B" to="net.GND" />
+    <trace from=".BtnOpenPulldown > .pin1" to=".BtnOpen > .A" />
+    <trace from=".BtnOpenPulldown > .pin2" to="net.GND" />
+    <trace from=".BtnOpen > .B" to="net.V33" />
     <trace from=".BtnMode > .A" to={`.Mcu > .${MCU.BTN_MODE}`} />
     <trace from=".BtnMode > .B" to="net.GND" />
     <trace from={`.Mcu > .${MCU.LED_RED}`} to=".RedResistor > .pin1" />

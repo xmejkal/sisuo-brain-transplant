@@ -23,12 +23,18 @@ PIN_LED_GREEN = 7         # D5
 WATCH_SECONDS = 30
 POLL_MS = 20
 
-button_open = Pin(PIN_BUTTON_OPEN, Pin.IN, Pin.PULL_UP)
+# The two buttons are wired in OPPOSITE directions, and that is the design rather than a slip.
+# OPEN is a deep-sleep wake source; every armed wake pin shares one trigger level on this chip,
+# so OPEN goes to 3V3 behind a pull-down and reads 1 when pressed. MODE cannot wake GPIO47 at
+# all, needs no external part, and keeps the cheaper arrangement: to ground through the internal
+# pull-up, reading 0 when pressed.
+button_open = Pin(PIN_BUTTON_OPEN, Pin.IN, Pin.PULL_DOWN)
 button_mode = Pin(PIN_BUTTON_MODE, Pin.IN, Pin.PULL_UP)
 led_red = Pin(PIN_LED_RED, Pin.OUT, value=0)
 led_green = Pin(PIN_LED_GREEN, Pin.OUT, value=0)
 
-print("Idle levels (both should be 1):", button_open.value(), button_mode.value())
+print("Idle levels (OPEN should be 0, MODE 1):",
+      button_open.value(), button_mode.value())
 print("LED self-test: red, green, amber...")
 for red, green in ((1, 0), (0, 1), (1, 1), (0, 0)):
     led_red.value(red)
