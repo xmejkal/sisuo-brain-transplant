@@ -40,9 +40,12 @@ between BOOT and the USB-C: a QFN marked AXP313A is old, a tiny SOT-563 beside t
 is new. Details and sources: `boards/firebeetle2-esp32s3.json` → `hardware_revisions`.
 **Prefer DFR1145 (N4) for this build:** the DFR0975's octal PSRAM costs ~140 µA in deep sleep
 (Espressif WROOM-1 datasheet v1.1, Table 12 footnote) against a total budget of a few hundred.
-Modules (all real, plug-in): **L9110S** motor driver, DFRobot DFR0534 UART MP3 + speaker,
-**VL6180X** time-of-flight rangefinder on I2C, 2 tactile buttons, a bicolour status LED, JST
-connectors, 0603/0805 passives. No OLED — the bin never had a screen.
+Modules (all real, plug-in): **L9110S** motor driver, **DFR0954 MAX98357A I2S amplifier** +
+speaker, **VL6180X** time-of-flight rangefinder on I2C, 2 tactile buttons, a bicolour status
+LED, JST connectors, 0603/0805 passives. No OLED — the bin never had a screen.
+**The audio changed on 2026-09-25**: a UART MP3 module (DFR0534) became an I2S amplifier, the
+ESP32 synthesises the tones, and four fab blockers went with it. `board-v3-dfr0534.tsx` is the
+superseded design, kept because nobody has confirmed which module is in the drawer.
 
 ## tscircuit — how to work with the board (runs locally; installed here)
 ```
@@ -70,9 +73,10 @@ bench/calibration/deploy: `firmware/micropython/README.md`. Arduino v1 kept only
 - Strategies are named for the JOB first, implementation in the subclass: `ProximitySensor`
   (TimeOfFlight / SelfRangingTimeOfFlight / InfraredBurst / ButtonOnly), `CloseDetector`
   (Timed / LimitSwitch / MotorStall), `PowerPolicy` (StayAwake / DeepSleep), `MotorDriver`
-  (L9110), `Player` (Dfr0534 / Silent). Chosen by config strings in `smartbin/assembly.py`, which is also build()/run().
+  (L9110), `Player` (**I2sTone** / Dfr0534 / Silent). Chosen by config strings in
+  `smartbin/assembly.py` and `hardware.py`, which is also build()/run().
 - **Layering rule: a DEVICE is a thing you command, a STRATEGY is a decision you make with it.**
-  `hardware.py` = every device (motor, buttons, LED, MP3, VL6180X chip, limit switch, current
+  `hardware.py` = every device (motor, buttons, LED, amplifier, VL6180X chip, limit switch, current
   sense) and the only `machine` importer besides `board.py` (chip facts, from `board_spec.py`). `assembly.py`
   chooses strategies only. Layers: board -> devices -> strategies -> behaviour -> application.
   Modules: assembly, board, hardware, motor, audio, buttons, status_led, vl6180x, proximity,
@@ -82,16 +86,18 @@ bench/calibration/deploy: `firmware/micropython/README.md`. Arduino v1 kept only
 - `build()` constructs and starts nothing; `run()` starts the loop; `main.py` is 2 lines.
   `aiorepl` gives a live REPL while it runs (the bin is `b`). Deploy: `./deploy.sh`.
   Calibrate: `tools/calibrate.py` (stroke times, ToF offset/crosstalk/range-ignore, stall).
-  Tests: `python3 -m unittest discover -s tests -t tests` (60; incl. real asyncio + a fake
+  Tests: `python3 -m unittest discover -s tests -t tests` (**113**; incl. real asyncio + a fake
   `machine` module in tests/fake_machine.py, so device construction and the VL6180X driver run
   on the Mac). **Simulate: `micropython sim/run_on_micropython.py`** (brew install micropython) —
-  the whole firmware on a real MicroPython runtime, 13 checks, exit code = pass/fail. Also
+  the whole firmware on a real MicroPython runtime, **14 checks**, exit code = pass/fail. Also
   `mpy-cross` every module to catch on-device compile errors. **Wokwi runs**, in
   `firmware/micropython/sim/` (not `sim/`): `make simulate` — the real 4 MB flash image on a
-  simulated S3, with hand-written `vl6180x` and `l9110s` chips. `lid-cycle` passes: full
-  idle→opening→open→closing→idle with the motor-pin assertions holding. `wave-to-open`,
-  `obstruction`, `sensor-trouble` and `deep-sleep` are written and **not yet run** — Wokwi CI
-  minutes are a limited free quota, so run them deliberately, not on every change.
+  simulated S3, with hand-written `vl6180x` and `l9110s` chips. **All five scenarios pass** as of
+  2026-09-25 — lid-cycle, wave-to-open, obstruction, sensor-trouble and deep-sleep/sleep-and-wake
+  (`make simulate-all`). Two of them could never have passed before: the sim image inherited
+  config.py's deployed defaults, so the bin slept while the scenario waved a hand at it. Wokwi CI
+  minutes are a limited free quota, so run them deliberately, not on every change. **Wokwi does
+  not wake an ESP32 from a GPIO at all**, so deep sleep waking is a bench test, not a sim one.
   Needs `WOKWI_CLI_TOKEN` (wokwi.com/dashboard/ci) and `wokwi-cli` on PATH.
   Wokwi has no FireBeetle part, so the generic S3 devkit stands in — same silicon, superset of
   pins, named by raw GPIO; `wokwi_is_stand_in` in the board file says so.
@@ -103,16 +109,29 @@ bench/calibration/deploy: `firmware/micropython/README.md`. Arduino v1 kept only
   tolerates it. The test fakes model this on purpose; do not "simplify" them.
 - `/config.json` overrides only `config.CALIBRATABLE` keys (never pins), written atomically.
 
-### Pin map v3 (GPIO in brackets) — FireBeetle 2 ESP32-S3
+### Pin map v4 (GPIO in brackets) — FireBeetle 2 ESP32-S3
 **The S3 has 22 RTC pins (GPIO0-21), so almost every header pin can wake it** — unlike the C6,
-where three usable wake pins dictated the whole map. Pins are now spent on purpose:
+where three usable wake pins dictated the whole map. Pins are spent on purpose:
 ToF INT D12[12] (wake, not ADC1) · Open btn D11[13] (wake) · stall ADC / limit switch A0[4]
 (the one ADC1 pin spent) · Motor IA D10[14] · Motor IB D6[18] · SDA[1] · SCL[2] (IR config reuses
-these two) · Mode btn D14[47] (cannot wake, need not; also the on-board button) · MP3 TX D3[38]
-(cannot wake, need not; module TXD NOT wired) · LED red D7[9] · LED green D5[7].
+these two) · Mode btn D14[47] (cannot wake, need not; also the on-board button) ·
+**I2S BCLK SCK[17] · LRC MO[15] · DIN MI[16] · audio SD D3[38]** · LED red D7[9] · LED green D5[7].
+The three SPI pads carry I2S because this design has no SPI and they are the cheapest pins left,
+which freed A1[5] — an ADC1 pin. **The silkscreen abbreviates**: the pads read MI and MO while
+the board definition keys the same GPIOs as MISO and MOSI, and `physical.pad_aliases` bridges the
+two. Anything comparing a GPIO's name against a footprint pad must go through it.
+**BOTH WAKE SOURCES ASSERT HIGH.** `esp32.WAKEUP_ALL_LOW` is an AND across every armed pin and
+the S3 has no per-pin polarity, so with two sources armed the bin woke only if you held OPEN
+*while* waving. `WAKEUP_ANY_HIGH` is a real OR. So the OPEN button goes to 3V3 behind a
+pull-down and the VL6180X's GPIO1 is configured active-high; MODE stays wired to ground because
+GPIO47 cannot wake this chip anyway. `config.WAKE_ON_HIGH = True` is the single statement of that
+direction and the board follows it.
 **Untouched on purpose:** D9[0] is the BOOT strap, D2[3] the JTAG strap. ADC2 (GPIO11-20, incl.
 A5) cannot be read with WiFi on. Three statements must agree — `config.py` (signal->GPIO),
-`boards/*.json` (GPIO->silkscreen), `mcu-pins.ts` (signal->silkscreen) — and `make check` proves it.
+`boards/*.json` (GPIO->silkscreen), `mcu-pins.ts` (signal->silkscreen) — and `make check` proves
+it. A **fourth** now does too: `wake-polarity.ts` compares the rail the OPEN button is tied to
+against the level the firmware arms for, because no firmware test can see that disagreement —
+they all derive from the same constant, so flipping it flips them with it.
 
 ### Power (firmware/micropython/smartbin/power.py)
 `config.POWER_POLICY`: `always_on` (bench/USB) | `deep_sleep`. Deep sleep needs `SENSOR_STRATEGY="tof_interrupt"`:
@@ -124,7 +143,10 @@ The S3 lacks per-pin ext1 polarity, so all wake sources still share one level. W
 dominates; ESP ~15 µA). **Neither chip's LP core is usable from MicroPython** (no API; it is a
 coprocessor, not a second app core).
 
-### Arduino reference build
+### Arduino reference build — v1, historical
+Describes the ORIGINAL build: a XIAO, a TB6612 driver, an OLED and a UART MP3 module,
+none of which is on the current board. Kept because the state machine's shape came from
+it. Do not read it as a description of anything that exists now.
 Arduino/C++ state machine (Idle→Opening→Open→Closing). Wave/IR or Open button → drive lid open on
 the TB6612, chirp via MP3, OLED status; timed close with a hard `MOTOR_MAX_RUN_MS` safety cap and a
 marked v2 hook for motor-current/stall sensing. Needs Arduino libs **Adafruit_SSD1306 + Adafruit_GFX**
@@ -132,16 +154,29 @@ and the matching board package. TODO: calibrate `LID_OPEN/CLOSE_RUN_MS`; verify 
 bytes against its datasheet (parts/datasheets).
 
 ## Status / next
-**Read `STATUS.md` first** — it is the handover note: what is blocked on Petr, the ordered next
-steps, the locked decisions and what remains unverified.
+**Read `HANDOVER.md` first** — the whole picture, both repos, every decision and its reasoning,
+and what is left. `STATUS.md` is the short blocker table.
 
-DONE: routed **v3** board (100 x 50 mm) + fab package; firmware **80 tests**, 13-check MicroPython run, four
-Wokwi scenarios;
-sensor + supplier research (SENSOR_OPTIONS.md, SHOPPING.md).
-NEXT: **SHOPPING.md is stale** — it lists the XIAO and a LiPo JST the board no longer has.
-Order parts; breadboard bring-up (bringup/, in order) BEFORE any PCB; calibrate;
-measure the bin connector + **the motor's real current** (the one number that could still change the driver choice);
-optionally add stall-sensing (see LID_CLOSE_DETECTION.md); pull DFRobot module STEP for the Fusion enclosure.
+DONE (2026-09-25, each verified by running it): routed **v4** board, 60 traces, 0 errors; audio
+moved to I2S; firmware **113 tests**; 14-check MicroPython run; **50** converter tests; **all
+five** Wokwi scenarios passing; `make check` green. Five of the seven fab blockers closed —
+the SOT-23 pad mapping, the pad-identical headers, the screw that bridged V33 to GND, the
+hard-switched 470 uF, and deep sleep never waking.
+
+**We are NOT ordering the board.** The goal is a circuit that is good and working, so a
+fabrication-process limit is parked while a circuit fault is not.
+
+NEXT, in order:
+1. **Which audio module is in the drawer?** Blocked on Petr, and four things wait on it. microSD
+   slot = DFPlayer Mini; micro-USB + "Voice Module V1.0" = DFR0534; BCLK/LRC/DIN pads = the I2S
+   amp the board now assumes.
+2. **Bench bring-up** (`bringup/01..06`, in order). Nothing has ever touched hardware.
+3. **Measure the motor's real current** — the one number that could still change the driver
+   choice. The rules file states 1.5 A, which is the L9110S's limit, NOT a measurement.
+4. **Verify deep sleep actually wakes.** Wokwi cannot do this at all.
+5. Calibrate; measure the bin connector's pitch; refresh the stale `SHOPPING.md` (still lists a
+   XIAO and a LiPo JST the board does not have); optionally add stall-sensing
+   (see LID_CLOSE_DETECTION.md); pull DFRobot module STEP for the Fusion enclosure.
 
 ## The `spark` plugin
 This whole flow (describe→schematic→verify→route→fab, real parts, reverse-engineering) is packaged as
