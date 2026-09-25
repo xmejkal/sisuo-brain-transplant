@@ -50,7 +50,6 @@ export default () => (
   <board width="100mm" height="62mm" autorouter="auto"
       thickness="1.6mm"
       fabricatorPreset="jlcpcb_economy"
-      automaticPoursEnabled
       minViaHoleDiameter="0.3mm"
       minViaPadDiameter="0.6mm">
     {/* The module lies along the board with its USB-C at the left edge, so a cable can reach it
@@ -223,6 +222,40 @@ export default () => (
         make room, and that is its own finding: the module alone is 60 mm long and runs the whole
         left half of the board, so at 50 mm there was no corner a hole could go in without
         landing under it. */}
+    {/* GROUND POUR ONLY, on both layers, replacing `automaticPoursEnabled`.
+
+        The automatic setting poured every qualifying net, which on this board meant a V33 plane
+        as well as a GND one — and two planes is what made a mounting screw dangerous. Measured
+        on the built netlist: at two of the four corners, GND and V33 copper both reached to
+        0.19 mm from the hole edge, while an M3 head overhangs 1.15 mm. Tightening a screw
+        shorted the 3.3 V rail to ground.
+
+        A second plane was never the right answer here anyway. On two layers with this much
+        routing, a V33 plane fragments the ground it shares the board with, and V33 has few
+        enough consumers to be perfectly well served by traces — which it already had. Pouring
+        only ground removes the hazard structurally rather than relying on clearance: there is
+        now only one net a screw can touch, so there is nothing for it to bridge TO.
+
+        `padMargin` and `clearance` are stated rather than inherited, because the automatic
+        pour's own default was the 0.19 mm that caused this. */}
+    <copperpour connectsTo="net.GND" layer="top" padMargin="0.4mm" clearance="0.4mm" />
+    <copperpour connectsTo="net.GND" layer="bottom" padMargin="0.4mm" clearance="0.4mm" />
+
+    {/* No copper under a screw head.
+
+        MEASURED on the built netlist, 2026-09-25: GND and V33 pour both reached to 0.19 mm from
+        the edge of every one of these holes. An M3 screw head is 5.5 mm across a 3.2 mm hole, so
+        it overhangs 1.15 mm on every side — and at two of the four corners it therefore sat on
+        both nets at once. Tightening a screw shorted the 3.3 V rail to ground.
+
+        `automaticPoursEnabled` fills to the board edge and has no opinion about what will be
+        bolted on top of it, which is the kind of thing that survives DRC and fails on assembly.
+        3 mm radius clears the head with room for a washer. */}
+    <keepout pcbX={-46} pcbY={27} shape="circle" radius="3mm" />
+    <keepout pcbX={46} pcbY={27} shape="circle" radius="3mm" />
+    <keepout pcbX={-46} pcbY={-27} shape="circle" radius="3mm" />
+    <keepout pcbX={46} pcbY={-27} shape="circle" radius="3mm" />
+
     <hole pcbX={-46} pcbY={27} diameter="3.2mm" />
     <hole pcbX={46} pcbY={27} diameter="3.2mm" />
     <hole pcbX={-46} pcbY={-27} diameter="3.2mm" />
