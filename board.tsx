@@ -1,4 +1,5 @@
 import { FireBeetle2Esp32S3 } from "./FireBeetle2Esp32S3"
+import { Dfr0954I2sAmp } from "./Dfr0954I2sAmp"
 import { fireBeetle2Esp32S3Body } from "./FireBeetle2Esp32S3Body"
 import { MCU } from "./mcu-pins"
 
@@ -89,17 +90,22 @@ export default () => (
     <chip name="SensorHeader" footprint="pinrow5" pcbX={-42} pcbY={17}
       pinLabels={{ pin1:"VIN", pin2:"GND", pin3:"SDA", pin4:"SCL", pin5:"INT" }} />
 
-    {/* DFRobot publishes no 3D model for this module, only a dimension drawing — so the body is
-        built from it: 30.00 x 22.00 mm, which is what that drawing says. */}
-    <chip name="Mp3Player" footprint="headermodule6" pcbX={28} pcbY={-12}
+    {/* The audio, since 2026-09-25: a DFR0954 MAX98357A I2S amplifier, not a UART MP3 module.
+        The ESP32 synthesises the sound and this only amplifies it, which is what removes the
+        high-side switch, the reservoir capacitor, the cross-pluggable 6-way header and the
+        unmeasured idle current in one move — see the four blockers this closes in STATUS.md.
+
+        Pads are placed by NAME in Dfr0954I2sAmp.tsx because the module has no pad-1 marker and
+        DFRobot number its two rows in opposite directions. 18 x 18 mm, 7.1 mm tall with the JST
+        socket, and no mounting holes of its own. */}
+    <Dfr0954I2sAmp name="AudioAmp" pcbX={28} pcbY={-12}
       cadModel={{
         jscad: {
           type: "colorize",
           color: [0.06, 0.29, 0.53],
-          shape: { type: "cuboid", size: [30, 22, 3.2] },
+          shape: { type: "cuboid", size: [18, 18, 3.2] },
         },
-      }}
-      pinLabels={{ pin1:"VCC", pin2:"GND", pin3:"RXD", pin4:"TXD", pin5:"SPKP", pin6:"SPKN" }} />
+      }} />
     {/* The speaker is a 30 mm driver behind a grille on its own flying lead, so what the board
         carries is this two-way JST and nothing else. Its size still has to be checked against
         the bin — see the enclosure notes, not this file. */}
@@ -185,36 +191,28 @@ export default () => (
         are `doNotPlace`. They are hand-soldered, so the assembler must not be asked to source
         them, and the BOM must not imply a supplier part nobody verified. */}
     <capacitor name="MotorBulkCap" doNotPlace capacitance="220uF" maxVoltageRating="25V" polarized footprint="radial_d6.3_p2.5" pcbX={45} pcbY={15} />
-    <capacitor name="Mp3ReservoirCap" doNotPlace capacitance="470uF" maxVoltageRating="16V" polarized footprint="radial_d8_p3.5" pcbX={45} pcbY={-6} />
     <capacitor name="DecoupMotor" capacitance="100nF" maxVoltageRating="50V" footprint="0603" pcbX={45} pcbY={9} />
-    <capacitor name="DecoupMp3" capacitance="100nF" maxVoltageRating="50V" footprint="0603" pcbX={45} pcbY={-13} />
+    <capacitor name="DecoupAudio" capacitance="100nF" maxVoltageRating="50V" footprint="0603" pcbX={45} pcbY={-13} />
     <capacitor name="DecoupSensor" capacitance="100nF" maxVoltageRating="50V" footprint="0603" pcbX={-39} pcbY={10} />
 
-    {/* High-side switch on the MP3 module's supply.
+    {/* WHAT WAS HERE, AND WHY IT IS NOT ANY MORE.
 
-        This exists because of a number nobody has measured. The DFR0534 has no enable pin and
-        sits permanently on the rail; its own class idles somewhere around 15-25 mA, which if
-        true is roughly forty times everything else on this board combined, and would make the
-        entire deep-sleep design worth nothing. The measurement has not been taken.
+        A P-channel high-side switch, a 100k gate hold and a 470 uF reservoir used to sit on a
+        switched MP3_V33 rail. They existed for one reason: the DFR0534 has no enable pin, its
+        class idles somewhere around 15-25 mA, nobody had measured it, and if the figure were
+        real it would have made the whole deep-sleep design worth nothing. The switch let the
+        firmware cut the rail so the answer did not have to be known before fabrication.
 
-        Rather than guess it, the board is made not to care: a P-channel high-side switch lets
-        the firmware cut the module's rail entirely. If the idle draw turns out to be small the
-        switch costs three parts and one GPIO; if it is 20 mA the switch is the difference
-        between days and months on a cell. Either way the answer no longer has to be known
-        BEFORE fabrication, which is the only reason it was blocking anything.
+        The MAX98357A has a shutdown pin, so the question is answered by the part instead of
+        worked around by the board: 0.6 uA held down, against 340 uA merely clock-stopped. That
+        removes four defects at once — a SOT-23 whose pads tscircuit maps gate/source/drain in
+        the wrong order, a 470 uF bulk capacitor hard-switched with no soft-start, the pad-
+        identical 6-way header beside the motor driver, and the unmeasured idle current itself.
 
-        The gate pull-up is the part that matters and the part that is easy to get wrong. A GPIO
-        goes high-impedance during deep sleep and for the ~300 ms between reset and firmware —
-        precisely when the module must be off. `Mp3GateHold` holds the gate at the source
-        potential through both, so the default state is OFF and the firmware has to ask for
-        sound. Same reasoning as the 10k pulldowns on the motor driver, for the same reason.
+        The cost is one GPIO held LOW while the amplifier is off, sinking 5-33 uA through the
+        module's own pull-up — which is spent precisely when the bin is asleep, and is still two
+        orders of magnitude better than what it replaces. */}
 
-        Consequence worth knowing: the module re-initialises each time it is powered, so the
-        first chirp after a wake is later than the lid. `Silent` remains a supported profile. */}
-    <mosfet name="Mp3Switch" channelType="p" mosfetMode="enhancement"
-      footprint="sot23" pcbX={38} pcbY={-24}
-      connections={{ source: "net.V33", drain: "net.MP3_V33", gate: ".Mp3GateHold > .pin1" }} />
-    <resistor name="Mp3GateHold" resistance="100k" footprint="0603" pcbX={32} pcbY={-24} />
 
     {/* Mounting holes. The board had NONE of its own — the only four holes in it belonged to
         the FireBeetle's footprint, sat underneath the module where no screwdriver reaches, and
@@ -293,16 +291,15 @@ export default () => (
     <trace from=".Mcu > .GND2" to="net.GND" />
     <trace from=".Mcu > .GND3" to="net.GND" />
     <trace from={`.Mcu > .${MCU.V33}`} to="net.V33" />
-    <trace from=".Mp3Player > .VCC" to="net.MP3_V33" />
-    <trace from=".Mp3Player > .GND" to="net.GND" />
-    <trace from=".Mp3ReservoirCap > .pin1" to="net.MP3_V33" />
-    <trace from=".Mp3ReservoirCap > .pin2" to="net.GND" />
-    <trace from=".DecoupMp3 > .pin1" to="net.MP3_V33" />
-    {/* Gate held at the source rail, so the switch is OFF whenever the GPIO is not driving it —
-        through deep sleep, through reset, through a reflash. */}
-    <trace from=".Mp3GateHold > .pin2" to="net.V33" />
-    <trace from={`.Mcu > .${MCU.MP3_ENABLE}`} to=".Mp3GateHold > .pin1" />
-    <trace from=".DecoupMp3 > .pin2" to="net.GND" />
+    {/* The amplifier brings VCC and GND out on BOTH rows; they are common inside the module,
+        so feeding both is not a short — it halves the current per pad and gives the plug-in
+        header two anchors instead of one. There is no switched audio rail any more. */}
+    <trace from=".AudioAmp > .VCC1" to="net.V33" />
+    <trace from=".AudioAmp > .VCC2" to="net.V33" />
+    <trace from=".AudioAmp > .GND1" to="net.GND" />
+    <trace from=".AudioAmp > .GND2" to="net.GND" />
+    <trace from=".DecoupAudio > .pin1" to="net.V33" />
+    <trace from=".DecoupAudio > .pin2" to="net.GND" />
 
     {/* ---- motor ---------------------------------------------------------------------- */}
     <trace from={`.Mcu > .${MCU.MOTOR_IA}`} to=".MotorDriver > .AIA" />
@@ -353,10 +350,26 @@ export default () => (
     <trace from=".DecoupSensor > .pin2" to="net.GND" />
 
     {/* ---- audio ---------------------------------------------------------------------- */}
-    {/* Only TX: the module's TXD stays unwired, on purpose. */}
-    <trace from={`.Mcu > .${MCU.MP3_TX}`} to=".Mp3Player > .RXD" />
-    <trace from=".Mp3Player > .SPKP" to=".Speaker > .P" />
-    <trace from=".Mp3Player > .SPKN" to=".Speaker > .N" />
+    {/* I2S: three clocked lines the ESP32 drives, plus shutdown.
+
+        SD is not an afterthought — it is the pin that makes this module worth choosing. Held
+        LOW the amplifier draws 0.6 uA; merely stopping the clock leaves it in standby at
+        340 uA. It must be DRIVEN, never left floating: the module pulls it up, and floating
+        selects a channel rather than turning anything off.
+
+        The firmware rule that belongs with this wiring and cannot be enforced by it: never stop
+        LRCLK while BCLK is running. Maxim say twice that it produces a large DC output, and a
+        DC offset into an 8 ohm voice coil is a dead speaker. Stop BCLK. */}
+    <trace from={`.Mcu > .${MCU.I2S_BCLK}`} to=".AudioAmp > .BCLK" />
+    <trace from={`.Mcu > .${MCU.I2S_LRC}`} to=".AudioAmp > .LRC" />
+    <trace from={`.Mcu > .${MCU.I2S_DIN}`} to=".AudioAmp > .DIN" />
+    <trace from={`.Mcu > .${MCU.AUDIO_SD}`} to=".AudioAmp > .SD" />
+    {/* SPK+ is the top row's rightmost pad and SPK- the bottom row's. Directly across from each
+        other, 15.24 mm apart — NOT an adjacent pair, which is the mistake this comment exists
+        to stop. GAIN and NC are deliberately unwired: floating GAIN selects 9 dB, and NC is an
+        unterminated stub that serves as a mechanical anchor. */}
+    <trace from=".AudioAmp > .SPKP" to=".Speaker > .P" />
+    <trace from=".AudioAmp > .SPKN" to=".Speaker > .N" />
 
     {/* ---- buttons and status --------------------------------------------------------- */}
     <trace from=".BtnOpen > .A" to={`.Mcu > .${MCU.BTN_OPEN}`} />

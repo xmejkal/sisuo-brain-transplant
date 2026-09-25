@@ -9,7 +9,7 @@ worth putting back in its shell.
     mpremote cp -r smartbin : && mpremote cp config.py :      # the firmware must be on the device
     mpremote run bringup/06_all_together.py
 
-Wire everything: sensor, both buttons, the LED, the MP3 module and the motor, exactly as steps
+Wire everything: sensor, both buttons, the LED, the amplifier and the motor, exactly as steps
 2 to 5 had them. **The lid must be free to move through its whole travel**, or out of the bin
 altogether — this drives real strokes, not pulses.
 
@@ -110,11 +110,11 @@ def roll_call(smart_bin):
             # An empty room legitimately gives a range error, so this is reported, not failed.
             announce("rangefinder: no measurement (%s) — fine if nothing is in front of it" % error)
 
-    announce("MP3: initialising")
+    announce("audio: shutting the amplifier down until a cue asks for it")
     try:
         hardware.player.initialize()
     except Exception as error:  # noqa: BLE001
-        problems.append("MP3 module did not initialise: %s" % error)
+        problems.append("audio did not initialise: %s" % error)
 
     announce("LED: red, green, amber, off")
     for colour in (status_led.RED, status_led.GREEN, status_led.AMBER, status_led.OFF):

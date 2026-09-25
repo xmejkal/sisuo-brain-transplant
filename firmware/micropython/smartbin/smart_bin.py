@@ -145,18 +145,14 @@ class SmartBin:
     _sensor_task = None
     _tasks: list = []
 
-    async def _start_audio(self):
-        """Power the MP3 rail, wait for the module to boot, then configure it."""
-        await self.hardware.power_up_audio()
-        self.hardware.player.initialize()
-
     async def main(self):
         """Run the bin. Returns only on cancellation; everything is left safe on the way out."""
-        # Audio comes up in the background. The MP3 rail is switched now, and the module boots
-        # from cold every time it returns — a few hundred milliseconds during which it cannot be
-        # talked to. Awaiting that here would hold the whole bin closed while a speaker warms up,
-        # which is the wrong trade: a lid that opens late is worse than a chirp that plays late.
-        asyncio.create_task(self._start_audio())
+        # The amplifier has no firmware to boot, so there is nothing to wait for. This used to
+        # be a background task: the MP3 module came up from cold every time its rail returned
+        # and could not be talked to for a few hundred milliseconds, and awaiting that here
+        # would have held the whole bin closed while a speaker warmed up. Moving to I2S removed
+        # the rail, the switch and the delay, so the sequencing goes with them.
+        self.hardware.player.initialize()
         log.info(
             "smartbin ready: sensor=%s close=%s power=%s",
             self.config.SENSOR_STRATEGY,

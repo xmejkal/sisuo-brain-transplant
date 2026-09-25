@@ -58,15 +58,24 @@ const WOKWI_NAMES_PINS_BY_GPIO = board.wokwi_pin_naming === "gpio";
  * is a separate decision living in `mcu-pins.ts`. Keeping the two apart is what lets the board
  * be swapped without touching the simulation, and the wiring be changed without touching this.
  */
-const WOKWI_PINS: Record<string, string> = {
-  ...Object.fromEntries(
-    Object.entries(board.pins).map(([silkscreen, gpio]) => [
-      silkscreen,
-      WOKWI_NAMES_PINS_BY_GPIO ? String(gpio) : silkscreen,
-    ]),
-  ),
-  ...(board.wokwi_power_pins ?? {}),
-};
+const WOKWI_PINS: Record<string, string> = (() => {
+  const byName: Record<string, string> = {};
+  const aliases = board.physical?.pad_aliases ?? {};
+  for (const [name, gpio] of Object.entries(board.pins)) {
+    byName[name] = WOKWI_NAMES_PINS_BY_GPIO ? String(gpio) : name;
+    // A design writes its traces to the label printed on the PAD, and for a few pins that is
+    // an abbreviation of the name the board file keys: the FireBeetle prints `MI` and `MO`
+    // where the vendor's header says `MISO` and `MOSI`. Keyed only by the board file's names,
+    // this table had no entry for the pad, and the emitter reported a perfectly real pin as
+    // not existing on the part. Both spellings are kept: nothing is served by making the
+    // design guess which one this table happens to use.
+    const pad = aliases[name];
+    if (pad !== undefined) {
+      byName[pad] = WOKWI_NAMES_PINS_BY_GPIO ? String(gpio) : pad;
+    }
+  }
+  return { ...byName, ...(board.wokwi_power_pins ?? {}) };
+})();
 
 export const BOARD: PartMapping = {
   // The design calls the module "Mcu" rather than after any one board, so that swapping the
@@ -178,14 +187,7 @@ export const SKIP: SkipRule[] = [
     reason: "hardware with no behaviour to simulate: a sense shunt, and the pulldowns that hold "
       + "the motor still while the board boots",
   },
-  { match: /^Mp3Player$/, reason: "no Wokwi part; cues are visible in the serial log" },
-  {
-    match: /^Mp3(Switch|GateHold)$/,
-    reason: "the high-side switch on the MP3 rail, and the resistor holding its gate off. There "
-      + "is no MP3 module in the simulation for it to switch, and the condition it exists for — "
-      + "a GPIO going high-impedance in deep sleep, leaving the gate to the resistor — is one "
-      + "Wokwi does not model at all. Bench only",
-  },
+  { match: /^AudioAmp$/, reason: "no Wokwi part for the I2S amplifier; cues are visible in the serial log" },
   {
     match: /^(TofInt|BtnOpen)Pullup$/,
     reason: "these hold a deep-sleep wake input at a defined level while the chip is off. Wokwi "

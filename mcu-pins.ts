@@ -24,8 +24,16 @@ export const MCU = {
   SDA        : "SDA",  // GPIO1  - the board's dedicated I2C pins
   SCL        : "SCL",  // GPIO2
   BTN_MODE   : "D14",  // GPIO47 - cannot wake, and need not. Also the on-board button
-  MP3_TX     : "D3",
-  MP3_ENABLE : "A1",   // GPIO5 - drives the MP3 rail's high-side switch low to turn it ON  // GPIO38 - cannot wake, and need not
+  // I2S to the MAX98357A. Deliberately the three SPI pads: this design has no SPI, they are
+  // ADC2 or non-wake pins that nothing cheaper wants, and spending them here frees A1/GPIO5,
+  // which is ADC1 and genuinely scarce. The silkscreen abbreviates - the pads read MI and MO,
+  // while the board definition keys the same GPIOs as MISO and MOSI. `pad_aliases` bridges the
+  // two, and these names must match the PADS, because that is what a trace connects to.
+  I2S_BCLK   : "SCK",  // GPIO17
+  I2S_LRC    : "MO",   // GPIO15 - the pad the vendor's header calls MOSI
+  I2S_DIN    : "MI",   // GPIO16 - the pad the vendor's header calls MISO
+  AUDIO_SD   : "D3",   // GPIO38 - cannot wake, and need not. Driven LOW shuts the amplifier
+                       //   down to 0.6 uA; it must never be left floating
   LED_RED    : "D7",  // GPIO9
   LED_GREEN  : "D5",  // GPIO7
   V33        : "3V3",  // the module's 2 A buck output

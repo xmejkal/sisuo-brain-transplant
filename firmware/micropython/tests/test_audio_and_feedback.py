@@ -1,8 +1,10 @@
 """
-The parts that talk to a person: the MP3 module's wire format, and what plays or lights when.
+What plays and what lights, when.
 
-Neither had any coverage. The MP3 link is write-only — nothing ever reads back from it — so a
-wrong byte is silent forever, on the bench as well as here.
+This file used to also hold the DFR0534's wire format. Both it and the class it tested went when
+the audio moved to I2S on 2026-09-25: the board has no UART module any more, so the code was
+unreachable and the tests were proving the wire format of a part that is not on the design. The
+I2S player has its own file, `test_i2s_audio.py`.
 """
 
 import unittest
@@ -10,59 +12,8 @@ import unittest
 import fakes  # noqa: F401 - puts the firmware on sys.path
 
 from smartbin import events, states, status_led
-from smartbin.audio import Dfr0534Player, SilentPlayer
+from smartbin.audio import SilentPlayer
 from smartbin.feedback import DEFAULT_LED_COLOURS, AudioFeedback, LedFeedback
-
-
-class RecordingUart:
-    def __init__(self):
-        self.written = bytearray()
-
-    def write(self, data):
-        self.written.extend(data)
-        return len(data)
-
-
-class TestDfr0534Frames(unittest.TestCase):
-    """
-    Frame format: 0xAA, command, length, data..., checksum, where the checksum is the low byte
-    of the sum of everything before it.
-
-    NOTE: these assert what the firmware sends, which is the format from the v1 Arduino sketch.
-    They do not prove it is what the module expects — that needs the datasheet and a speaker,
-    and is on the bring-up list (bringup/04_mp3.py prints every frame).
-    """
-
-    def test_play_track_one(self):
-        uart = RecordingUart()
-        Dfr0534Player(uart).play(1)
-
-        self.assertEqual(bytes(uart.written), bytes([0xAA, 0x07, 0x02, 0x00, 0x01, 0xB4]))
-
-    def test_the_checksum_is_the_low_byte_of_the_sum(self):
-        uart = RecordingUart()
-        Dfr0534Player(uart).play(255)
-
-        frame = bytes(uart.written)
-        self.assertEqual(frame[-1], sum(frame[:-1]) & 0xFF)
-
-    def test_volume_is_clamped_to_what_the_module_accepts(self):
-        uart = RecordingUart()
-        player = Dfr0534Player(uart)
-
-        player.set_volume(99)
-        self.assertEqual(uart.written[3], 30)   # the module's maximum
-
-        uart.written.clear()
-        player.set_volume(-5)
-        self.assertEqual(uart.written[3], 0)
-
-    def test_initialize_sets_the_volume_before_anything_plays(self):
-        uart = RecordingUart()
-        Dfr0534Player(uart, volume=22).initialize()
-
-        self.assertEqual(uart.written[1], 0x13)  # set volume
-        self.assertEqual(uart.written[3], 22)
 
 
 class TestAudioFeedback(unittest.TestCase):

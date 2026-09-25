@@ -79,7 +79,15 @@ export function labelForGpio(gpio: number): string | undefined {
 }
 
 export function gpioForLabel(label: string): number | undefined {
-  return board.pins[label];
+  const direct = board.pins[label];
+  if (direct !== undefined) return direct;
+  // The other direction of the same bridge `labelForGpio` crosses. A footprint pad reads `MI`
+  // while the board file keys that GPIO as `MISO`, so a lookup by the pad's own label finds
+  // nothing — and the Wokwi emitter, which converts silkscreen to raw GPIO, then reports the
+  // pad as not existing on the part.
+  const aliases = board.physical?.pad_aliases ?? {};
+  const name = Object.keys(aliases).find((key) => aliases[key] === label);
+  return name === undefined ? undefined : board.pins[name];
 }
 
 export function canWake(gpio: number): boolean {

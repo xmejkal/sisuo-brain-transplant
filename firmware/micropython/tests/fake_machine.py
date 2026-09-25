@@ -89,6 +89,44 @@ class FakeUART:
         return None
 
 
+class FakeI2S:
+    """
+    Collects everything written, which is how a cue's samples are inspected.
+
+    Modelled as a stream because that is how the firmware drives it: `asyncio.StreamWriter`
+    wraps this object, so it needs the two methods a stream needs. `write` returning the full
+    length means a single drain completes it, which is the behaviour of a driver whose ring
+    buffer is bigger than the cue — the configured case.
+    """
+
+    TX = "tx"
+    RX = "rx"
+    MONO = "mono"
+    STEREO = "stereo"
+
+    instances = []
+
+    def __init__(self, i2s_id, sck=None, ws=None, sd=None, mode=None,
+                 bits=16, format=None, rate=None, ibuf=None):
+        self.i2s_id = i2s_id
+        self.sck, self.ws, self.sd = sck, ws, sd
+        self.mode, self.bits, self.format, self.rate, self.ibuf = mode, bits, format, rate, ibuf
+        self.written = bytearray()
+        self.deinitialised = False
+        FakeI2S.instances.append(self)
+
+    def write(self, data):
+        self.written.extend(data)
+        return len(data)
+
+    def deinit(self):
+        self.deinitialised = True
+
+    # asyncio.StreamWriter asks for these when it wraps a stream.
+    def ioctl(self, request, argument):
+        return 0
+
+
 class BusSilent(Exception):
     """Raised by a fake device that has stopped answering, to model a knocked-loose cable."""
 
@@ -171,6 +209,7 @@ class FakeMachineModule:
     Pin = FakePin
     PWM = FakePWM
     UART = FakeUART
+    I2S = FakeI2S
     I2C = FakeI2C
     ADC = FakeADC
     WDT = FakeWDT
@@ -218,6 +257,7 @@ def reset():
     """Forget every pin, device and armed wake between tests."""
     FakePin.by_number.clear()
     FakeUART.instances.clear()
+    FakeI2S.instances.clear()
     FakeWDT.instances.clear()
     FakeI2C.devices.clear()
     FakeMachineModule.wake_reason_value = 0

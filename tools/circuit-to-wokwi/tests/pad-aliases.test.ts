@@ -16,7 +16,7 @@
 
 import { describe, expect, test } from "bun:test";
 
-import { board, labelForGpio } from "../lib/board";
+import { board, gpioForLabel, labelForGpio } from "../lib/board";
 
 describe("a pin's name versus the label on its pad", () => {
   test("a GPIO whose name is abbreviated on the silkscreen answers with the pad", () => {
@@ -38,6 +38,22 @@ describe("a pin's name versus the label on its pad", () => {
   test("a GPIO this board does not bring out is still undefined", () => {
     // Aliasing must not invent a pad for a pin that has none.
     expect(labelForGpio(99)).toBeUndefined();
+  });
+
+  test("a pad label resolves back to its GPIO", () => {
+    // The other direction, and the one the Wokwi emitter needs: it converts each silkscreen pad
+    // to a raw GPIO number, so a pad it cannot resolve is reported as not existing on the part.
+    expect(gpioForLabel("MO")).toBe(15);
+    expect(gpioForLabel("MI")).toBe(16);
+  });
+
+  test("a pad whose label is already a pin name is unaffected", () => {
+    expect(gpioForLabel("SCK")).toBe(17);
+    expect(gpioForLabel("D3")).toBe(38);
+  });
+
+  test("a label that is neither a pin nor an alias is undefined", () => {
+    expect(gpioForLabel("NOPE")).toBeUndefined();
   });
 
   test("every alias points at a pad the footprint actually has", () => {

@@ -35,14 +35,32 @@ class TestPinMap(unittest.TestCase):
         for pin in (config.PIN_BUTTON_OPEN, config.PIN_TOF_INTERRUPT):
             self.assertTrue(board.supports_wake(pin), "GPIO%d cannot wake the chip" % pin)
 
+    #: Signals that deliberately share a pin with another, because only one of each pair is
+    #: ever constructed. The IR fallback reuses the I2C pins; the limit switch reuses the shunt
+    #: input. Listed individually so that a NEW collision is still a failure.
+    DELIBERATE_ALTERNATES = ("PIN_IR_EMITTER", "PIN_IR_RECEIVER", "PIN_LIMIT_SWITCH")
+
     def test_no_two_signals_share_a_pin_in_one_configuration(self):
-        """Pins are deliberately reused *between* configurations, never within one."""
-        tof_configuration = (
-            config.PIN_MOTOR_IA, config.PIN_MOTOR_IB, config.PIN_I2C_SDA, config.PIN_I2C_SCL,
-            config.PIN_BUTTON_OPEN, config.PIN_BUTTON_MODE, config.PIN_MP3_TX,
-            config.PIN_LED_RED, config.PIN_LED_GREEN, config.PIN_TOF_INTERRUPT,
-        )
-        self.assertEqual(len(tof_configuration), len(set(tof_configuration)))
+        """
+        Pins are deliberately reused *between* configurations, never within one.
+
+        Every PIN_* in config is read, rather than a list written out here. The hand-written
+        version named ten constants and went stale the first time the pin map changed — it
+        referenced PIN_MP3_TX after the audio moved to I2S, so it errored instead of checking,
+        and while it was being repaired it was checking nothing. A test that has to be edited
+        whenever the thing it guards changes will be wrong exactly when it matters.
+        """
+        used = {}
+        for name in sorted(dir(config)):
+            if not name.startswith("PIN_") or name in self.DELIBERATE_ALTERNATES:
+                continue
+            pin = getattr(config, name)
+            self.assertNotIn(
+                pin, used,
+                "%s and %s are both GPIO%d, and both are built in the same configuration"
+                % (name, used.get(pin), pin))
+            used[pin] = name
+        self.assertTrue(used, "no PIN_* constants were found, so this checked nothing")
 
 
 class TestFeedbackCompleteness(unittest.TestCase):

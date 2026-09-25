@@ -170,8 +170,16 @@ async def scenario():
                     smart_bin.lid.state in (states.IDLE, states.OPENING, states.OPEN))
 
         print("\n5. the bin announced itself along the way")
-        frames_sent = len(fake_machine.FakeUART.instances[0].written)
-        checks.that("MP3 frames were sent (%d bytes)" % frames_sent, frames_sent > 0)
+        # This is the one check that exercises the I2S path on a REAL MicroPython runtime. The
+        # unit tests cannot: MicroPython's StreamWriter wraps any stream, CPython's wraps a
+        # transport, so under CPython the player falls back to a direct write and the asyncio
+        # path is never taken. Here it is.
+        amplifier = fake_machine.FakeI2S.instances[0]
+        await async_sleep_ms(50)        # let the cue's task finish writing
+        checks.that("samples reached the amplifier (%d bytes)" % len(amplifier.written),
+                    len(amplifier.written) > 0)
+        checks.that("the amplifier was shut down again afterwards",
+                    smart_bin.hardware.audio_shutdown.value() == 0)
 
         print("\nlast transitions:")
         for entry in smart_bin.lid.history[-6:]:

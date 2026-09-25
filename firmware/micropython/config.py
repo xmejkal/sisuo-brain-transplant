@@ -28,6 +28,15 @@ SENSOR_STRATEGY = "tof_interrupt"   # "tof" (polled I2C) | "tof_interrupt" (the 
                             #   itself and can wake the chip) | "ir" | "none" (buttons only)
 POWER_POLICY = "deep_sleep"  # "always_on" (bench, USB) | "deep_sleep" (battery)
 CLOSE_DETECTOR = "timed"    # "timed" | "limit" (microswitch) | "stall" (shunt + ADC)
+
+# Which audio hardware is fitted. THIS IS A CHOICE OF BOARD, not a preference:
+#   "i2s"      DFR0954 MAX98357A amplifier, the ESP32 synthesises the tones. Needs the v4
+#              board (board.tsx): three I2S pins on SCK/MO/MI and shutdown on D3.
+#   "dfr0534"  DFRobot DFR0534, clips in the module's own flash, one UART line. Needs the v3
+#              board (board-v3-dfr0534.tsx): a 6-way header and D3 carrying serial.
+# Selecting one the board does not have gets you silence and no error, which is why
+# `assembly.build_player` checks the pins exist rather than trusting this line.
+AUDIO_STRATEGY = "i2s"
 AUDIO_ENABLED = True
 REPL_ENABLED = True         # live REPL via aiorepl while the bin runs
 LOG_EVENTS = True
@@ -41,7 +50,7 @@ LOG_EVENTS = True
 #     A5 (GPIO11) is an analogue pin we may not use. Only the shunt needs an ADC, so it takes
 #     A0 and the other analogue pins stay free.
 #   * D3 (GPIO38), D14 (GPIO47), TX and RX are outside the RTC domain and cannot wake the chip.
-#     They are therefore given to things that never need to: the MP3 module's serial line and
+#     They are therefore given to things that never need to: the amplifier's shutdown line and
 #     the MODE button.
 #   * D9 (GPIO0) is the BOOT strap and D2 (GPIO3) the JTAG strap. Nothing is put on either —
 #     a button on GPIO0 would drop the board into the bootloader if held during a reset.
@@ -60,11 +69,16 @@ PIN_IR_EMITTER = 1          # SDA (IR config) -> BC337 base
 PIN_IR_RECEIVER = 2         # SCL (IR config) <- receiver OUT
 PIN_BUTTON_MODE = 47        # D14 — cannot wake, and does not need to. This is also the on-board
                             #   user button, so the board's own button works as MODE on the bench.
-PIN_MP3_ENABLE = 5          # A1  -> the MP3 rail's high-side switch. LOW turns the module ON;
-                            #   the gate resistor holds it OFF whenever this pin is not driving,
-                            #   which is during deep sleep, during reset and during a reflash.
-PIN_MP3_TX = 38             # D3  -> module RXD. Cannot wake, and does not need to. The module's
-                            #   TXD stays unwired — it is not 3.3V tolerant in that direction.
+# I2S to the MAX98357A amplifier. The three SPI pads, spent here because this design has no
+# SPI and they are the cheapest pins left — which frees A1/GPIO5, an ADC1 pin.
+PIN_I2S_BCLK = 17           # SCK -> bit clock
+PIN_I2S_LRC = 15            # MO  -> word select (left/right). The pad reads MO; the vendor's
+                            #   header calls the same GPIO MOSI.
+PIN_I2S_DIN = 16            # MI  -> serial data into the amplifier
+PIN_AUDIO_SD = 38           # D3  -> shutdown. LOW shuts the amplifier down to 0.6 uA; merely
+                            #   stopping the clock leaves it in standby at 340 uA, five hundred
+                            #   times more. Must be DRIVEN — the module pulls it up, and
+                            #   floating selects a channel rather than turning anything off.
 PIN_LED_RED = 9             # D7
 PIN_LED_GREEN = 7           # D5
 
@@ -126,11 +140,23 @@ STALL_CONSECUTIVE_HITS = 3  # checks above the threshold before believing it
 VOLUME = 22                 # 0-30
 ACTIVE_PROFILE = "default"
 
-# Sound profiles map "state entered" -> track number on the MP3 module. An unmapped state is
+# Sound profiles map "state entered" -> a cue NAME from `audio.ALL_CUES`. An unmapped state is
 # silence, so "silent" is simply empty. The MODE button cycles through these in order.
+#
+# These were bare integers until 2026-09-25, and the integer meant whatever the player in use
+# happened to think it meant — a track in a module's flash, or an entry in a tone table. The
+# same profile produced unrelated sounds depending on which player was built, and nothing could
+# detect it. A name says what the bin is EXPRESSING; translating that into a track number or a
+# frequency is the player's business and nobody else's.
 SOUND_PROFILES = {
-    "default": {"opening": 1, "idle": 2, "obstructed": 3, "fault": 8},
-    "chatty": {"opening": 4, "open": 5, "closing": 6, "idle": 7, "obstructed": 3, "fault": 8},
+    "default": {
+        "opening": "open-start", "idle": "settled",
+        "obstructed": "blocked", "fault": "fault",
+    },
+    "chatty": {
+        "opening": "open-start-bright", "open": "open-reached", "closing": "close-start",
+        "idle": "settled", "obstructed": "blocked", "fault": "fault",
+    },
     "silent": {},
 }
 
@@ -159,10 +185,11 @@ WAKE_ON_HIGH = False
 
 # ----------------------------------------------------------------- housekeeping
 I2C_FREQ_HZ = 400000
-MP3_POWER_ON_MS = 400      # the DFR0534 boots from cold every time its rail returns;
-                            #   nothing may be sent before it has. Bench-verify this.
-MP3_UART_ID = 1
-MP3_BAUD = 9600
+I2S_ID = 0                  # which I2S peripheral. The S3 has two; nothing else uses either.
+I2S_BUFFER_BYTES = 4096     # the driver's ring buffer. Must exceed the longest cue's samples
+                            #   (cue 8 is 400 ms at 16 kHz mono 16-bit = 12.8 KB, so a cue
+                            #   larger than this buffer simply takes more than one drain —
+                            #   which is fine, because rendering happens in its own task).
 FAULT_BLINK_MS = 400        # blink period while faulted
 FAULT_IDLE_POLL_MS = 800    # how often the blinker checks whether a fault has appeared
 # 0 disables. The watchdog cannot be stopped once started and survives Ctrl-C, so a board left

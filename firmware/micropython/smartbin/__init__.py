@@ -18,7 +18,7 @@ the sensor is not?": **a device is a thing you command; a strategy is a decision
                                the motor driver, the buttons, the LED, the MP3 module, the
                                rangefinder chip, the limit switch, the current sense.
                 motor.py       MotorDriver  + L9110MotorDriver
-                audio.py       Player       + Dfr0534Player / SilentPlayer
+                audio.py       Player       + I2sTonePlayer / SilentPlayer
                 buttons.py     Button
                 status_led.py  StatusLed
                 vl6180x.py     the rangefinder's registers

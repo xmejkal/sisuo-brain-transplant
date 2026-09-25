@@ -68,7 +68,7 @@ describe("the real board", () => {
 
   test("the parts that are missing are missing on purpose", () => {
     const skippedNames = emitted.skipped.map((skip) => skip.component);
-    expect(skippedNames).toContain("Mp3Player");    // no Wokwi part; the log shows the cue
+    expect(skippedNames).toContain("AudioAmp");     // no Wokwi part; the log shows the cue
     expect(skippedNames).toContain("BinConnector");  // a connector is wiring, not a part
     expect(skippedNames).toContain("CurrentShunt");  // a resistor with no behaviour to simulate
 

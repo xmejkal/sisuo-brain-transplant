@@ -4,7 +4,7 @@ Every device the bin can command or read, constructed in one place.
 THE RULE, because it was not obvious before: **hardware owns devices, not decisions.**
 
     a device      knows how to talk to a physical thing: the motor driver, the LED, a button,
-                  the MP3 module, the rangefinder chip. It has no opinion about the lid.
+                  the amplifier, the rangefinder chip. It has no opinion about the lid.
     a strategy    makes a decision using devices: "is that a hand?", "is the lid shut?",
                   "should we sleep?" Those live in proximity.py, close_detection.py and power.py, and are
                   assembled in assembly.py.
@@ -20,7 +20,7 @@ fact about the board and lives in boards/<id>.json, reaching this code through b
 config.py says which GPIO carries which function.
 """
 
-from machine import ADC, I2C, PWM, Pin, UART
+from machine import ADC, I2C, I2S, PWM, Pin, UART
 
 from . import audio, buttons, log, motor, status_led, timing
 
@@ -39,10 +39,11 @@ class Hardware:
 
         # Always fitted.
         #
-        # The MP3 rail's switch comes first because building the player powers the module, and
-        # the P-channel gate is ACTIVE LOW: `value=1` at construction is OFF, which is the state
-        # the gate resistor already holds through reset. Constructing this changes nothing.
-        self.mp3_power = Pin(config.PIN_MP3_ENABLE, Pin.OUT, value=1)
+        # The amplifier's shutdown line comes first because building the player will drive it,
+        # and `value=0` at construction is OFF — 0.6 uA. It is an output from the first
+        # instruction so it is never left floating, which the module reads as "pick a channel"
+        # rather than "be quiet".
+        self.audio_shutdown = Pin(config.PIN_AUDIO_SD, Pin.OUT, value=0)
         self.motor = self._build_motor(config)
         self.button_open, self.button_mode, self.led = self._build_controls(config)
         self.player = self._build_player(config)
@@ -85,33 +86,72 @@ class Hardware:
 
     def _build_player(self, config):
         """
-        The MP3 module, or silence.
+        The audio hardware named by `config.AUDIO_STRATEGY`, or silence.
 
         A bin that cannot make a noise still empties itself, so nothing here is allowed to stop
-        the firmware starting. `rx=-1` should mean "leave the receive pin alone" on this port,
-        but it is unverified on hardware, and a ValueError at this point would take the whole bin
-        down over a speaker.
+        the firmware starting: a peripheral that will not open — a pin already claimed, a port
+        built without I2S, a UART id this chip does not have — costs a chirp and not the lid.
+
+        The two strategies want DIFFERENT BOARDS, which is why each builder asks for the pins it
+        needs rather than assuming they exist. Selecting `dfr0534` on the v4 design would
+        otherwise send frames into a pin carrying the amplifier's shutdown line: no error, no
+        sound, and a shutdown pin being driven with serial data.
         """
         if not config.AUDIO_ENABLED:
             return audio.SilentPlayer()
 
-        try:
-            uart = self._open_mp3_uart(config)
-        except Exception as exception:  # noqa: BLE001 - see docstring
-            log.error("no MP3 module (%s); the bin will run silently", exception)
+        strategy = getattr(config, "AUDIO_STRATEGY", "i2s")
+        builder = {"i2s": self._build_i2s_player, "dfr0534": self._build_dfr0534_player}.get(strategy)
+        if builder is None:
+            log.error("unknown AUDIO_STRATEGY %r; the bin will run silently", strategy)
             return audio.SilentPlayer()
 
-        return audio.Dfr0534Player(uart, config.VOLUME)
-
-    def _open_mp3_uart(self, config):
-        """Transmit only: the module's TXD is deliberately unwired (see audio.Dfr0534Player)."""
         try:
-            return UART(config.MP3_UART_ID, baudrate=config.MP3_BAUD, tx=config.PIN_MP3_TX, rx=-1)
-        except (ValueError, TypeError):
-            # Some ports will not accept -1 for "no pin". Fall back to letting the port pick its
-            # own receive pin: we never read it, and an unused input is harmless.
-            log.warn("this port rejects rx=-1; opening the MP3 UART with its default receive pin")
-            return UART(config.MP3_UART_ID, baudrate=config.MP3_BAUD, tx=config.PIN_MP3_TX)
+            return builder(config)
+        except Exception as exception:  # noqa: BLE001 - see docstring
+            log.error("no %s audio (%s); the bin will run silently", strategy, exception)
+            return audio.SilentPlayer()
+
+    def _build_i2s_player(self, config):
+        return audio.I2sTonePlayer(self._open_i2s(config), self.audio_shutdown, config.VOLUME)
+
+    def _build_dfr0534_player(self, config):
+        """
+        The v3 board's UART module.
+
+        `PIN_MP3_TX` does not exist in a v4 configuration, and that absence is the check: the
+        pin map IS the statement of which board is fitted, so asking it is more honest than a
+        second flag that could disagree with it.
+        """
+        transmit = getattr(config, "PIN_MP3_TX", None)
+        if transmit is None:
+            raise ValueError(
+                "AUDIO_STRATEGY is 'dfr0534' but this configuration has no PIN_MP3_TX. That "
+                "module needs the v3 board (board-v3-dfr0534.tsx); the current pin map gives "
+                "D3 to the I2S amplifier's shutdown line")
+        return audio.Dfr0534Player(
+            UART(config.MP3_UART_ID, baudrate=config.MP3_BAUD, tx=transmit, rx=-1),
+            config.VOLUME)
+
+    def _open_i2s(self, config):
+        """
+        Transmit-only mono I2S at the tone generator's own rate.
+
+        `ibuf` is the driver's ring buffer. It has to hold more than one write's worth or the
+        write blocks the event loop waiting for the peripheral to drain, which is the whole
+        reason cues are rendered in a task: 4 KB covers the longest cue in the table.
+        """
+        return I2S(
+            config.I2S_ID,
+            sck=Pin(config.PIN_I2S_BCLK),
+            ws=Pin(config.PIN_I2S_LRC),
+            sd=Pin(config.PIN_I2S_DIN),
+            mode=I2S.TX,
+            bits=16,
+            format=I2S.MONO,
+            rate=audio.TONE_RATE_HZ,
+            ibuf=config.I2S_BUFFER_BYTES,
+        )
 
     def _build_proximity_devices(self, config):
         """
@@ -168,39 +208,26 @@ class Hardware:
         return [hex(address) for address in self.sensor_bus.scan()]
 
     def enter_safe_state(self):
-        """Motor stopped, LED dark, IR emitter off, MP3 rail cut. Before sleep, and by hand."""
+        """Motor stopped, LED dark, IR emitter off, amplifier shut down. Before sleep, and by hand."""
         self.motor.stop()
         self.led.set(status_led.OFF)
         if self.ir_emitter is not None:
             self.ir_emitter.duty_u16(0)
-        self.set_mp3_power(False)
+        self.silence_audio()
 
-    async def power_up_audio(self):
+    def silence_audio(self):
         """
-        Bring the MP3 module's rail up and give it time to boot, before its first frame.
+        Shut the amplifier down: 0.6 uA, not the 340 uA of a clock-stopped standby.
 
-        Separate from construction on purpose. `Hardware(...)` is required to move nothing — it
-        puts pins in their resting state and stops — and powering a module and then blocking for
-        its boot is both of the things that rule forbids. It is also asynchronous rather than a
-        blocking sleep, so the bin is answering buttons while the module wakes up.
+        WHAT THIS REPLACED, and why the replacement is smaller. There used to be an async
+        `power_up_audio()` that switched a P-channel FET feeding the MP3 module and then waited
+        400 ms for it to boot, plus a `set_mp3_power()` to cut that rail before sleep. The
+        DFR0534 had no enable pin and an idle draw nobody had measured, so the board carried a
+        high-side switch to make the unmeasured number not matter.
+
+        The MAX98357A has a shutdown pin, so the rail, the switch, the gate resistor, the
+        reservoir capacitor and the boot delay all go away, and what is left is one line. The
+        amplifier has no firmware to boot, so there is nothing to wait for and nothing to
+        sequence — which is why `smart_bin` no longer awaits anything before its first cue.
         """
-        if self.mp3_power is None:
-            return
-        self.set_mp3_power(True)
-        await timing.async_sleep_ms(self.config.MP3_POWER_ON_MS)
-
-    def set_mp3_power(self, on):
-        """
-        Switch the MP3 module's rail.
-
-        The DFR0534 has no enable pin and its idle draw has never been measured; its class idles
-        around 15-25 mA, which would be roughly forty times everything else on this board put
-        together. Rather than wait for that measurement, the board carries a high-side switch and
-        this cuts the rail whenever the bin sleeps — so the answer changes how much is saved, not
-        whether the design works.
-
-        The switch is P-channel on the high side, so the GPIO is ACTIVE LOW.
-        """
-        if self.mp3_power is None:
-            return
-        self.mp3_power.value(0 if on else 1)
+        self.audio_shutdown.value(0)

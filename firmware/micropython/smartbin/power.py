@@ -57,15 +57,18 @@ class DeepSleepPolicy(PowerPolicy):
     The sensor keeps ranging while the chip is off, so the ESP32's own ~15 uA stops being the
     budget and the sensor's ~170 uA at one reading per second takes over.
 
-    That is only the budget for the parts this policy can switch off, and on this board it is not
-    the whole draw. **The DFR0534 sits permanently on VBAT with no enable pin** (`board.tsx`, the
-    Mp3Player VCC trace) and a module of that class idles somewhere around 15-25 mA. Nobody has
-    measured this one. If it is anywhere near that, it is roughly forty times everything else put
-    together, and sleeping the chip buys days rather than the months this docstring used to claim.
+    The amplifier used to be the other half of this budget and is no longer. A DFR0534 sat
+    permanently on the rail with no enable pin, its class idles somewhere around 15-25 mA,
+    nobody had measured it, and if it were anywhere near that figure it was roughly forty times
+    everything else put together — so no battery-life claim could be made at all.
 
-    Measuring it is five minutes with a meter and a cell, and the answer decides whether the board
-    needs a high-side switch on that rail before it is ever fabricated. Until then, treat any
-    battery-life figure for this bin as unknown rather than good.
+    Since 2026-09-25 the audio is a MAX98357A whose shutdown pin the firmware drives: 0.6 uA
+    held low, against 340 uA if the clock merely stops, and `hardware.enter_safe_state()` drops
+    it before every sleep. That is small enough to disappear beside the sensor, which means the
+    sensor is now genuinely the budget rather than one of two unknowns.
+
+    Still measured by nobody, and still the honest caveat on any figure quoted here: the
+    sensor's own idle draw, and what the module's regulators cost when nothing is running.
 
     Requirements this policy checks rather than assumes:
       * the sensor must be able to watch while asleep (`SENSOR_STRATEGY = "tof_interrupt"`);
