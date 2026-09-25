@@ -107,14 +107,23 @@ export const PARTS: PartMapping[] = [
     // The board carries a 5-pin header; what plugs into it is the rangefinder breakout (or the
     // IR pair, in the fallback build). Either way the simulation wants "something that reports a
     // distance over I2C", which is the custom chip in sim/chips/.
-    match: /SensorHeader|Ir(Sensor)?|Tof|Rangefinder/,
+    match: /SensorHeader|Ir(Sensor)?|Tof|Rangefinder|Vl6180/i,
     wokwiType: "chip-vl6180x",
-    pins: { VIN: "VIN", VCC: "VIN", GND: "GND", SDA: "SDA", SCL: "SCL", INT: "INT", OUT: "INT" },
+    // Every name the carriers use for the same five pads. `GPIO1` is Pololu's name for the
+    // interrupt on carrier #2489 and `OUT` is the IR receiver's; both are the pin this chip
+    // calls INT. A breakout's own silkscreen is not negotiable, so the aliases live here.
+    pins: { VIN: "VIN", VCC: "VIN", GND: "GND", SDA: "SDA", SCL: "SCL",
+            INT: "INT", OUT: "INT", GPIO1: "INT" },
     attrs: { distance: "200" },
     side: "right",
   },
   {
-    match: "MotorDriver",
+    // Matched on the PART, not on one board's name for the instance. This was the string
+    // "MotorDriver", which is what THIS board calls it — a design generated from a module list
+    // names its components after the part (`L9110sModule`), and the same physical driver then
+    // failed to map. What the simulation needs to know is "this is an L9110S", and the instance
+    // name is the board's business.
+    match: /^MotorDriver$|L9110/i,
     wokwiType: "chip-l9110s",
     pins: {
       // v2 names the module's own pins; the v1 board's TB6612 names are kept so the old design
@@ -178,8 +187,10 @@ export const SKIP: SkipRule[] = [
     reason: "decoupling and bulk capacitors do nothing in a digital simulation",
   },
   {
-    match: /^BinConnector$/,
-    reason: "a connector is wiring, not a part to simulate",
+    match: /^BinConnector$|PowerInlet|^Jst/i,
+    reason: "a connector is wiring, not a part to simulate. Matched by KIND rather than by one "
+      + "board's name for it, so a generated design naming its inlet after the part is covered "
+      + "too",
   },
   { match: /^Speaker$/, reason: "no Wokwi part; the firmware's log says which cue it played" },
   {
