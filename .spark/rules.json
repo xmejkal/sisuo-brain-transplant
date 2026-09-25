@@ -32,13 +32,26 @@
         "max_current_a": 1.5,
         "//max_current_a": "1.5 A is the L9110S's own limit, NOT a measurement of this motor. Copper sized for what the driver can pass is sufficient whatever the motor wants, because the driver is in series with it. The unmeasured stall current decides whether the DRIVER is right - it does not change the trace width.",
         "served_by_pour": true,
-        "//served_by_pour": "GND carries the motor return AND every signal return, so a single max_current_a is not true of the whole net - a button's ground does not see 1.5 A. The return is a copper pour, which a trace-width rule cannot size, so the check reports it as unverified rather than pretending either way."
+        "//served_by_pour": "GND carries the motor return AND every signal return, so a single max_current_a is not true of the whole net - a button's ground does not see 1.5 A. The return is a copper pour, which a trace-width rule cannot size, so the check reports it as unverified rather than pretending either way.",
+        "//resistor_currents": "The current a person knows and a netlist cannot: a netlist records neither the current through a resistor nor the voltage across it. Stated only where dissipation actually matters, which here is the shunt and nothing else.",
+        "resistor_currents": {
+          "CurrentShunt": 1.5
+        },
+        "//CurrentShunt": "The motor's whole return current passes through it, so its worst case is the rail's: 1.5 A, the L9110S's own limit rather than a measurement of this motor. 1.5^2 * 0.1 = 0.225 W against a 2512's 1 W. Comfortable - but it is 0.15 V of sense signal at full current, which is the number the stall detector actually reads, and it is why the shunt is 0.1 ohm and not larger: a bigger shunt reads more easily and steals more of the motor's supply."
       },
       "V33": {
         "nominal_volts": 3.3,
         "max_current_a": 0.5,
         "//max_current_a": "The DFR0534 plus the ESP32. An estimate, not a measurement - the module's idle draw has never been measured.",
-        "capacitor_chemistry": "ceramic"
+        "capacitor_chemistry": "ceramic",
+        "//resistor_currents": "Pull-ups, stated so the check can pass rather than report five resistors it could not assess. None of these dissipates anything interesting; saying so explicitly is cheaper than a standing could-not-run that trains people to ignore the line.",
+        "resistor_currents": {
+          "SdaPullup": 0.0015,
+          "SclPullup": 0.0015,
+          "TofIntPullup": 3.3e-05,
+          "BtnOpenPullup": 3.3e-05
+        },
+        "//pullup_currents": "Worst case is the line held hard low: 3.3 V / 2.2k = 1.5 mA for the I2C pair, 3.3 V / 100k = 33 uA for the two wake-input holds. The I2C pair is also the sinking current the bus masters must handle, and 1.5 mA is well inside the 3 mA every device here allows."
       }
     }
   }
