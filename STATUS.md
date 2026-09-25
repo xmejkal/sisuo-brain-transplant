@@ -16,20 +16,27 @@ hardware.**
 2026-09-24 found six defects, one of which destroys a GPIO the first time the firmware runs. They
 are listed immediately below and every one was reproduced before being written down.
 
-## STOP — do not order this board
+## Where the circuit stands
 
-| # | defect | why it matters |
+Five of the seven blockers are closed, each verified by running something rather than by reading
+the change. `make check` is green.
+
+| # | was | now |
 | --- | --- | --- |
-| 1 | **`Mp3Switch` SOT-23 pads are mapped wrong** | tscircuit binds pad 1 = drain, 2 = source, 3 = gate. Every real SOT-23 P-FET (AO3401A, SI2301, DMG2305UX, BSS84) is **gate, source, drain**. A real part on these pads puts the load on its gate and GPIO5 on its drain with 3.3 V on the source: on from power-up, and the first `set_mp3_power(True)` shorts the 2 A buck to ground through a GPIO. `make check` now fails on this. **Fab-blocking.** |
-| 2 | **Nobody knows which MP3 module this is** | see "the audio decision" below. The board's footprint fits neither candidate. **Fab-blocking.** |
-| 3 | **`MotorDriver` and `Mp3Player` are pad-identical** | both `headermodule6`, same orientation, 24 mm apart on one axis. Swap the modules and 6 V lands on the audio module's serial input. |
-| 4 | **The pours reach the mounting-hole walls** | `automaticPoursEnabled` runs copper to the drill. A metal M3 screw head at (-46, 27) bridges **V33 to GND**; at (46, -27) it bridges **MP3_V33 to V33**, shorting out the high-side switch. No annular ring at all. |
-| 5 | **Deep sleep never wakes** | `WAKE_ON_HIGH = False` selects `esp32.WAKEUP_ALL_LOW`, which is an **AND** across both armed pins, so the bin wakes only if you hold OPEN *while* waving. A board-swap regression: the C6 had per-pin ext1 polarity, the S3 does not, and `boards/firebeetle2-esp32s3.json` records that in a field nothing reads. Fix by waking HIGH with pulldowns, using `wake_on_ext0` (one pin only), or arming one pin at a time. |
-| 7 | **`Speaker` and `BinConnector` annular rings are 0.225 mm** | Both JST footprints put a 1.20 mm pad around a 0.75 mm obround hole, leaving 0.225 mm of copper — under the 0.25 mm a cheap two-layer process guarantees. At best the order is quoted higher or bounced for engineering review; at worst the ring tears off the barrel and the connector goes open after a few mating cycles. Grow the pad to at least 1.25 mm. **Found 2026-09-25**, and the reason it was not found earlier is itself the story: spark's hole rules read only `hole_diameter`/`outer_diameter`, so all four pill holes on this board sat in a "could not examine" bucket while the tool printed *buildable*. |
-| 6 | **470 uF behind a hard-switched FET** | `Mp3ReservoirCap` is on the switched rail with no gate resistor and no soft-start, so turn-on inrush is limited only by Rds(on). The fix for the MP3's idle current created this. A gate RC cannot be added after fabrication. |
+| 1 | `Mp3Switch` SOT-23 pads mapped drain/source/gate where every real P-FET is gate/source/drain | **gone** — the part is not on the board. The I2S amplifier has a shutdown pin, so there is no rail to switch |
+| 2 | Nobody knows which audio module this is | **STILL OPEN, and yours to settle.** See below — it is a look in a drawer |
+| 3 | `MotorDriver` and the audio module pad-identical, 24 mm apart | **gone** — 12 pads in two rows against 6 in one. spark's cross-pluggable rule no longer reports it |
+| 4 | Pours ran to the mounting-hole walls; a screw head bridged V33 to GND | **gone** — measured at 0.19 mm on two corners, an M3 head overhangs 1.15 mm. Ground is now the only poured net, so there is nothing to bridge TO |
+| 5 | Deep sleep never woke: `WAKEUP_ALL_LOW` is an AND across every armed pin | **gone** — both wake sources assert HIGH and the firmware arms `WAKEUP_ANY_HIGH`, a genuine OR |
+| 6 | 470 uF hard-switched with no soft-start | **gone** — the switched rail it sat on does not exist |
+| 7 | `Speaker` and `BinConnector` annular rings are 0.225 mm, under the 0.25 mm a cheap process guarantees | open, and **deliberately parked**: this is a fabrication-process limit, not a circuit fault. It matters the day the board is ordered and not before |
 
-Items 1, 3, 4 and 6 disappear entirely if the audio goes I2S. Item 7 does not — it is in the
-connector footprints and survives any audio decision.
+**What is still unproven, and cannot be proven here.** Nothing has touched hardware. The motor's
+real current, the lid's stroke times, and whether the bin actually wakes on a real chip are bench
+measurements — and Wokwi does not wake an ESP32 from a GPIO at all, established there by
+experiment. The wake FIX is checked structurally: `wake-polarity.ts` compares the level the board
+asserts against the level the firmware arms for, which is the one disagreement no firmware test
+can see, because they all derive from the same constant.
 
 ## The audio decision, which is the fork everything else waits on
 
