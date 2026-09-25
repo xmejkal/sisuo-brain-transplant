@@ -15,7 +15,7 @@ the sensor is not?": **a device is a thing you command; a strategy is a decision
                 config.py      every pin and tunable; /config.json holds per-unit calibration
 
   2. DEVICES    hardware.py    everything physical, constructed in one place and opinion-free:
-                               the motor driver, the buttons, the LED, the MP3 module, the
+                               the motor driver, the buttons, the LED, the amplifier, the
                                rangefinder chip, the limit switch, the current sense.
                 motor.py       MotorDriver  + L9110MotorDriver
                 audio.py       Player       + I2sTonePlayer / SilentPlayer
@@ -79,8 +79,8 @@ WHAT HAPPENS WHEN SOMEONE WAVES
     the lid's enter-hook for OPENING.
  4. The hook starts a stroke: drive the motor open, and watch three things — the hard safety cap
     (MOTOR_MAX_RUN_MS, checked first and always), the close detector, the calibrated run time.
- 5. Entering OPENING also publishes "entered:opening", so the LED turns green and the MP3 module
-    plays whatever the current sound profile maps that state to. The lid is not involved.
+ 5. Entering OPENING also publishes "entered:opening", so the LED turns green and the player
+    sounds whatever cue the current profile maps that state to. The lid is not involved.
  6. The stroke ends and reports STROKE_FINISHED -> the machine moves to OPEN, which starts the
     hold timer. When it expires: CLOSING, and the same again in reverse.
  7. If something blocks the lid on the way down, the stroke reports SAFETY_CAP_TRIPPED, which in

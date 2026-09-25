@@ -69,7 +69,7 @@ class FakePWM:
 
 
 class FakeUART:
-    """Collects everything written, which is how the MP3 frames are inspected."""
+    """Collects everything written, which is how the DFR0534 strategy's frames are inspected."""
 
     instances = []
 

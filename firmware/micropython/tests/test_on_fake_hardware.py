@@ -5,7 +5,7 @@ Everything else on the Mac stops at the strategies, because `hardware.py` import
 With `fake_machine` installed, these run the real device construction, the real VL6180X register
 conversation and the real tasks — so a test can press a button and watch the motor pins.
 
-It is not a substitute for the bench (timing, electrical behaviour and the DFR0534's real
+It is not a substitute for the bench (timing, electrical behaviour and the amplifier's real
 command set are all outside it), but it catches the class of mistake that costs an evening:
 a pin built with the wrong mode, a driver that talks to the wrong register, a task that never
 fires the trigger it should.
