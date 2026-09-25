@@ -73,9 +73,13 @@ DIN -> `MISO` GPIO16, SD -> `D3` GPIO38. All four are ADC2 or non-wake pins, and
 4. **Motor current, running and stalled** (multimeter in series, stall the lid by hand). The
    70 mA / 230 mA figures are from patent literature, not this motor. **Above ~500 mA the L9110S
    has no margin and the driver choice changes.** This single number can invalidate the design.
-   There is now a second, independent ceiling from the same number: the 0.33 R shunt lifts the
-   driver's ground, and the driver's inputs go below their 2.5 V threshold at about **2.4 A**.
-   See the L9110S entry in `parts/PARTS.md` for the table. One measurement settles both.
+   There used to be a second, independent ceiling from the same number — the shunt lifts the
+   driver's local ground, and its inputs are referenced to that — but **it no longer binds**.
+   The driver's input-high threshold is 2.5 V absolute, so 3.3 V logic has 0.8 V of headroom and
+   the ground lift is I x R_shunt. At the old **0.33 R** that reached the threshold at 2.4 A; at
+   the **0.1 R** now fitted it is 8 A, far above the L9110S's own 800 mA per channel. The driver
+   rating is the only ceiling left, and the derived 2.4 A figure went stale the moment the shunt
+   changed. See the L9110S entry in `parts/PARTS.md`.
 5. ~~Confirm the XIAO battery-pad polarity with a meter~~ — **no longer applies.** The FireBeetle
    carries its own JST battery socket and an ETA6003 charger, so the cell plugs into the module
    and the board has no battery connector at all. This blocker was removed by the board change,
@@ -94,7 +98,10 @@ DIN -> `MISO` GPIO16, SD -> `D3` GPIO38. All four are ADC2 or non-wake pins, and
    the L9110S's rating and over the 0805 shunt's power rating.
 8. **GitHub**: run `gh auth login`, then the repo gets created and pushed (see below).
    `~/Development/spark` is a git repo now, at v0.5.0, with no remote.
-7. ~~A Wokwi token~~ — done; `make simulate` runs, and four scenarios pass.
+7. ~~A Wokwi token~~ — done. `make simulate` runs and **`lid-cycle` passes**. The other four
+   scenarios — wave-to-open, obstruction, sensor-trouble, deep-sleep — are written and have
+   NEVER BEEN RUN. Wokwi CI minutes are a small free quota, so run them deliberately rather
+   than wiring them into a gate.
 
 ## Next steps, in order
 
