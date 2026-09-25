@@ -35,9 +35,13 @@
       ],
       "pitch_mm": 2.54,
       "row_spacing_mm": 22.86,
+      "//drill_mm": "DFRobot's own finished hole for DFRobot's own obround pad. It is NOT the hole to put in a board this module plugs into: a 2.54 mm header pin is 0.64 mm square, so 0.905 mm across the diagonal, and a 0.9 mm drill finishes near 0.84 mm after plating. Carried because it is what the vendor drawing says; emit_footprint.py deliberately ignores it and sizes the hole from the pin that has to go in.",
       "drill_mm": 0.9,
       "pad_mm": 1.5,
-      "//alignment": "Both rows are flush at the end away from USB-C; the 18-pin row runs four pitches further toward the USB end. First pad is 5.20 mm from the flush edge."
+      "//alignment": "Both rows are flush at the end away from USB-C; the 18-pin row runs four pitches further toward the USB end.",
+      "//first_pad_from_edge_mm": "Centre of the first pad of BOTH rows, from the flush edge. This was prose inside the line above until 2026-09-25, which meant the one number tying the pads to the outline could not be read by anything - the same defect as the header order itself. Check: 60.0/2 - 5.2 = 24.80 mm, where the hand-checked footprint puts pad 1.",
+      "first_pad_from_edge_mm": 5.2,
+      "flush_edge": "+y"
     },
     "mounting_holes": {
       "count": 4,
@@ -50,6 +54,52 @@
     "wokwi_size_px": {
       "width": 70,
       "height": 160
+    },
+    "//header_order": "Which silkscreen label sits on which PAD, per row, in physical order from the flush end. The geometry above is precise to 0.01 mm and this is the one fact that cannot be derived from it \u2014 a cold rebuild of this board was blocked here, and had to guess. UNRESOLVED: pads 14 and 16 of the 18-pin row. This file calls them GND1/GND3 from one reading of DFRobot's schematic; a later reading of the same schematic and the board photo says they are silkscreened NC and carry no net. Treating them as GND is the safe direction \u2014 a ground trace terminating on an unconnected pad is harmless, whereas treating a real ground pad as NC loses a return path. Settle it with a continuity meter, module to pad.",
+    "header_order": {
+      "//": "18-pin row first, then the 14-pin row; each from the end away from the USB-C.",
+      "row_18": [
+        "RX",
+        "TX",
+        "D2",
+        "D3",
+        "D5",
+        "D6",
+        "D7",
+        "D9",
+        "SDA",
+        "SCL",
+        "MI",
+        "MO",
+        "SCK",
+        "GND1",
+        "GND2",
+        "GND3",
+        "3V3",
+        "RST"
+      ],
+      "row_14": [
+        "D10",
+        "D11",
+        "D12",
+        "D13",
+        "A0",
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5",
+        "D14",
+        "D-",
+        "D+",
+        "VCC"
+      ]
+    },
+    "//pad_aliases": "Where a pin's NAME in `pins` differs from the label silkscreened on its PAD. The silkscreen abbreviates, and one GPIO is brought out twice. A footprint generated from the silkscreen gives a pad called MI while the design writes a trace to MISO, and they do not connect \u2014 silently, because nothing downstream knows the two words mean one pad.",
+    "pad_aliases": {
+      "MISO": "MI",
+      "MOSI": "MO",
+      "SS": "A4"
     }
   },
   "//wokwi_part_type": "Wokwi has no FireBeetle 2 S3 part (wokwi/wokwi-boards lists no such board), so the simulation stands in the generic S3 devkit. This is honest rather than approximate: it is the same silicon, it exposes GPIO 0-21 and 35-48 - a superset of every pin this board brings out - and it names its pins by raw GPIO number, which is what the diagram generator emits anyway. What is lost is the silkscreen labels in the simulator picture, and nothing else.",

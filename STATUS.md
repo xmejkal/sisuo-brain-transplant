@@ -25,9 +25,11 @@ are listed immediately below and every one was reproduced before being written d
 | 3 | **`MotorDriver` and `Mp3Player` are pad-identical** | both `headermodule6`, same orientation, 24 mm apart on one axis. Swap the modules and 6 V lands on the audio module's serial input. |
 | 4 | **The pours reach the mounting-hole walls** | `automaticPoursEnabled` runs copper to the drill. A metal M3 screw head at (-46, 27) bridges **V33 to GND**; at (46, -27) it bridges **MP3_V33 to V33**, shorting out the high-side switch. No annular ring at all. |
 | 5 | **Deep sleep never wakes** | `WAKE_ON_HIGH = False` selects `esp32.WAKEUP_ALL_LOW`, which is an **AND** across both armed pins, so the bin wakes only if you hold OPEN *while* waving. A board-swap regression: the C6 had per-pin ext1 polarity, the S3 does not, and `boards/firebeetle2-esp32s3.json` records that in a field nothing reads. Fix by waking HIGH with pulldowns, using `wake_on_ext0` (one pin only), or arming one pin at a time. |
+| 7 | **`Speaker` and `BinConnector` annular rings are 0.225 mm** | Both JST footprints put a 1.20 mm pad around a 0.75 mm obround hole, leaving 0.225 mm of copper — under the 0.25 mm a cheap two-layer process guarantees. At best the order is quoted higher or bounced for engineering review; at worst the ring tears off the barrel and the connector goes open after a few mating cycles. Grow the pad to at least 1.25 mm. **Found 2026-09-25**, and the reason it was not found earlier is itself the story: spark's hole rules read only `hole_diameter`/`outer_diameter`, so all four pill holes on this board sat in a "could not examine" bucket while the tool printed *buildable*. |
 | 6 | **470 uF behind a hard-switched FET** | `Mp3ReservoirCap` is on the switched rail with no gate resistor and no soft-start, so turn-on inrush is limited only by Rds(on). The fix for the MP3's idle current created this. A gate RC cannot be added after fabrication. |
 
-Items 1, 3, 4 and 6 disappear entirely if the audio goes I2S.
+Items 1, 3, 4 and 6 disappear entirely if the audio goes I2S. Item 7 does not — it is in the
+connector footprints and survives any audio decision.
 
 ## The audio decision, which is the fork everything else waits on
 
