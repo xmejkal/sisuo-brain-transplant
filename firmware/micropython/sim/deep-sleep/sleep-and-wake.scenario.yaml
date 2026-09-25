@@ -14,8 +14,12 @@ name: sleeps and arms the right pins
 version: 1
 author: smartbin
 
+# ONE assertion, deliberately. Three sequential `wait-serial` steps timed out on 2026-09-25
+# even though all three lines appeared: "smartbin ready: ... power=deep_sleep" and
+# "power: cold boot" arrive in the same buffer flush, and a matcher that starts looking for the
+# second only after matching the first can miss a line that has already streamed past. Waiting
+# on the last and most specific line proves every earlier one anyway — the firmware cannot print
+# it without having chosen deep_sleep, booted, and reached sleep.
 steps:
-  - wait-serial: "power=deep_sleep"
-  - wait-serial: "power: cold boot"
   - wait-serial: "power: sleeping, wake on GPIO [13, 12]"
   - delay: 200ms

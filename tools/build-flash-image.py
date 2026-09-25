@@ -49,10 +49,19 @@ MICROPYTHON_IMAGE = SIM / ("micropython-%s.bin" % boards.get(REPO, "chip"))
 MICROPYTHON_PORT = boards.get(REPO, "micropython_port")
 OUTPUT_IMAGE = SIM / "flash-with-firmware.bin"
 
-# Settings written into /config.json inside the image, for simulating a bin configured
-# differently from the default — deep sleep, say, which cannot be tested any other way.
-# Only keys in config.CALIBRATABLE are accepted by the firmware.
-CONFIG_OVERRIDES: dict = {}
+# Settings written into /config.json inside the image. Only keys in config.CALIBRATABLE are
+# accepted by the firmware.
+#
+# The MAIN simulation image is the BENCH configuration: awake, polling the rangefinder over I2C.
+# This was `{}` until 2026-09-25, which inherited config.py's deployed defaults — deep_sleep and
+# tof_interrupt — so the bin under test slept and let the sensor range by itself. Two scenarios
+# could therefore never pass, and never had: `wave-to-open` and `obstruction` both drive the
+# sensor's distance control and wait for the lid to react, which a sleeping bin with a
+# self-ranging sensor does not do. Both timed out at "smartbin ready" for the life of the file.
+#
+# The battery configuration is not lost: it has its own image and its own project directory,
+# because a wokwi.toml names exactly one firmware. See sim/deep-sleep/.
+CONFIG_OVERRIDES: dict = {"POWER_POLICY": "always_on", "SENSOR_STRATEGY": "tof"}
 
 FLASH_SIZE = 4 * 1024 * 1024        # the XIAO ESP32-C6 has 4 MB
 FILESYSTEM_OFFSET = 0x200000        # where MicroPython looks, per partitions-4MiBplus.csv

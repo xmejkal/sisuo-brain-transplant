@@ -113,6 +113,25 @@
     "GND3": "GND.3"
   },
   "wokwi_is_stand_in": true,
+  "//power_pads": "Which pad carries which rail, and which way it flows. This fact existed only as `wokwi_power_pins` until 2026-09-25 - the same knowledge, named for one consumer, so the schematic generator could not read it and emitted no power connection for the module at all. The generated board's microcontroller shared a net with NONE of its 32 pins: no ground, no 3.3 V. It built, routed 8 of 11 traces, and the gate called it done. VCC is deliberately absent: it is the USB 5 V rail, an output these designs do not consume, and wiring it up by default is how 5 V reaches 3.3 V logic.",
+  "power_pads": {
+    "GND1": {
+      "rail": "ground",
+      "direction": "out"
+    },
+    "GND2": {
+      "rail": "ground",
+      "direction": "out"
+    },
+    "GND3": {
+      "rail": "ground",
+      "direction": "out"
+    },
+    "3V3": {
+      "rail": "logic",
+      "direction": "out"
+    }
+  },
   "//pins": "The silkscreen label on the board, and the GPIO it actually is. This is the single most error-prone fact about any board: here D2 is GPIO3, D9 is GPIO0, and D13 is GPIO21. The labels are not a sequence and must never be inferred. Note that D0, D1, D4 and D8 do not exist on this board - DFRobot skips them.",
   "pins": {
     "D2": 3,
