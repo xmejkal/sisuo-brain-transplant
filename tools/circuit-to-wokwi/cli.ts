@@ -5,12 +5,15 @@
  *   bun run cli.ts                       write the diagram, reporting what it did
  *   bun run cli.ts --check               fail if the committed diagram is out of date (CI)
  *   bun run cli.ts --circuit x --out y   somewhere other than the defaults
+ *   bun run cli.ts --mapping m.json --chips dir   the spark spine's mapping from the part records,
+ *                                        and the chips it staged (SPARK_BOARD_JSON names the board)
  *
  * `--check` is the point of the whole tool: it turns "the simulation matches the board" from a
  * hope into something that fails a build.
  */
 
 import { emitWokwiDiagram } from "./lib/emitters/wokwi";
+import { loadMappingFile } from "./lib/mapping";
 import { mergeWithExisting } from "./lib/merge";
 import { buildNetlist } from "./lib/netlist";
 import { ConversionFailed } from "./lib/types";
@@ -24,15 +27,21 @@ interface Options {
   circuit: string;
   out: string;
   check: boolean;
+  /** A mapping from the part records, written by the spark spine; the hand table is the fallback. */
+  mapping?: string;
+  /** Where the custom chips' `*.chip.json` live, for the pin oracle. */
+  chips: string;
 }
 
 function parseArguments(argv: string[]): Options {
-  const options: Options = { circuit: DEFAULT_CIRCUIT, out: DEFAULT_OUT, check: false };
+  const options: Options = { circuit: DEFAULT_CIRCUIT, out: DEFAULT_OUT, check: false, chips: DEFAULT_CHIPS };
   for (let index = 0; index < argv.length; index++) {
     const argument = argv[index];
     if (argument === "--check") options.check = true;
     else if (argument === "--circuit") options.circuit = argv[++index] ?? options.circuit;
     else if (argument === "--out") options.out = argv[++index] ?? options.out;
+    else if (argument === "--mapping") options.mapping = argv[++index];
+    else if (argument === "--chips") options.chips = argv[++index] ?? options.chips;
     else if (argument === "--help") {
       console.log(__doc__());
       process.exit(0);
@@ -42,15 +51,19 @@ function parseArguments(argv: string[]): Options {
 }
 
 function __doc__() {
-  return `Usage: bun run cli.ts [--circuit <circuit.json>] [--out <diagram.json>] [--check]`;
+  return `Usage: bun run cli.ts [--circuit <circuit.json>] [--out <diagram.json>] [--mapping <wokwi-mapping.json>] [--chips <dir>] [--check]`;
 }
 
 async function main() {
   const options = parseArguments(process.argv.slice(2));
 
   const circuitJson = await Bun.file(options.circuit).json();
+  if (options.mapping) {
+    const spokenFor = loadMappingFile(options.mapping);
+    console.log(`mapping from the part records: ${spokenFor} component(s)`);
+  }
   const { netlist, problems: designProblems } = buildNetlist(circuitJson);
-  const emitted = emitWokwiDiagram(netlist, { chipsDirectory: DEFAULT_CHIPS });
+  const emitted = emitWokwiDiagram(netlist, { chipsDirectory: options.chips });
   const existing = await readExisting(options.out);
   const { diagram, summary } = mergeWithExisting(emitted.diagram, existing);
   const validation = validate({ ...emitted, diagram }, netlist.components.length);

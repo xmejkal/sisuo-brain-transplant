@@ -12,7 +12,38 @@
  * simulation is a simulation quietly lying about the board.
  */
 
+import { readFileSync } from "node:fs";
+
 import { board } from "./board";
+
+/**
+ * A mapping written from the PART RECORDS rather than typed here (spark backlog P31): the spark
+ * spine reads each record's `simulation` — a Wokwi part standing in, a chip kept beside the
+ * record, or a reason the part is absent — and writes one entry per component NAME as its
+ * generator emits it. Consulted before the hand table below, which stays for boards written by
+ * hand (this repo's own) and for the passives a generator adds.
+ */
+export interface FileEntry {
+  wokwiType?: string;
+  pins?: Record<string, string | null>;
+  attrs?: Record<string, string>;
+  side?: "left" | "right";
+  /** Present instead of a part: why the simulation does without this component. */
+  skip?: string;
+}
+
+let fromRecords: Record<string, FileEntry> = {};
+
+/** Load the spine's file; returns how many components it speaks for. */
+export function loadMappingFile(path: string): number {
+  useMappings(JSON.parse(readFileSync(path, "utf8")));
+  return Object.keys(fromRecords).length;
+}
+
+/** The same, from memory — for tests, and for a caller that already has the entries. */
+export function useMappings(entries: Record<string, FileEntry>) {
+  fromRecords = entries;
+}
 
 export interface PartMapping {
   /** Component name, or a pattern for a family of them. */
@@ -218,10 +249,16 @@ export const SKIP: SkipRule[] = [
 ];
 
 export function findMapping(componentName: string): PartMapping | undefined {
+  const entry = fromRecords[componentName];
+  if (entry?.wokwiType) {
+    return { match: componentName, wokwiType: entry.wokwiType, pins: entry.pins, attrs: entry.attrs, side: entry.side };
+  }
   return PARTS.find((part) => matches(part.match, componentName));
 }
 
 export function findSkipRule(componentName: string): SkipRule | undefined {
+  const entry = fromRecords[componentName];
+  if (entry?.skip) return { match: componentName, reason: entry.skip };
   return SKIP.find((rule) => matches(rule.match, componentName));
 }
 

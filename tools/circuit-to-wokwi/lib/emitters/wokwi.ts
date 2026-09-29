@@ -119,8 +119,9 @@ function mapComponents(
     if (!mapping) {
       problems.push({
         message:
-          "no Wokwi part is mapped to this component. Add it to lib/mapping.ts, " +
-          "or add a skip rule saying why the simulation does without it",
+          "no Wokwi part is mapped to this component. Say in its part record how it is " +
+          "simulated (`simulation`: a stand-in part, a chip, or a skip with its reason), or " +
+          "add it to lib/mapping.ts for a hand-written board",
         context: { component: component.name },
       });
       continue;

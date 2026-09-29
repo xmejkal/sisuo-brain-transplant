@@ -59,12 +59,23 @@ export interface BoardDefinition {
   };
 }
 
+/**
+ * The spark spine names the DESIGN's resolved board here, because a design built elsewhere is
+ * not this repo's board: the irrigation controller was converted against the bin's `.spark/
+ * board.json` for an evening and nobody noticed only because both use the FireBeetle. Read
+ * from the environment rather than an argument because this file runs at import, before any
+ * argument is parsed.
+ */
+const BOARD_FROM_CALLER = process.env.SPARK_BOARD_JSON;
+
 export const board: BoardDefinition = JSON.parse(
-  readFileSync(new URL(RESOLVED_BOARD, import.meta.url), "utf8"),
+  BOARD_FROM_CALLER
+    ? readFileSync(BOARD_FROM_CALLER, "utf8")
+    : readFileSync(new URL(RESOLVED_BOARD, import.meta.url), "utf8"),
 );
 
 /** The active board's definition file, for error messages that have to name it. */
-export const BOARD_DEFINITION = RESOLVED_BOARD;
+export const BOARD_DEFINITION = BOARD_FROM_CALLER ?? RESOLVED_BOARD;
 
 /** The label a person reads on the silkscreen, for a GPIO number. */
 export function labelForGpio(gpio: number): string | undefined {
