@@ -13,6 +13,8 @@ single easiest mistake to make here, and the reason this table exists in exactly
 #   D14: the on-board user button, silkscreened D14. Already has a button on it, and cannot wake the chip from deep sleep.
 #   D3, TX, RX, D14: outside the RTC domain, so these cannot wake the chip however they are configured. Everything else on the header can.
 #   TX, RX: U0TXD and U0RXD — the ROM bootloader prints here on every reset and the serial console uses both. TX is driven push-pull at boot, so anything that acts on a level (a motor driver input, an enable line) twitches every time the board resets. Usable in a pinch, never a first choice, and taking them costs you the console you need during bring-up.
+#   MOSI, MISO, SCK, A4/SS: MOSI, MISO, SCK and SS: the hardware SPI bus, silkscreened MO, MI, SCK and A4. A design with no SPI may use them — but they are taken LAST, because the assigner spent the whole bus on two LEDs and a button when nothing marked it, and a later SPI part then had nowhere to go. Recorded 2026-09-29 (backlog P3).
+#   SDA, SCL: SDA and SCL: the hardware I2C bus. Same reasoning as spi. The smart bin never hit this only because its rangefinder claims both pins before anything else is placed.
 """
 
 NAME = "DFRobot FireBeetle 2 ESP32-S3"
