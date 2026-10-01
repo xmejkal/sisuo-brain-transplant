@@ -201,7 +201,7 @@ $(MODEL_3D): $(CIRCUIT)
 
 check: boards-valid vendor-pins-agree bom-matches-design physics-holds board-spec-current diagram-current firmware-tests firmware-compiles firmware-simulates board-builds \
        pins-agree simulation-matches docs-current
-	@$(if $(HAVE_SPARK),echo "\neverything is in step.",echo "\nin step - EXCEPT the four checks marked SKIPPED above, which need spark (B7).")
+	@$(if $(HAVE_SPARK),echo "\neverything is in step.",echo "\nin step - EXCEPT every step marked SKIPPED or skipped above: they did not run here.")
 
 # The BOM is the one artefact that stops being a design and becomes an order, and until this
 # existed nothing compared it to the schematic it came from.
