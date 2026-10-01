@@ -102,7 +102,8 @@ them.
    not have, and the audio module changed. The real part list is derivable from the netlist:
    25 components, `dist/board/circuit.json`.
 7. Only then, if ever: **blocker 7**, the 0.225 mm annular rings on `Speaker` and `BinConnector`.
-   Grow both pads to at least 1.25 mm. This matters the day the board is ordered and not before.
+   Since spark P57 (2026-10-01) this is an advisory: over JLCPCB's 0.18 mm minimum, under its
+   0.25 mm recommendation, so it is made as drawn. Grow both pads to 1.25 mm if the pitch allows.
 
 ---
 

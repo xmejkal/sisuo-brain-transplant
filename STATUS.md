@@ -29,7 +29,7 @@ the change. `make check` is green.
 | 4 | Pours ran to the mounting-hole walls; a screw head bridged V33 to GND | **gone** — measured at 0.19 mm on two corners, an M3 head overhangs 1.15 mm. Ground is now the only poured net, so there is nothing to bridge TO |
 | 5 | Deep sleep never woke: `WAKEUP_ALL_LOW` is an AND across every armed pin | **misdiagnosed, and closed anyway** — on the S3 ESP-IDF aliases `ALL_LOW` to `ANY_LOW`, an OR (found 2026-10-01, spark P60), so this was reasoned, never observed. Both sources now assert HIGH and the firmware arms `WAKEUP_ANY_HIGH`, which also stays clear of MicroPython #17334 |
 | 6 | 470 uF hard-switched with no soft-start | **gone** — the switched rail it sat on does not exist |
-| 7 | `Speaker` and `BinConnector` annular rings are 0.225 mm, under the 0.25 mm a cheap process guarantees | open, and **deliberately parked**: this is a fabrication-process limit, not a circuit fault. It matters the day the board is ordered and not before |
+| 7 | `Speaker` and `BinConnector` annular rings are 0.225 mm, under the 0.25 mm a cheap process guarantees | **an advisory, not a blocker** (2026-10-01, spark P57): JLCPCB's 2-layer 1 oz PTH minimum is 0.18 mm and 0.25 is its *recommendation*, so the board is made as drawn. `check_footprints` exits 0 and says so. Grow both pads to 1.25 mm if the pitch allows, the day the board is ordered |
 
 **What is still unproven, and cannot be proven here.** Nothing has touched hardware. The motor's
 real current, the lid's stroke times, and whether the bin actually wakes on a real chip are bench
