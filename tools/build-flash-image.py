@@ -22,7 +22,6 @@ simulated board boots to a bare REPL with no main.py, which is the symptom to lo
 """
 
 import json
-import os
 import sys
 from pathlib import Path
 
@@ -32,21 +31,18 @@ REPO = Path(__file__).resolve().parent.parent
 FIRMWARE = REPO / "firmware" / "micropython"
 SIM = FIRMWARE / "sim"
 
-# The board library lives in the spark plugin now. This script still imported a bare `boards`,
-# which was a `tools/boards.py` that moved out from under it — and nothing noticed, because
-# building a flash image is not part of `make check`. Resolved the same way the Makefile does,
-# so there is one answer to "where is spark" rather than two.
-SPARK = Path(os.environ.get("SPARK", Path.home() / "Development" / "spark"))
-sys.path.insert(0, str(SPARK / "scripts"))
-
-import boards  # noqa: E402
+# The active board, as spark's boards.py resolved and validated it — the same file
+# tools/generate-board-spec.py reads. This imported spark's `boards` to ask two questions the
+# resolved file already answers, which made the image builder, and the gate that imports it,
+# unable to run anywhere spark is not: CI, which cannot reach the private plugin (spark B7).
+RESOLVED_BOARD = json.loads((REPO / ".spark" / "board.json").read_text())
 
 # Named after the chip, not hard-coded: the Makefile guards this target on a file called
 # micropython-<chip>.bin, and a constant here that named a different chip made the guard pass
 # and the script then fail looking for the previous board's build. Which is exactly what
 # happened when the board changed from an ESP32-C6 to an S3.
-MICROPYTHON_IMAGE = SIM / ("micropython-%s.bin" % boards.get(REPO, "chip"))
-MICROPYTHON_PORT = boards.get(REPO, "micropython_port")
+MICROPYTHON_IMAGE = SIM / ("micropython-%s.bin" % RESOLVED_BOARD["chip"])
+MICROPYTHON_PORT = RESOLVED_BOARD["micropython_port"]
 OUTPUT_IMAGE = SIM / "flash-with-firmware.bin"
 
 # Settings written into /config.json inside the image. Only keys in config.CALIBRATABLE are

@@ -25,6 +25,15 @@ export PATH := $(CURDIR)/node_modules/.bin:$(HOME)/.local/bin:$(PATH)
 #   make check SPARK=/somewhere/else
 SPARK      ?= $(HOME)/Development/spark
 
+# spark is a private repository, and no token to reach it is kept on GitHub (backlog B7), so CI
+# runs without it. Then the board's facts come from the resolved file this repo commits — spark's
+# own validated output — and the four checks that run spark's scripts are SKIPPED: named in the
+# log, raised as a warning on the CI run, and named again in the last line. Never passed in
+# silence. With spark beside the repo, as on the bench machine, nothing here changes.
+HAVE_SPARK := $(wildcard $(SPARK)/scripts/boards.py)
+SKIPPED_WITHOUT_SPARK = echo "   SKIPPED: needs the spark plugin at $(SPARK), which is not here (B7)"; \
+                        echo "::warning title=Skipped - spark is not here::$@ was NOT checked: it runs spark's own scripts, and CI cannot reach the private plugin (backlog B7)"
+
 FIRMWARE   := firmware/micropython
 SIM        := $(FIRMWARE)/sim
 CONVERTER  := tools/circuit-to-wokwi
@@ -36,11 +45,20 @@ CONVERTER  := tools/circuit-to-wokwi
 # Resolved once, into one file, by the plugin's resolver — so Make, the firmware's generator and
 # the TypeScript tools all read the same validated board instead of each searching for it.
 RESOLVED_BOARD   := .spark/board.json
+ifneq ($(HAVE_SPARK),)
 BOARD_DEFINITION := $(shell python3 $(SPARK)/scripts/boards.py --path)
 BOARD_ID         := $(shell python3 $(SPARK)/scripts/boards.py --id)
 BOARD_FILES      := $(shell python3 $(SPARK)/scripts/boards.py --paths)
 BOARD_CHIP       := $(shell python3 $(SPARK)/scripts/boards.py --get chip)
 MICROPYTHON_PORT := $(shell python3 $(SPARK)/scripts/boards.py --get micropython_port)
+else
+board_fact        = $(shell python3 -c "import json; print(json.load(open('$(RESOLVED_BOARD)'))['$(1)'])")
+BOARD_DEFINITION :=
+BOARD_FILES      :=
+BOARD_ID         := $(call board_fact,id)
+BOARD_CHIP       := $(call board_fact,chip)
+MICROPYTHON_PORT := $(call board_fact,micropython_port)
+endif
 # Every footprint module at the repo root, because which one is the board's changes with it.
 BOARD_SOURCES   := $(wildcard *.tsx) $(RESOLVED_BOARD)
 CIRCUIT         := dist/board/circuit.json
@@ -75,7 +93,7 @@ all: $(DERIVED)
 # The firmware cannot read boards/*.json at runtime, so it gets a generated module.
 $(RESOLVED_BOARD): boards/active.json $(BOARD_DEFINITION)
 	@echo "==> resolving the active board"
-	@python3 $(SPARK)/scripts/boards.py --resolve > /dev/null
+	@$(if $(HAVE_SPARK),python3 $(SPARK)/scripts/boards.py --resolve > /dev/null,echo "   kept the committed $@: no spark here to re-resolve it (B7)")
 
 $(BOARD_SPEC): $(RESOLVED_BOARD) tools/generate-board-spec.py
 	@echo "==> generating the firmware's board facts"
@@ -161,11 +179,11 @@ $(SIM)/%.chip.wasm: $(SIM)/%.chip.c $(SIM)/%.chip.json
 
 $(GERBERS): $(CIRCUIT)
 	@echo "==> checking the board is ready to fabricate"
-	@python3 $(SPARK)/scripts/boards.py --validate --for-fab
+	@$(if $(HAVE_SPARK),python3 $(SPARK)/scripts/boards.py --validate --for-fab,$(SKIPPED_WITHOUT_SPARK))
 	@echo "==> exporting fab package"
 	@tsci export -f gerbers board.tsx -o $@ > /dev/null
 	@echo "==> the order matches the schematic"
-	@python3 $(SPARK)/scripts/check_bom.py $(GERBERS) --circuit $(CIRCUIT)
+	@$(if $(HAVE_SPARK),python3 $(SPARK)/scripts/check_bom.py $(GERBERS) --circuit $(CIRCUIT),$(SKIPPED_WITHOUT_SPARK))
 
 $(PCB_SVG): $(CIRCUIT)
 	@echo "==> exporting PCB view"
@@ -183,7 +201,7 @@ $(MODEL_3D): $(CIRCUIT)
 
 check: boards-valid vendor-pins-agree bom-matches-design physics-holds board-spec-current diagram-current firmware-tests firmware-compiles firmware-simulates board-builds \
        pins-agree simulation-matches docs-current
-	@echo "\neverything is in step."
+	@$(if $(HAVE_SPARK),echo "\neverything is in step.",echo "\nin step - EXCEPT the four checks marked SKIPPED above, which need spark (B7).")
 
 # The BOM is the one artefact that stops being a design and becomes an order, and until this
 # existed nothing compared it to the schematic it came from.
@@ -191,7 +209,7 @@ check: boards-valid vendor-pins-agree bom-matches-design physics-holds board-spe
 # exactly the bug the module-clearance check had.
 bom-matches-design: $(GERBERS)
 	@echo "==> the fab package orders the parts the schematic specifies"
-	@python3 $(SPARK)/scripts/check_bom.py $(GERBERS) --circuit $(CIRCUIT)
+	@$(if $(HAVE_SPARK),python3 $(SPARK)/scripts/check_bom.py $(GERBERS) --circuit $(CIRCUIT),$(SKIPPED_WITHOUT_SPARK))
 
 # The only check that looks OUTSIDE this repo. A board definition is a transcription, and every
 # other check compares things TO it — so a transcription error is invisible to all of them.
@@ -199,7 +217,7 @@ bom-matches-design: $(GERBERS)
 # that silently degrades when a fetch fails is worse than none. Refresh it deliberately.
 vendor-pins-agree:
 	@echo "==> the board definitions match the vendor's own pin headers"
-	@python3 $(SPARK)/scripts/check_vendor_pins.py $(BOARD_FILES) --offline
+	@$(if $(HAVE_SPARK),python3 $(SPARK)/scripts/check_vendor_pins.py $(BOARD_FILES) --offline,$(SKIPPED_WITHOUT_SPARK))
 
 refresh-vendor-pins:
 	@python3 $(SPARK)/scripts/check_vendor_pins.py $(BOARD_FILES)
@@ -207,11 +225,11 @@ refresh-vendor-pins:
 # Physics, not self-consistency. A board can agree with itself perfectly and still melt.
 physics-holds: $(CIRCUIT)
 	@echo "==> the board obeys physics, not just itself"
-	@python3 $(SPARK)/scripts/check_physics.py $(CIRCUIT) --rules .spark/rules.json
+	@$(if $(HAVE_SPARK),python3 $(SPARK)/scripts/check_physics.py $(CIRCUIT) --rules .spark/rules.json,$(SKIPPED_WITHOUT_SPARK))
 
 boards-valid:
 	@echo "==> every board definition meets the contract"
-	@python3 $(SPARK)/scripts/boards.py --validate
+	@$(if $(HAVE_SPARK),python3 $(SPARK)/scripts/boards.py --validate,$(SKIPPED_WITHOUT_SPARK))
 
 board-spec-current:
 	@echo "==> the firmware's board facts match the board definition"

@@ -27,10 +27,15 @@ jobs:
       - name: Install the toolchains
         run: |
           npm ci
-          pip install mpy-cross
+          pip install mpy-cross littlefs-python
           cd tools/circuit-to-wokwi && bun install
 
       # The MicroPython unix build is not packaged for CI runners; `make check` skips that step
       # when it is absent and says so, rather than pretending it passed.
+      #
+      # So does the spark plugin: it is a private repository and NO token to reach it is kept here
+      # or anywhere on GitHub (backlog B7). Without it the four checks that run spark's own
+      # scripts are skipped by name and raised as warnings on this run; everything else runs.
+      # When spark is public, check it out beside this repo and they run too — still no token.
       - name: Check that everything is in step
         run: make check
