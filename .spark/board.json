@@ -130,11 +130,16 @@
     },
     "3V3": {
       "rail": "logic",
-      "direction": "out"
+      "direction": "out",
+      "can_supply": "regulator_3v3_a",
+      "own_draw": "module_peak_a",
+      "//can_supply": "P52: the figures a rail's load is summed against. The module powers its own ESP32 from this regulator before anything on the header gets any, so its own draw is a load on the rail it supplies."
     },
     "VCC": {
       "rail": "5v",
       "direction": "in",
+      "feeds": "3V3",
+      "//feeds": "P52: what reaches 3V3 comes in here, through a step-down converter, so this pad draws at most what 3V3 carries - an upper bound, the only one a record can give.",
       "//": "The 5 V input. DFRobot: '5 V DC for powering the board (cannot charge Li-ion battery)' - see power.feeding_vcc_charges_the_battery, verified. It is a pad that works both ways and only one of them is this board's business: with nothing on the rail it carries the USB 5 V OUT, which is why `direction: in` does not mean 'always wire it'. It reaches VSYS through a P-FET, not a short (power.vcc_is_not_tied_to_vsys), so the FET is the practical current ceiling and DFRobot rate neither."
     }
   },
@@ -321,6 +326,18 @@
       "value": false,
       "verified": true,
       "source": "DFRobot wiki: '5 V DC for powering the board (cannot charge Li-ion battery)'"
+    },
+    "regulator_3v3_a": {
+      "value": 1.5,
+      "verified": false,
+      "source": "hardware_revisions: the AXP313A's DCDC1 is 1.5 A (V1.1 and earlier), the TPS62A02 is 2 A (V1.2 and later) - the lower, because one record covers both. Both come from the chip makers' datasheets as cited there; neither was re-read at source for this field.",
+      "why_it_matters": "What everything on 3V3 is summed against, the module's own radio included. DFRobot rate neither regulator."
+    },
+    "module_peak_a": {
+      "value": 0.355,
+      "verified": true,
+      "source": "ESP32-S3-WROOM-1 datasheet v1.1, Table 11 (page 15): 802.11b, 1 Mbps, @20.5 dBm TX, 355 mA peak at 3.3 V. Kept in smartbin-local/parts/datasheets/ until P62 gives it a home.",
+      "note": "The radio's transmit peak, which is the most the module itself takes. With WiFi off it is far less; the sum uses the peak because a brown-out happens at the peak."
     },
     "deep_sleep_ua": {
       "value": null,
