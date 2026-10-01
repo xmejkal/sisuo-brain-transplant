@@ -110,10 +110,11 @@
     "3V3": "3V3.1",
     "GND1": "GND.1",
     "GND2": "GND.2",
-    "GND3": "GND.3"
+    "GND3": "GND.3",
+    "VCC": "5V"
   },
   "wokwi_is_stand_in": true,
-  "//power_pads": "Which pad carries which rail, and which way it flows. This fact existed only as `wokwi_power_pins` until 2026-09-25 - the same knowledge, named for one consumer, so the schematic generator could not read it and emitted no power connection for the module at all. The generated board's microcontroller shared a net with NONE of its 32 pins: no ground, no 3.3 V. It built, routed 8 of 11 traces, and the gate called it done. VCC is deliberately absent: it is the USB 5 V rail, an output these designs do not consume, and wiring it up by default is how 5 V reaches 3.3 V logic.",
+  "//power_pads": "Which pad carries which rail, and which way it flows. This fact existed only as `wokwi_power_pins` until 2026-09-25 - the same knowledge, named for one consumer, so the schematic generator could not read it and emitted no power connection for the module at all. The generated board's microcontroller shared a net with NONE of its 32 pins: no ground, no 3.3 V. It built, routed 8 of 11 traces, and the gate called it done. VCC was deliberately absent until 2026-09-30 (P29), on the argument that it is the USB 5 V rail, an output these designs do not consume, and that wiring it up by default is how 5 V reaches 3.3 V logic. Half of that is right and the other half cost a board: the irrigation controller's buck record says in its own words 'Feeds the FireBeetle's 5 V/VCC input and the sensors', and the generated board had no such trace - net.V5V joined the buck to a flow meter and the processor was fed by nothing. So VCC is recorded here as `direction: in`, which the generator reads as CONDITIONAL: wired only when something else on the board drives that rail, and left alone - with the reason printed in the file - when nothing does. That is the dual role stated once, in the one place that knows it.",
   "power_pads": {
     "GND1": {
       "rail": "ground",
@@ -130,6 +131,11 @@
     "3V3": {
       "rail": "logic",
       "direction": "out"
+    },
+    "VCC": {
+      "rail": "5v",
+      "direction": "in",
+      "//": "The 5 V input. DFRobot: '5 V DC for powering the board (cannot charge Li-ion battery)' - see power.feeding_vcc_charges_the_battery, verified. It is a pad that works both ways and only one of them is this board's business: with nothing on the rail it carries the USB 5 V OUT, which is why `direction: in` does not mean 'always wire it'. It reaches VSYS through a P-FET, not a short (power.vcc_is_not_tied_to_vsys), so the FET is the practical current ceiling and DFRobot rate neither."
     }
   },
   "//pins": "The silkscreen label on the board, and the GPIO it actually is. This is the single most error-prone fact about any board: here D2 is GPIO3, D9 is GPIO0, and D13 is GPIO21. The labels are not a sequence and must never be inferred. Note that D0, D1, D4 and D8 do not exist on this board - DFRobot skips them.",
@@ -277,7 +283,7 @@
     "//polarity_is_a_wiring_decision": "Which level wakes the chip is NOT a fact about this board - it follows from how the buttons are wired, so it lives in config.WAKE_ON_HIGH. What IS a fact about this board is the line above: one level applies to every ext1 pin at once, so every wake source must agree.",
     "//micropython_low_level_wake_bug": "MicroPython #17334 (a pin stuck asserted after a low-level wake) was hit on the C6 and is why waking on LOW is a bench risk worth checking early. Whether it affects the S3 has NOT been tested. config.WAKE_ON_HIGH is False, matching buttons wired to GND."
   },
-  "//wokwi_power_pins": "Pads that are not GPIOs, so no naming rule covers them. Keyed by the name the footprint gives the pad, because that is what the emitter looks up.",
+  "//wokwi_power_pins": "Pads that are not GPIOs, so no naming rule covers them. Keyed by the name the footprint gives the pad, because that is what the emitter looks up. VCC was added 2026-09-30: P29 began wiring that pad on boards whose design drives a 5 V rail, and the simulation then stopped with 'VCC is not a pin of board-esp32-s3-devkitc-1' \u2014 the stand-in devkit calls the same pin 5V. A pad this board CAN wire must have a name in the simulator, or the design is unsimulable the first time somebody feeds it.",
   "//vendor": "Where the pin map can be RE-DERIVED from, so it is verified rather than trusted. tools/../check_vendor_pins.py fetches this header and compares.",
   "vendor": {
     "arduino_variant": "dfrobot_firebeetle2_esp32s3"
