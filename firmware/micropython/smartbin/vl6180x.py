@@ -198,10 +198,11 @@ class VL6180X:
         This is what lets the ESP32 deep-sleep: the sensor keeps ranging by itself and only
         wakes the chip when something is closer than `threshold_low_mm`.
 
-        `active_high` matters on this board — MicroPython's low-level deep-sleep wake on the C6
-        has an open "stuck pin" bug, so the wake signal is configured high-going. Note the pin is
-        open-drain: asserted-high relies on the breakout's pull-up (both Adafruit and Pololu have
-        one, to 2.8 V, which clears the C6's input threshold).
+        `active_high` matters on this board — MicroPython's low-level deep-sleep wake has an
+        open "stuck pin" bug (#17334, reported on a C6), so the wake signal is configured
+        high-going. Note the pin is open-drain: asserted-high relies on the breakout's pull-up
+        (both Adafruit and Pololu have one, to 2.8 V), which has to clear the S3's input-high
+        threshold — a bench check with the real breakout, like everything about wake.
         """
         self._write8(
             _SYSTEM_MODE_GPIO1,

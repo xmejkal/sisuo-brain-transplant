@@ -65,7 +65,7 @@ DERIVED := $(BOARD_SPEC) $(CIRCUIT) $(DIAGRAM) $(FLASH_IMAGE) $(GERBERS) $(PCB_S
 
 .PHONY: all check clean install-hooks print-micropython flash-image simulate simulate-all boards-valid bom-matches-design vendor-pins-agree refresh-vendor-pins physics-holds board-spec-current \
         diagram-current firmware-tests firmware-compiles firmware-simulates \
-        board-builds pins-agree simulation-matches
+        board-builds pins-agree simulation-matches docs-current
 
 all: $(DERIVED)
 	@echo "everything is up to date."
@@ -182,7 +182,7 @@ $(MODEL_3D): $(CIRCUIT)
 # --- verification: changes nothing, fails if anything disagrees -----------------------------
 
 check: boards-valid vendor-pins-agree bom-matches-design physics-holds board-spec-current diagram-current firmware-tests firmware-compiles firmware-simulates board-builds \
-       pins-agree simulation-matches
+       pins-agree simulation-matches docs-current
 	@echo "\neverything is in step."
 
 # The BOM is the one artefact that stops being a design and becomes an order, and until this
@@ -220,6 +220,12 @@ board-spec-current:
 diagram-current:
 	@echo "==> the state diagram in the docs matches the code"
 	@cd $(FIRMWARE) && python3 tools/fsm_diagram.py --check README.md
+
+# The prose that describes the bin as it is now names no part it no longer has (spark B6). The
+# board changed twice in a week and the README, the brief and STATUS.md kept the old one.
+docs-current:
+	@echo "==> the documents describe the board that exists"
+	@python3 tools/check-current-docs.py
 
 firmware-tests:
 	@echo "==> firmware logic (CPython)"

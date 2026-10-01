@@ -62,7 +62,7 @@ Check routing/DRC from circuit.json (not just CLI): count `pcb_trace` and `pcb_*
 ### Two rules that make it work (learned the hard way)
 1. **Routing:** wire decoupling/bulk caps to the power NET (`net.V33/net.VBAT/net.MOTOR6V`), never
    directly to a chip pin — a cap→pin trace trips tscircuit's unsatisfiable 1mm rule and routing is
-   skipped. Net-wired = routes clean (currently 45 traces, 0 errors).
+   skipped. Net-wired = routes clean (currently 60 traces, 0 errors).
 2. **Real parts, 3 sources:** footprinter strings (`pushbutton`, `pinrow3/4`, `jst_ph_2/4`,
    `headermodule6/8`, `0603`…); `tsci convert <file.kicad_mod>` for a specific GitHub footprint (how
    the XIAO came in); and `footprint="jlcpcb:C<lcsc>"` for a real footprint **+ real OBJ 3D** (JLCPCB
@@ -134,7 +134,10 @@ A5) cannot be read with WiFi on. Three statements must agree — `config.py` (si
 `boards/*.json` (GPIO->silkscreen), `mcu-pins.ts` (signal->silkscreen) — and `make check` proves
 it. A **fourth** now does too: `wake-polarity.ts` compares the rail the OPEN button is tied to
 against the level the firmware arms for, because no firmware test can see that disagreement —
-they all derive from the same constant, so flipping it flips them with it.
+they all derive from the same constant, so flipping it flips them with it. And the prose is
+checked too: `make check` fails when README, STATUS, DESIGN_RULES, PCB_PIPELINE or the brief name a
+retired part (XIAO, DFR0534/MP3, TB6612, OLED, VBAT) outside a passage listed as deliberate
+(`tools/check-current-docs.py`, spark B6).
 
 ### Power (firmware/micropython/smartbin/power.py)
 `config.POWER_POLICY`: `always_on` (bench/USB) | `deep_sleep`. Deep sleep needs `SENSOR_STRATEGY="tof_interrupt"`:
@@ -184,4 +187,4 @@ NEXT, in order:
 
 ## The `spark` plugin
 This whole flow (describe→schematic→verify→route→fab, real parts, reverse-engineering) is packaged as
-the **spark** plugin (v0.4.0). Install it in Claude Code to reuse the skills + recipes on any board.
+the **spark** plugin (v0.6.0). Install it in Claude Code to reuse the skills + recipes on any board.

@@ -19,8 +19,6 @@ firmware/micropython/sim/chips/wokwi-api.h
 # tscircuit's build cache: derived, machine-specific, regenerated on every build.
 .tscircuit/cache/
 
-# The findings store's lock file, held only while a write is in flight.
-.spark/findings.lock
 
 # The viewer: made by `make all` from the exports, a few MB of derived data (backlog B4).
 board-viewer.html

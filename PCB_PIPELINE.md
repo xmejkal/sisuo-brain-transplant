@@ -11,8 +11,9 @@ AI in 2026 is a **routing-and-cleanup assistant, not an autonomous board designe
 - Realistic split: **human** places the major blocks and routes the hard nets (RF antenna, USB
   differential pair, high-current/power); **AI** autoroutes the remaining ~70–80% of tedious
   signal nets and iterates against DRC. **Human review before fabrication is non-negotiable.**
-- **Big break for us:** we use *modules* (XIAO, driver, MP3, OLED). The antenna and USB live
-  *inside* the XIAO, already done — so the two things AI is worst at don't exist on our board.
+- **Big break for us:** we use *modules* (the FireBeetle 2 ESP32-S3, the motor driver, the I2S
+  amplifier, the rangefinder breakout). The antenna and USB live *inside* the FireBeetle, already
+  done — so the two things AI is worst at don't exist on our board.
   Our PCB is just module footprints + a few passives + power/motor traces. That's squarely in
   "AI does a solid first pass, human refines" territory.
 
