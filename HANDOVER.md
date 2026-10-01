@@ -131,9 +131,8 @@ but `_build_dfr0534_player` refuses when `PIN_MP3_TX` is absent rather than send
 into the amplifier's shutdown line. The pin map *is* the statement of which board is fitted, so
 asking it beats a second flag that could disagree.
 
-**Both deep-sleep wake sources assert HIGH.** `esp32.WAKEUP_ALL_LOW` is an **AND** across every
-armed pin, and the S3 has no per-pin polarity — so with the button and the sensor both armed, the
-bin woke only if you held OPEN *while* waving. `WAKEUP_ANY_HIGH` is a genuine OR. So `BtnOpen`
+**Both deep-sleep wake sources assert HIGH.** `esp32.wake_on_ext1` takes one level for every
+armed pin, so both sources must agree; `WAKEUP_ANY_HIGH` is an OR. *Corrected 2026-10-01 (spark P60/P63):* this used to say `WAKEUP_ALL_LOW` is an AND across every armed pin. That is true only on the original ESP32 — ESP-IDF v5.5.2's `esp_sleep.h` aliases it to `ANY_LOW`, an OR, on the S3 and C6, and MicroPython passes it through. So the "woke only if you held OPEN while waving" failure was reasoned, never observed (nothing has run on hardware), and active-low wiring would have woken too. Active-high stays, for the reason that holds: low-level wake has an open MicroPython bug (#17334, reported on a C6). So `BtnOpen`
 goes to 3V3 behind a pull-down, `TofIntPulldown` replaced `TofIntPullup`, and the VL6180X's GPIO1
 is configured active-high. **MODE stays wired to ground on purpose** — GPIO47 cannot wake this
 chip, so it needs no external part.

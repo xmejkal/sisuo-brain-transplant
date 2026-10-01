@@ -38,8 +38,10 @@ use an AXP313A PMIC (1.5 A) which sits on the I2C bus as another device and supp
 pull-ups, and there the MODE button also drives the PMIC's power-off. Tell them apart by the chip
 between BOOT and the USB-C: a QFN marked AXP313A is old, a tiny SOT-563 beside two SOT-23-5 LDOs
 is new. Details and sources: `boards/firebeetle2-esp32s3.json` → `hardware_revisions`.
-**Prefer DFR1145 (N4) for this build:** the DFR0975's octal PSRAM costs ~140 µA in deep sleep
-(Espressif WROOM-1 datasheet v1.1, Table 12 footnote) against a total budget of a few hundred.
+**Neither SKU is preferred on current yet.** This used to say the DFR0975's octal PSRAM costs
+~140 µA in deep sleep; the WROOM-1 v1.1 datasheet it cited (Table 12, page 15, kept in
+`parts/datasheets/`) attaches that figure to **Light-sleep**, and Deep-sleep reads 8/7 µA. Whether
+octal PSRAM draws in deep sleep is a bench measurement (corrected 2026-10-01, spark P63).
 Modules (all real, plug-in): **L9110S** motor driver, **DFR0954 MAX98357A I2S amplifier** +
 speaker, **VL6180X** time-of-flight rangefinder on I2C, 2 tactile buttons, a bicolour status
 LED, JST connectors, 0603/0805 passives. No OLED — the bin never had a screen.
@@ -120,9 +122,9 @@ The three SPI pads carry I2S because this design has no SPI and they are the che
 which freed A1[5] — an ADC1 pin. **The silkscreen abbreviates**: the pads read MI and MO while
 the board definition keys the same GPIOs as MISO and MOSI, and `physical.pad_aliases` bridges the
 two. Anything comparing a GPIO's name against a footprint pad must go through it.
-**BOTH WAKE SOURCES ASSERT HIGH.** `esp32.WAKEUP_ALL_LOW` is an AND across every armed pin and
-the S3 has no per-pin polarity, so with two sources armed the bin woke only if you held OPEN
-*while* waving. `WAKEUP_ANY_HIGH` is a real OR. So the OPEN button goes to 3V3 behind a
+**BOTH WAKE SOURCES ASSERT HIGH.** `esp32.wake_on_ext1` takes ONE level for every armed pin
+(and the S3 has no per-pin polarity), so both sources must assert the same way; `WAKEUP_ANY_HIGH`
+is an OR. *Corrected 2026-10-01 (spark P60/P63):* this used to say `WAKEUP_ALL_LOW` is an AND across every armed pin. That is true only on the original ESP32 — ESP-IDF v5.5.2's `esp_sleep.h` aliases it to `ANY_LOW`, an OR, on the S3 and C6, and MicroPython passes it through. So the "woke only if you held OPEN while waving" failure was reasoned, never observed (nothing has run on hardware), and active-low wiring would have woken too. Active-high stays, for the reason that holds: low-level wake has an open MicroPython bug (#17334, reported on a C6). So the OPEN button goes to 3V3 behind a
 pull-down and the VL6180X's GPIO1 is configured active-high; MODE stays wired to ground because
 GPIO47 cannot wake this chip anyway. `config.WAKE_ON_HIGH = True` is the single statement of that
 direction and the board follows it.
@@ -136,12 +138,13 @@ they all derive from the same constant, so flipping it flips them with it.
 ### Power (firmware/micropython/smartbin/power.py)
 `config.POWER_POLICY`: `always_on` (bench/USB) | `deep_sleep`. Deep sleep needs `SENSOR_STRATEGY="tof_interrupt"`:
 the VL6180X ranges continuously by itself and pulls its INT pin below a threshold. Verified:
-`Pin.irq(wake=DEEPSLEEP)` silently no-ops on both chips — use `esp32.wake_on_ext1`.
+`Pin.irq(wake=DEEPSLEEP)` silently no-ops on the C6; on the S3 a level trigger arms ext0 (one
+pin), and with an edge trigger `wake=` is ignored on both — use `esp32.wake_on_ext1`.
 `esp32.wake_on_ext0` does NOT exist on the C6 (it does on the S3, but one wake source only).
 The S3 lacks per-pin ext1 polarity, so all wake sources still share one level. Wake = full reset, only
 `RTC().memory()` survives; `prepare()` maps the wake pin to a trigger. Idle ≈ 200-400 µA (sensor
-dominates; ESP ~15 µA). **Neither chip's LP core is usable from MicroPython** (no API; it is a
-coprocessor, not a second app core).
+dominates; ESP ~15 µA). **The C6's LP core is not usable from MicroPython** (no API; it is a
+coprocessor, not a second app core). The S3's ULP-FSM is, as `esp32.ULP`; its RISC-V ULP is not.
 
 ### Arduino reference build — v1, historical
 Describes the ORIGINAL build: a XIAO, a TB6612 driver, an OLED and a UART MP3 module,

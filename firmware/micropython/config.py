@@ -170,13 +170,12 @@ SLEEP_AFTER_FAULT_MS = 300000   # a faulted bin sleeps too, just later (5 min of
 # the board wires the OPEN button to 3V3 behind a pull-down and configures the sensor's
 # interrupt to match.
 #
-# IT HAS TO BE True, and that is the bug this line used to be. `False` selects
-# esp32.WAKEUP_ALL_LOW, which is an AND across every armed pin: with both the button and the
-# sensor armed, the bin woke only if you held OPEN *while* waving at it. `True` selects
-# WAKEUP_ANY_HIGH, a genuine OR, so either source wakes it on its own.
-#
-# It also drops a second risk: low-level wake has an open MicroPython bug on this chip
-# (#17334, "stuck pin"), which the high-level path does not go near.
+# It is True because the board wires both sources active-high. This comment used to say False
+# was a bug because esp32.WAKEUP_ALL_LOW "is an AND across every armed pin" — true only on the
+# original ESP32; ESP-IDF aliases it to ANY_LOW, an OR, on the S3 and C6 (esp_sleep.h, v5.5.2;
+# corrected 2026-10-01, spark P63). What still favours HIGH: low-level wake has an open
+# MicroPython bug (#17334, "stuck pin", reported on a C6, untested on the S3), which the
+# high-level path does not go near.
 #
 # Get this wrong in either direction and the bin never wakes, or wakes instantly forever. The
 # firmware refuses to sleep when it detects the mismatch rather than bricking itself quietly —

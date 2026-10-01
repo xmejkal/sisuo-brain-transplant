@@ -409,13 +409,14 @@ export default () => (
     <trace from=".AudioAmp > .SPKN" to=".Speaker > .N" />
 
     {/* ---- buttons and status --------------------------------------------------------- */}
-    {/* OPEN is wired ACTIVE HIGH — to 3V3, held down by a resistor — and that is not a style
-        choice, it is what makes deep sleep work at all.
+    {/* OPEN is wired ACTIVE HIGH — to 3V3, held down by a resistor — and that is a deep-sleep
+        choice, not a style one: it must agree with the sensor's interrupt.
 
         `esp32.wake_on_ext1` applies ONE trigger level to every armed pin, and the S3 has no
-        per-pin polarity. The low-level mode is WAKEUP_ALL_LOW, which is an AND: with two wake
-        sources armed, the bin woke only if you held OPEN *while* waving at the sensor. The
-        high-level mode is WAKEUP_ANY_HIGH, a genuine OR, so either source wakes it alone.
+        per-pin polarity, so both sources must assert the same way. Either level is an OR on the
+        S3: WAKEUP_ALL_LOW is an AND only on the original ESP32, and ESP-IDF aliases it to
+        ANY_LOW here (corrected 2026-10-01, spark P63 — this used to say it was an AND). HIGH is
+        chosen because low-level wake has an open MicroPython bug, #17334.
 
         The resistor holds the pin defined while the chip is asleep and the button is open. It
         conducts only while the button is held, which is the same as the pull-up it replaced. */}

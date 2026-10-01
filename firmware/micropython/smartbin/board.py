@@ -69,7 +69,8 @@ def deep_sleep(wake_gpio_numbers, wake_on_high):
     Uses `esp32.wake_on_ext1`, which is the one call that works on every chip this project has
     run on. Two expensive mistakes it avoids: `esp32.wake_on_ext0` does not exist at all on the
     ESP32-C6 (it does on the S3), and `Pin.irq(wake=machine.DEEPSLEEP)` silently does nothing on
-    either.
+    the C6 — on the S3 it arms ext0 for a level trigger, one pin only, and ignores `wake=` for an
+    edge trigger.
 
     All ext1 wake pins share one polarity, which is why `config.WAKE_ON_HIGH` has to agree with
     how the buttons and the sensor interrupt are wired. On the S3 that is a hardware constraint

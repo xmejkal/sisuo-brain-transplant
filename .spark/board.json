@@ -281,7 +281,7 @@
     "simulated_by_wokwi": false,
     "//simulated_by_wokwi": "Established by experiment on the C6 - Wokwi wakes from a timer but not from a GPIO. Assumed to hold for the S3 stand-in; not retested.",
     "//polarity_is_a_wiring_decision": "Which level wakes the chip is NOT a fact about this board - it follows from how the buttons are wired, so it lives in config.WAKE_ON_HIGH. What IS a fact about this board is the line above: one level applies to every ext1 pin at once, so every wake source must agree.",
-    "//micropython_low_level_wake_bug": "MicroPython #17334 (a pin stuck asserted after a low-level wake) was hit on the C6 and is why waking on LOW is a bench risk worth checking early. Whether it affects the S3 has NOT been tested. config.WAKE_ON_HIGH is False, matching buttons wired to GND."
+    "//micropython_low_level_wake_bug": "MicroPython #17334 (a pin stuck asserted after a low-level wake) is open upstream, reported on a C6 with v1.25.0. It has NOT been observed on any board in this project - nothing here has run on hardware - and whether it affects the S3 is untested. It is a reason to prefer waking on HIGH, not a measured fault. (Corrected 2026-10-01, P63: this note said it 'was hit on the C6' and quoted one project's config value, which had since changed.)"
   },
   "//wokwi_power_pins": "Pads that are not GPIOs, so no naming rule covers them. Keyed by the name the footprint gives the pad, because that is what the emitter looks up. VCC was added 2026-09-30: P29 began wiring that pad on boards whose design drives a 5 V rail, and the simulation then stopped with 'VCC is not a pin of board-esp32-s3-devkitc-1' \u2014 the stand-in devkit calls the same pin 5V. A pad this board CAN wire must have a name in the simulator, or the design is unsimulable the first time somebody feeds it.",
   "//vendor": "Where the pin map can be RE-DERIVED from, so it is verified rather than trusted. tools/../check_vendor_pins.py fetches this header and compares.",
@@ -325,8 +325,8 @@
     "deep_sleep_ua": {
       "value": null,
       "verified": false,
-      "source": "DFRobot publish no quiescent or deep-sleep figure for either SKU. Espressif's WROOM-1 datasheet v1.1 Table 12 gives 8 uA for the module alone, plus a footnote: 140 uA more for 8 MB octal PSRAM",
-      "why_it_matters": "Decides which SKU to buy. The N16R8's PSRAM costs ~140 uA in deep sleep and the N4 does not pay it \u2014 on a budget of a few hundred microamps that is the difference between the two parts, and it is the only electrical reason to prefer one."
+      "source": "DFRobot publish no quiescent or deep-sleep figure for either SKU. Espressif's ESP32-S3-WROOM-1 datasheet v1.1, Table 12 (page 15): Deep-sleep 8 uA with RTC peripherals on, 7 uA with them off. Its footnote 1 - add 140 uA for 8 MB octal PSRAM (3.3 V) - is attached to the Light-sleep row, NOT to Deep-sleep; v1.8's Table 6-7 attaches it the same way",
+      "why_it_matters": "Would decide which SKU to buy, and is unmeasured. This used to say the N16R8's PSRAM costs ~140 uA in deep sleep; the datasheet it cited attaches that figure to light sleep (corrected 2026-10-01, P63). Whether octal PSRAM draws anything in deep sleep is a bench measurement, and until it exists neither SKU is preferred on current."
     }
   }
 }

@@ -27,7 +27,7 @@ the change. `make check` is green.
 | 2 | Nobody knows which audio module this is | **STILL OPEN, and yours to settle.** See below — it is a look in a drawer |
 | 3 | `MotorDriver` and the audio module pad-identical, 24 mm apart | **gone** — 12 pads in two rows against 6 in one. spark's cross-pluggable rule no longer reports it |
 | 4 | Pours ran to the mounting-hole walls; a screw head bridged V33 to GND | **gone** — measured at 0.19 mm on two corners, an M3 head overhangs 1.15 mm. Ground is now the only poured net, so there is nothing to bridge TO |
-| 5 | Deep sleep never woke: `WAKEUP_ALL_LOW` is an AND across every armed pin | **gone** — both wake sources assert HIGH and the firmware arms `WAKEUP_ANY_HIGH`, a genuine OR |
+| 5 | Deep sleep never woke: `WAKEUP_ALL_LOW` is an AND across every armed pin | **misdiagnosed, and closed anyway** — on the S3 ESP-IDF aliases `ALL_LOW` to `ANY_LOW`, an OR (found 2026-10-01, spark P60), so this was reasoned, never observed. Both sources now assert HIGH and the firmware arms `WAKEUP_ANY_HIGH`, which also stays clear of MicroPython #17334 |
 | 6 | 470 uF hard-switched with no soft-start | **gone** — the switched rail it sat on does not exist |
 | 7 | `Speaker` and `BinConnector` annular rings are 0.225 mm, under the 0.25 mm a cheap process guarantees | open, and **deliberately parked**: this is a fabrication-process limit, not a circuit fault. It matters the day the board is ordered and not before |
 
