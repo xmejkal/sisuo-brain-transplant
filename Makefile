@@ -52,6 +52,7 @@ GERBERS         := board-gerbers.zip
 PCB_SVG         := board-pcb-routed.svg
 SCHEMATIC_SVG   := board-sch.svg
 MODEL_3D        := board.glb
+VIEWER          := board-viewer.html
 CONVERTER_SRC   := $(wildcard $(CONVERTER)/lib/*.ts $(CONVERTER)/lib/**/*.ts) $(CONVERTER)/cli.ts
 FIRMWARE_SOURCES := $(wildcard $(FIRMWARE)/smartbin/*.py) $(FIRMWARE)/config.py \
                     $(FIRMWARE)/main.py $(FIRMWARE)/boot.py
@@ -60,7 +61,7 @@ MICROPYTHON_BIN := $(SIM)/micropython-$(BOARD_CHIP).bin
 CHIP_SOURCES    := $(wildcard $(SIM)/chips/*.chip.c)
 CHIP_BINARIES   := $(CHIP_SOURCES:.chip.c=.chip.wasm)
 
-DERIVED := $(BOARD_SPEC) $(CIRCUIT) $(DIAGRAM) $(FLASH_IMAGE) $(GERBERS) $(PCB_SVG) $(SCHEMATIC_SVG) $(MODEL_3D) $(CHIP_BINARIES)
+DERIVED := $(BOARD_SPEC) $(CIRCUIT) $(DIAGRAM) $(FLASH_IMAGE) $(GERBERS) $(PCB_SVG) $(SCHEMATIC_SVG) $(MODEL_3D) $(VIEWER) $(CHIP_BINARIES)
 
 .PHONY: all check clean install-hooks print-micropython flash-image simulate simulate-all boards-valid bom-matches-design vendor-pins-agree refresh-vendor-pins physics-holds board-spec-current \
         diagram-current firmware-tests firmware-compiles firmware-simulates \
@@ -108,6 +109,13 @@ $(FLASH_IMAGE): $(FIRMWARE_SOURCES) tools/build-flash-image.py
 	   echo "==> flash image skipped: download $(MICROPYTHON_BIN) from"; \
 	   echo "    https://micropython.org/download/$(MICROPYTHON_PORT)/"; \
 	 fi
+
+# The viewer is made from the exports, never kept by hand: the hand-made one showed the XIAO board
+# a week after it was replaced (backlog B4). A few MB of derived data, so it is not committed.
+$(VIEWER): $(SCHEMATIC_SVG) $(PCB_SVG) $(MODEL_3D) $(CIRCUIT) $(RESOLVED_BOARD) \
+           tools/build-viewer.py tools/viewer-template.html tools/viewer-3d.js
+	@echo "==> building the viewer from the exports"
+	@python3 tools/build-viewer.py
 
 # Which MicroPython build this board needs, and where to get it. Printed rather than written
 # down anywhere, so it cannot disagree with boards/active.json.

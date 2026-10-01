@@ -20,7 +20,8 @@ names, named constants, docstrings, focused functions; honest capability assessm
 - `firmware/micropython/` .. MicroPython firmware (main.py) + bringup/ test scripts. `firmware/arduino/` .. v1 Arduino reference.
 - `parts/` ............... module reference: XIAO datasheet+pinouts+footprint, real OBJ 3D for the
   tactile button (from JLCPCB), datasheets, and PARTS.md (links to every module's 3D/datasheet).
-- `board-viewer.html` .... self-contained schematic/PCB/3D viewer (open in any browser).
+- `board-viewer.html` .... schematic/PCB/3D viewer, offline in any browser. **Made by `make all`** from the
+  exports (`tools/build-viewer.py`), ~4 MB and not committed — the hand-kept one showed the XIAO board for a week.
 - `SHOPPING.md` ........ what to buy, where, prices (CZ shops, checked 2026-09-23).
 - `parts/SENSOR_OPTIONS.md` .. wave-sensor research + VL6180X datasheet/mounting/driver notes.
 - Design docs: `BOM.md` (partly superseded), `DESIGN_RULES.md`, `PCB_PIPELINE.md`, `LID_CLOSE_DETECTION.md`, `TEST_PROTOCOL.md`.
