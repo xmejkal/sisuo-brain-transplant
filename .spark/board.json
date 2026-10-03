@@ -308,6 +308,17 @@
       "user_button": "a plain button: 5.1k pull-up, 100 nF, switch to ground"
     }
   },
+  "//documents": "P62b: the documents this record's facts rest on, kept in the person's store (~/.local/share/spark/sources/<sha256>/<file>), never in the plugin. The WROOM-1 v1.1 is the version the facts were read from - its URL now serves a later version, so the checksum, not the URL, says which document this is. title and version are as printed (page 1, and the footer of page 15); retrieved is the day the bin first kept it.",
+  "documents": {
+    "wroom1-v1-1": {
+      "url": "https://www.espressif.com/documentation/esp32-s3-wroom-1_wroom-1u_datasheet_en.pdf",
+      "sha256": "bc430d667d7bde6676cbdbc9053429c79c0c43a27ebd7dd06834f605b878b76b",
+      "file": "ESP32-S3-WROOM-1_datasheet_Espressif_v1.1.pdf",
+      "retrieved": "2026-09-24",
+      "title": "ESP32-S3-WROOM-1 & WROOM-1U Datasheet",
+      "version": "1.1"
+    }
+  },
   "//power": "What DFRobot document, and what only the component datasheets say. DFRobot publish no current rating for either rail and no quiescent figure at all.",
   "power": {
     "vcc_is_not_tied_to_vsys": {
@@ -336,14 +347,22 @@
     "module_peak_a": {
       "value": 0.355,
       "verified": true,
-      "source": "ESP32-S3-WROOM-1 datasheet v1.1, Table 11 (page 15): 802.11b, 1 Mbps, @20.5 dBm TX, 355 mA peak at 3.3 V. Kept in smartbin-local/parts/datasheets/ until P62 gives it a home.",
-      "note": "The radio's transmit peak, which is the most the module itself takes. With WiFi off it is far less; the sum uses the peak because a brown-out happens at the peak."
+      "source": "ESP32-S3-WROOM-1 datasheet v1.1, Table 11 (page 15): 802.11b, 1 Mbps, @20.5 dBm TX, 355 mA peak at 3.3 V.",
+      "note": "The radio's transmit peak, which is the most the module itself takes. With WiFi off it is far less; the sum uses the peak because a brown-out happens at the peak.",
+      "cites": {
+        "document": "wroom1-v1-1",
+        "at": "Table 11, page 15"
+      }
     },
     "deep_sleep_ua": {
       "value": null,
       "verified": false,
       "source": "DFRobot publish no quiescent or deep-sleep figure for either SKU. Espressif's ESP32-S3-WROOM-1 datasheet v1.1, Table 12 (page 15): Deep-sleep 8 uA with RTC peripherals on, 7 uA with them off. Its footnote 1 - add 140 uA for 8 MB octal PSRAM (3.3 V) - is attached to the Light-sleep row, NOT to Deep-sleep; v1.8's Table 6-7 attaches it the same way",
-      "why_it_matters": "Would decide which SKU to buy, and is unmeasured. This used to say the N16R8's PSRAM costs ~140 uA in deep sleep; the datasheet it cited attaches that figure to light sleep (corrected 2026-10-01, P63). Whether octal PSRAM draws anything in deep sleep is a bench measurement, and until it exists neither SKU is preferred on current."
+      "why_it_matters": "Would decide which SKU to buy, and is unmeasured. This used to say the N16R8's PSRAM costs ~140 uA in deep sleep; the datasheet it cited attaches that figure to light sleep (corrected 2026-10-01, P63). Whether octal PSRAM draws anything in deep sleep is a bench measurement, and until it exists neither SKU is preferred on current.",
+      "cites": {
+        "document": "wroom1-v1-1",
+        "at": "Table 12, page 15"
+      }
     }
   }
 }
