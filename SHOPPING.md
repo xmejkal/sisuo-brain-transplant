@@ -38,7 +38,8 @@ The original Sisuo board stays **untouched** — nothing gets desoldered from it
 carries its definition, so switching back is one line in `boards/active.json`.
 
 ## Confirm before ordering anything else
-**DFRobot FireBeetle 2 ESP32-S3** — the design now assumes one. **Do you already have it?**
+**DFRobot FireBeetle 2 ESP32-S3** — the design assumes one, and **Petr owns one (2026-10-03)**.
+Still to read off it: which SKU, and which hardware revision (`STATUS.md`, Waiting on Petr).
 Either SKU works, the header pinout is identical: **DFR0975** (N16R8, 16 MB flash + 8 MB PSRAM)
 or **DFR1145** (N4, 4 MB, no PSRAM). The N4 is the cheaper and entirely sufficient one — nothing
 in this firmware uses PSRAM. Beware **DFR1154**, which is a different product (an ESP32-S3 AI

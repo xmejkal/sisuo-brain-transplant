@@ -181,8 +181,8 @@ NEXT, in order:
 3. **Measure the motor's real current** — the one number that could still change the driver
    choice. The rules file states 1.5 A, which is the L9110S's limit, NOT a measurement.
 4. **Verify deep sleep actually wakes.** Wokwi cannot do this at all.
-5. Calibrate; measure the bin connector's pitch; answer `SHOPPING.md`'s own question — is a
-   FireBeetle 2 ESP32-S3 (and a DFR0954) already owned? — then order; optionally add stall-sensing
+5. Calibrate; measure the bin connector's pitch; read the owned FireBeetle's SKU and revision
+   (STATUS.md, item 8); order what `SHOPPING.md` lists; optionally add stall-sensing
    (see LID_CLOSE_DETECTION.md); pull DFRobot module STEP for the Fusion enclosure.
 
 ## The `spark` plugin

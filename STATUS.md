@@ -59,6 +59,11 @@ the change; the sixth is now an advisory.
    whether the motor twitches at power-up.**
 7. **The DFR0954's SD bias resistor** — a download, not a bench: DFRobot's schematic says 100k,
    their wiki says 680k.
+8. **Which FireBeetle you own** (owned since 2026-10-03). The SKU — DFR0975 (N16R8) or DFR1145
+   (N4) — from the box or the label. The revision — the chip between BOOT and the USB-C: a QFN
+   marked AXP313A is V1.1, a tiny SOT-563 beside two SOT-23-5 regulators is V1.2 or later. On V1.1
+   the PMIC sits on the I2C bus with its own 5.1k pull-ups, and the MODE button — this bin's mode
+   input — also drives the PMIC's power-off; `boards/firebeetle2-esp32s3.json` → `hardware_revisions`.
 
 ## Next steps, in order
 
@@ -68,8 +73,8 @@ the change; the sixth is now an advisory.
 3. **Measure the motor's real current** and replace the 1.5 A bound in `.spark/rules.json`.
 4. **Verify deep sleep actually wakes** — on the bench; Wokwi cannot wake an ESP32 from a GPIO.
 5. **Calibrate** stroke times, the ToF window and the stall threshold (`tools/calibrate.py`).
-6. **Order parts from `SHOPPING.md`** (current since 2026-09-25) — after answering its own question:
-   do you already own a FireBeetle 2 ESP32-S3, and a DFR0954?
+6. **Order parts from `SHOPPING.md`** (current since 2026-09-25). The FireBeetle is owned
+   (2026-10-03); whether a DFR0954 is waits on B1.
 7. **B7's second half** — once spark is public, CI checks it out beside the bin and runs all of
    `make check`, with no token.
 
