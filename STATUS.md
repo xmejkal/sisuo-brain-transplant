@@ -14,9 +14,9 @@ MAX98357A), an L9110S motor driver, a VL6180X rangefinder, two buttons and a bic
 **100 x 62 mm, 60 traces, 0 routing errors**. The firmware passes **113 tests**, **14 checks on a
 real MicroPython runtime**, and **five Wokwi scenarios** on a simulated S3 (all five passed on
 2026-09-25; paid, so not rerun since). **`make check` is green** and the pre-commit gate is used
-again (2026-10-01). **The repository's CI is red** — it has failed on every push since 2026-09-24,
-because the Makefile calls the spark plugin and CI cannot reach it (backlog B7). **No part of it
-has ever run on hardware.**
+again (2026-10-01). **The repository's CI is green** since 2026-10-01 (backlog B7, `f4e6bf5`): with
+no spark plugin to reach, it reads the resolved board and skips spark's four checks by name, which
+this Mac's pre-commit gate runs. **No part of it has ever run on hardware.**
 
 ## Where the circuit stands
 
@@ -68,9 +68,10 @@ the change; the sixth is now an advisory.
 3. **Measure the motor's real current** and replace the 1.5 A bound in `.spark/rules.json`.
 4. **Verify deep sleep actually wakes** — on the bench; Wokwi cannot wake an ESP32 from a GPIO.
 5. **Calibrate** stroke times, the ToF window and the stall threshold (`tools/calibrate.py`).
-6. **Refresh `SHOPPING.md`** — it still lists the XIAO, a LiPo JST the board does not have, and the
-   unverified MP3 line — and then order parts.
-7. **B7 — CI.** Give the repository's CI the spark plugin, or wait for spark to be public.
+6. **Order parts from `SHOPPING.md`** (current since 2026-09-25) — after answering its own question:
+   do you already own a FireBeetle 2 ESP32-S3, and a DFR0954?
+7. **B7's second half** — once spark is public, CI checks it out beside the bin and runs all of
+   `make check`, with no token.
 
 ## What is NOT verified
 
@@ -143,7 +144,7 @@ mpremote repl                                    # then: import smartbin; b = sm
 
 ## Published
 
-<https://github.com/xmejkal/sisuo-brain-transplant> — public, MIT. **CI red since 2026-09-24** (B7).
+<https://github.com/xmejkal/sisuo-brain-transplant> — public, MIT. **CI green since 2026-10-01** (B7; spark's four checks are skipped there until spark is public).
 
 ## The two bugs worth not reintroducing
 

@@ -42,7 +42,6 @@ ON_PURPOSE = {
     ("STATUS.md", "described a board two changes old"): "names what the previous version wrongly described",
     ("STATUS.md", "has listed a DFR0534 as owned"): "B1: the drawer may hold one",
     ("STATUS.md", "bench steps still name the XIAO's pins"): "points at a known stale document (P58)",
-    ("STATUS.md", "it still lists the XIAO"): "points at a known stale document (SHOPPING.md)",
     ("STATUS.md", "not the XIAO ESP32-C6 on hand"): "the decision that replaced it, and why",
     ("STATUS.md", "when the XIAO ESP32-C6 was replaced by"): "how the board change went",
     ("DESIGN_RULES.md", "Until then this was the XIAO ESP32-C6's checklist"): "what the section used to be",
