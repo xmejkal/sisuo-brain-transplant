@@ -52,7 +52,7 @@ ON_PURPOSE = {
 NEGATED = r"\b(?:no|not|never|without|rather\s+than|instead\s+of)\s+(?:the\s+|a\s+|an\s+)?$"
 
 #: The documents that describe the bin as it is now. History lives elsewhere — the v1 and v3 board
-#: files, the Arduino sketch, parts/xiao — and in git.
+#: files, the Arduino sketch — and in git.
 CURRENT = ("README.md", "STATUS.md", "DESIGN_RULES.md", "PCB_PIPELINE.md")
 
 #: The brief, read as data: `parts_on_hand` is an inventory — the XIAO and the DFR0534 ARE in the

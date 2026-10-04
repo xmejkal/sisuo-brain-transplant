@@ -12,7 +12,8 @@ Deploy the firmware first, then:
 Every procedure prints what it measured and offers to store it in /config.json, so the numbers
 survive a re-deploy. Nothing is saved without you saying yes.
 
-The ToF procedures come from ST's datasheet and AN4545 and must be run **through the lid's
+The ToF procedures come from ST's datasheet and AN4545 (both kept in the spark store:
+`parts.py --kept an4545`) and must be run **through the lid's
 window, in the final assembly** — that is what they are measuring. Re-gluing the window
 invalidates them. Background: parts/SENSOR_OPTIONS.md.
 """

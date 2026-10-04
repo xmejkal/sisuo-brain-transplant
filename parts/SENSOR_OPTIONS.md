@@ -28,7 +28,7 @@ the bin's existing IR holes, but it needs a transistor + resistors (against the 
 DFRobot has **no** VL53L1X module. TEL0157 is a GNSS module, not a rangefinder.
 Nothing DFRobot-IR is stocked in Czechia; Botland stocks the Gravity ToF and gesture modules.
 
-## VL6180X — what the datasheet says (ST DocID026171 Rev 6, AN4545)
+## VL6180X — what the datasheet says (ST DocID026171 Rev 7, AN4545)
 
 - **Range 0–100 mm guaranteed.** Beyond that is explicitly not guaranteed. In 5 kLux
   (≈10–15 kLux sunlight) worst-case range falls to ~60–70 mm. **So use a 30–100 mm trigger

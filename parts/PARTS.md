@@ -13,10 +13,11 @@ Two ways a module reaches the board, and the difference decides the board size:
   own, so a flat multi-way cable plugs straight on. The board carries only the mating header or
   JST, and no body is drawn for them — they are not on the board.
 
-## Seeed XIAO ESP32-C6  (the brain)   [reference DOWNLOADED -> ./xiao/]
-- Footprint: XIAO-ESP32-C6-SMD.kicad_mod (real, in ./xiao/ and used in board.tsx)
-- Pinout diagrams: ./xiao/pinout_front.png, pinout_back.png
-- Datasheet/getting-started: ./xiao/getting_started.md
+## Seeed XIAO ESP32-C6  (the brain of the superseded v2 board)
+The vendor files left this repo (spark B12, 2026-10-04); the spark store keeps each one (`parts.py --kept xiao`).
+- Footprint: XIAO-ESP32-C6-SMD.kicad_mod — Seeed's OPL KiCad library, CC BY-SA 4.0:
+  https://raw.githubusercontent.com/Seeed-Studio/OPL_Kicad_Library/master/Seeed%20Studio%20XIAO%20Series%20Library/XIAO-ESP32-C6-SMD.kicad_mod
+- Pinout diagrams and the getting-started page: Seeed's wiki, below
 - Hardware repo (schematic + more): https://github.com/Seeed-Studio/OSHW-XIAO-Series
 - Wiki: https://wiki.seeedstudio.com/xiao_esp32c6_getting_started/
 

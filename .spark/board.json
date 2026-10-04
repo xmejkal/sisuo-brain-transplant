@@ -300,12 +300,18 @@
     "v1_1_and_earlier": {
       "3v3_regulator": "AXP313A PMIC, DCDC1, 1.5 A (X-Powers datasheet, not DFRobot)",
       "i2c_pullups": "5.1k to 3V3 already present on SDA/SCL \u2014 they are the PMIC's own bus pull-ups, and the PMIC is another device on your I2C bus",
-      "user_button": "also drives the PMIC's PWRON through a diode, so a long press can power the board down and the pin reads ~0.7 V pressed, not 0 V"
+      "user_button": "also drives the PMIC's PWRON through a diode, so a long press can power the board down and the pin reads ~0.7 V pressed, not 0 V",
+      "cites": {
+        "document": "firebeetle2-s3-schematic-v1-0"
+      }
     },
     "v1_2_and_later": {
       "3v3_regulator": "TPS62A02 buck, 2 A (TI datasheet, not DFRobot)",
       "i2c_pullups": "NONE anywhere on the board. Every I2C device must bring its own, or the bus does not work at all",
-      "user_button": "a plain button: 5.1k pull-up, 100 nF, switch to ground"
+      "user_button": "a plain button: 5.1k pull-up, 100 nF, switch to ground",
+      "cites": {
+        "document": "firebeetle2-s3-schematic-v1-3"
+      }
     }
   },
   "//documents": "P62b: the documents this record's facts rest on, kept in the person's store (~/.local/share/spark/sources/<sha256>/<file>), never in the plugin. The WROOM-1 v1.1 is the version the facts were read from - its URL now serves a later version, so the checksum, not the URL, says which document this is. title and version are as printed (page 1, and the footer of page 15); retrieved is the day the bin first kept it.",
@@ -316,7 +322,36 @@
       "file": "ESP32-S3-WROOM-1_datasheet_Espressif_v1.1.pdf",
       "retrieved": "2026-09-24",
       "title": "ESP32-S3-WROOM-1 & WROOM-1U Datasheet",
-      "version": "1.1"
+      "version": "1.1",
+      "private_only": true,
+      "//private_only": "No public copy of v1.1 exists (searched 2026-10-04): Espressif's URL serves a later version, and the Wayback Machine holds v1.0 and v1.2, not v1.1. The facts that cite it were read from this privately kept copy; a stranger can re-check them only against a later version."
+    },
+    "firebeetle2-s3-schematic-v1-3": {
+      "url": "https://dfimg.dfrobot.com/wiki/20529/DFR0975_firebeetle-esp32-s3-ai-acceleration-board_schematics_V1.3.zip",
+      "sha256": "4062428ab603999097297ea1773e9fefcc4e6f0fd8fe9acf55a3503b90f89406",
+      "file": "FireBeetle2_S3_schematic_DFRobot_V1.3.pdf",
+      "retrieved": "2026-09-24",
+      "title": null,
+      "version": "V1.3",
+      "member": "DFR0975_firebeetle-esp32-s3-ai-acceleration-board_schematics_V1.3/DFR0975 schematics V1.3.pdf"
+    },
+    "firebeetle2-s3-schematic-v1-0": {
+      "url": "https://dfimg.dfrobot.com/wiki/20529/DFR0975_firebeetle-esp32-s3-ai-acceleration-board_schematics_V1.3.zip",
+      "sha256": "107c54371203310eaf491a6381163c497965908ab495b758742f44293d681000",
+      "file": "FireBeetle2_S3_schematic_DFRobot_V1.0_AXP313A.pdf",
+      "retrieved": "2026-09-24",
+      "title": null,
+      "version": "V1.0",
+      "member": "DFR0975_firebeetle-esp32-s3-ai-acceleration-board_schematics_V1.3/DFR0975 schematics V1.0.pdf"
+    },
+    "eta6003-datasheet": {
+      "url": "https://wmsc.lcsc.com/wmsc/upload/file/pdf/v2/lcsc/2304131730_etasolution-ETA6003Q3Q_C5455585.pdf",
+      "sha256": "2824d0c1a2d8487a22c2429513c0420b49d49716c24a66c7cfa6fea2aceb8da4",
+      "file": "ETA6003_charger_datasheet.pdf",
+      "retrieved": "2026-09-24",
+      "title": null,
+      "version": null,
+      "//url": "The same document from LCSC: identical text, 11 pages, a different save of the file, so a fetch from this URL will not match the sha256. ETA's own site serves no copy (2026-10-04)."
     }
   },
   "//power": "What DFRobot document, and what only the component datasheets say. DFRobot publish no current rating for either rail and no quiescent figure at all.",
@@ -325,13 +360,25 @@
       "value": true,
       "verified": true,
       "source": "DFRobot schematic V1.3.0",
-      "note": "VCC reaches VSYS through a SI2301 P-FET with a dual-PNP gate drive and a 6.2 V zener clamp. Functionally VCC follows VSYS, but it is a switch, not a short, and the FET is the practical current ceiling \u2014 DFRobot rate neither."
+      "note": "VCC reaches VSYS through a SI2301 P-FET with a dual-PNP gate drive and a 6.2 V zener clamp. Functionally VCC follows VSYS, but it is a switch, not a short, and the FET is the practical current ceiling \u2014 DFRobot rate neither.",
+      "cites": {
+        "document": "firebeetle2-s3-schematic-v1-3"
+      }
     },
     "charge_current_a": {
       "value": 1.0,
       "verified": true,
       "source": "DFRobot wiki 'Max Charging Current: 1A'; schematic V1.3.0 ETA6003 ISET1 = 1k",
-      "note": "Not settable in software or by a jumper \u2014 changing it means replacing R2. Battery temperature protection is disabled on this board: NTC is tied to ground."
+      "note": "Not settable in software or by a jumper \u2014 changing it means replacing R2. Battery temperature protection is disabled on this board: NTC is tied to ground.",
+      "cites": {
+        "document": "firebeetle2-s3-schematic-v1-3",
+        "at": "ETA6003 ISET1 = 1k"
+      },
+      "corroborated_by": {
+        "cites": {
+          "document": "eta6003-datasheet"
+        }
+      }
     },
     "feeding_vcc_charges_the_battery": {
       "value": false,
@@ -363,6 +410,16 @@
         "document": "wroom1-v1-1",
         "at": "Table 12, page 15"
       }
+    },
+    "io_volts": {
+      "value": 3.3,
+      "verified": true,
+      "source": "ESP32-S3-WROOM-1 datasheet v1.1, Table 9 (page 14): VDD33 power supply voltage 3.0 min, 3.3 typ, 3.6 max V. Table 10: VOH is at least 0.8 x VDD measured into a high-impedance load, and a pin sources 40 mA (typ) at VOH >= 2.64 V with PAD_DRIVER = 3 - so at an indicator's few milliamps a pin sits close to 3.3 V, and a resistor computed from 3.3 V gives at most the current asked for.",
+      "cites": {
+        "document": "wroom1-v1-1",
+        "at": "Table 9, page 14"
+      },
+      "why_it_matters": "the voltage a GPIO drives, from which a series resistor's value is computed (P78)"
     }
   }
 }

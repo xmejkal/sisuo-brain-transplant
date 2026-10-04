@@ -103,7 +103,7 @@ bool buttonPressed(uint8_t pin) {
  * Send one command frame to the DFR0534: 0xAA, CMD, LEN, DATA..., SUM.
  * SUM is the low byte of the sum of every preceding byte.
  * NOTE: verify the exact command bytes against the DFR0534 datasheet
- * (parts/datasheets on your Mac) — they vary slightly by firmware revision.
+ * (kept in the spark store: parts.py --kept dfr0534-datasheet) — they vary slightly by firmware revision.
  */
 void mp3SendCommand(uint8_t command, const uint8_t *data, uint8_t length) {
   uint8_t frame[16];
