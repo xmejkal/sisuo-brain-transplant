@@ -5,10 +5,6 @@
     "fit inside the original Sisuo SS-01 cavity",
     "open within half a second of a wave"
   ],
-  "parts_on_hand": [
-    "Seeed XIAO ESP32-C6", "L9110S motor driver", "DFR0534 MP3 + speaker",
-    "VL6180X rangefinder", "LiPo 1000 mAh", "the bin's original 6V AA pack and lid motor"
-  ],
   "prefer": "reuse what I already own before buying",
   "decided": [
     "L9110S rather than TB6612 - right current class, two inputs not three",
