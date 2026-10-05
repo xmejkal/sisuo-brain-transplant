@@ -65,18 +65,16 @@ the change; the sixth is now an advisory.
    the PMIC sits on the I2C bus with its own 5.1k pull-ups, and the MODE button — this bin's mode
    input — also drives the PMIC's power-off; `boards/firebeetle2-esp32s3.json` → `hardware_revisions`.
 
-## Next steps, in order
+## Next steps — the bin's board
 
-1. **B1**, the drawer — it decides whether the audio on the board is the audio you own.
-2. **Bench bring-up**, `firmware/micropython/bringup/01..06` in order. The firmware README's bench
-   steps still name the XIAO's pins (spark backlog P58) — take pins from `config.py` until it is fixed.
-3. **Measure the motor's real current** and replace the 1.5 A bound in `.spark/rules.json`.
-4. **Verify deep sleep actually wakes** — on the bench; Wokwi cannot wake an ESP32 from a GPIO.
-5. **Calibrate** stroke times, the ToF window and the stall threshold (`tools/calibrate.py`).
-6. **Order parts from `SHOPPING.md`** (current since 2026-09-25). The FireBeetle is owned
-   (2026-10-03); whether a DFR0954 is waits on B1.
-7. **B7's second half** — once spark is public, CI checks it out beside the bin and runs all of
-   `make check`, with no token.
+The order is [the bin's board](https://github.com/users/xmejkal/projects/1), set by the PO; each
+card carries its detail. **B1** (#1) the drawer decides whether the audio on the board is the
+audio you own. The bench cards: **B14** (#8) bring-up, `bringup/01..06` — take pins from
+`config.py` until P58 (#5) fixes the bench steps · **B15** (#9) the motor's real current, to
+replace the 1.5 A bound · **B16** (#10) deep sleep wakes, on the bench · **B17** (#11) calibrate.
+Also **B18** (#12) the `SHOPPING.md` order · **B19** (#13) B7's second half, CI with spark beside
+the bin · **B20**–**B24** (#14–#18) the connector's pitch, the FireBeetle's SKU and revision,
+stall-sensing, STEP models, blocker 7.
 
 ## What is NOT verified
 

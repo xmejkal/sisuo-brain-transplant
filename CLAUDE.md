@@ -165,6 +165,11 @@ bytes against its datasheet (`parts.py --kept dfr0534-datasheet` — kept in the
 ## Status / next
 **Read `HANDOVER.md` first** — the whole picture, both repos, every decision and its reasoning,
 and what is left. `STATUS.md` is the short blocker table.
+**The work is ordered on two boards** (GitHub Projects): [the bin's](https://github.com/users/xmejkal/projects/1)
+(issues in this repo) and [spark's](https://github.com/users/xmejkal/projects/2).
+A session opens with both, from the `../spark/tools/board.py status` hook in the PO's settings
+(not the bin's own `board.py`, the firmware's chip facts); the PO orders them, and the flow is in
+`../spark/scrum/README.md`. There is no other ordered list.
 
 DONE (2026-09-25, each verified by running it): routed **v4** board, 60 traces, 0 errors; audio
 moved to I2S; firmware **113 tests**; 14-check MicroPython run; **50** converter tests; **all
@@ -175,17 +180,18 @@ hard-switched 470 uF, and deep sleep never waking.
 **We are NOT ordering the board.** The goal is a circuit that is good and working, so a
 fabrication-process limit is parked while a circuit fault is not.
 
-NEXT, in order:
-1. **Which audio module is in the drawer?** Blocked on Petr, and four things wait on it. microSD
-   slot = DFPlayer Mini; micro-USB + "Voice Module V1.0" = DFR0534; BCLK/LRC/DIN pads = the I2S
-   amp the board now assumes.
-2. **Bench bring-up** (`bringup/01..06`, in order). Nothing has ever touched hardware.
-3. **Measure the motor's real current** — the one number that could still change the driver
-   choice. The rules file states 1.5 A, which is the L9110S's limit, NOT a measurement.
-4. **Verify deep sleep actually wakes.** Wokwi cannot do this at all.
-5. Calibrate; measure the bin connector's pitch; read the owned FireBeetle's SKU and revision
-   (STATUS.md, item 8); order what `SHOPPING.md` lists; optionally add stall-sensing
-   (see LID_CLOSE_DETECTION.md); pull DFRobot module STEP for the Fusion enclosure.
+NEXT is the bin's board, in the PO's order there. **Nothing has ever touched hardware.** Its
+cards, each carrying the detail that was listed here:
+
+- **B1** (#1) which audio module is in the drawer — blocked on Petr; four things wait on it.
+- **B14** (#8) bench bring-up, `bringup/01..06` · **B15** (#9) the motor's real current (the
+  rules file's 1.5 A is the L9110S's limit, NOT a measurement) · **B16** (#10) deep sleep wakes,
+  on the bench (Wokwi cannot) · **B17** (#11) calibrate.
+- **B18** (#12) order what `SHOPPING.md` lists · **B19** (#13) CI runs spark's checks beside the
+  bin · **B20** (#14) the bin connector's pitch · **B21** (#15) the FireBeetle's SKU and revision
+  · **B22** (#16) stall-sensing, optional · **B23** (#17) DFRobot STEP models for the enclosure ·
+  **B24** (#18) blocker 7's rings, if ever.
+- From spark's earlier backlog: P58 (#5), P73 (#2), B5 (#4), B8 (#3), P32b (#6).
 
 ## The `spark` plugin
 This whole flow (describe→schematic→verify→route→fab, real parts, reverse-engineering) is packaged as

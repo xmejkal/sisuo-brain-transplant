@@ -9,7 +9,8 @@ Written 2026-09-25. Read this first, then `CLAUDE.md` for the project's own conv
 | **this file** | the whole picture: both repos, what was decided and why, what is left |
 | `CLAUDE.md` | working conventions and where things live. Stable |
 | `STATUS.md` | the bin's blocker table, kept short and current |
-| `../spark/scrum/` | the backlog and process, for the plugin side |
+| [the bin's board](https://github.com/users/xmejkal/projects/1) | the bin's work in the PO's order; each card is an issue in this repo |
+| `../spark/scrum/` | the process; the plugin's work is on [spark's board](https://github.com/users/xmejkal/projects/2) |
 
 ---
 
@@ -83,27 +84,23 @@ them.
 
 ---
 
-## 4. What to do next, in order
+## 4. What to do next
 
-1. **Answer §3.** Everything in the audio path is provisional until then.
-2. **Bench bring-up**, in order, in `firmware/micropython/bringup/`: `01`…`06`. Each prints PASS.
-   `04_audio.py` plays a rising triad through the amplifier; `06_all_together.py` runs the lot.
-   This is where every remaining unknown gets answered, because **nothing has ever touched
-   hardware**.
-3. **Measure the motor's real current**, running and stalled, with a meter in series. It is the
-   one number that could still change the driver choice, and the rules file currently states
-   1.5 A — which is the L9110S's own limit, **not** a measurement.
-4. **Verify deep sleep actually wakes.** Wokwi cannot: it does not wake an ESP32 from a GPIO at
-   all, established by experiment and recorded in the scenario file. The fix is checked
-   structurally (§6) but only a bench proves it.
-5. **Calibrate** with `firmware/micropython/tools/calibrate.py`: stroke times, ToF offset/crosstalk/range-ignore,
-   stall threshold.
-6. **Refresh `SHOPPING.md`** — it is stale. It still lists a XIAO and a LiPo JST the board does
-   not have, and the audio module changed. The real part list is derivable from the netlist:
-   25 components, `dist/board/circuit.json`.
-7. Only then, if ever: **blocker 7**, the 0.225 mm annular rings on `Speaker` and `BinConnector`.
-   Since spark P57 (2026-10-01) this is an advisory: over JLCPCB's 0.18 mm minimum, under its
-   0.25 mm recommendation, so it is made as drawn. Grow both pads to 1.25 mm if the pitch allows.
+The next work is [the bin's board](https://github.com/users/xmejkal/projects/1), in the PO's order
+there; since 2026-10-05 each item that was listed here is a card carrying its detail.
+**Nothing has ever touched hardware**, and the bench is where every remaining unknown gets
+answered.
+
+- **B1** (#1) — answer §3; everything in the audio path is provisional until then.
+- **B14** (#8) bench bring-up, `bringup/01`…`06`, each prints PASS · **B15** (#9) the motor's
+  real current, running and stalled — the rules file's 1.5 A is the L9110S's own limit, **not** a
+  measurement · **B16** (#10) deep sleep wakes, on the bench (Wokwi cannot; checked structurally,
+  §6) · **B17** (#11) calibrate with `firmware/micropython/tools/calibrate.py`.
+- **B18** (#12) order what `SHOPPING.md` lists (current since 2026-09-25) · **B19** (#13) CI runs
+  spark's checks beside the bin · **B20** (#14) the connector's pitch · **B21** (#15) the
+  FireBeetle's SKU and revision · **B22** (#16) stall-sensing, optional · **B23** (#17) STEP models
+  for the enclosure · **B24** (#18) blocker 7, the 0.225 mm rings on `Speaker` and
+  `BinConnector`, if ever — an advisory since spark P57.
 
 ---
 
@@ -276,10 +273,12 @@ Say these are unknown rather than estimating them.
 
 ## 9. The spark side, briefly
 
-Its own backlog and process live in `../spark/scrum/` — `PRODUCT_BACKLOG.md` is the single
-ordered list, `WORKING_AGREEMENTS.md` the rules with their origins, `RETROSPECTIVES.md` the
-changes each retro produced *and a check that it stuck*. Petr is Product Owner; items needing his
-decision are marked `[PO]`.
+Its work is ordered on [spark's board](https://github.com/users/xmejkal/projects/2): each card is
+an issue in xmejkal/spark, moving through Kanban stages whose limits are checked at every push.
+The process lives in `../spark/scrum/` — `README.md` the flow and its stages,
+`WORKING_AGREEMENTS.md` the rules with their origins, `RETROSPECTIVES.md` the changes each retro
+produced *and a check that it stuck*; `PRODUCT_BACKLOG.md` is the archive, frozen 2026-10-05.
+Petr is Product Owner; a card waiting on his decision carries *Waiting on: the PO*.
 
 What works today: `python3 scripts/check_spine.py` runs idea → parts → pin map → schematic →
 footprint → build and reports *"the chain runs end to end"*. 367 tests.
@@ -287,7 +286,8 @@ footprint → build and reports *"the chain runs end to end"*. 367 tests.
 What does not: **simulation**. `bench_sim.py` is a *pretend bench* that fabricates measurement
 numbers and never reads a circuit. The link that would close it already exists here —
 `tools/circuit-to-wokwi/`, ~1790 lines of TypeScript with 50 tests, turning `circuit.json` into a
-Wokwi `diagram.json`. Moving it into spark is the next item on that backlog.
+Wokwi `diagram.json`. It has since moved into spark (P32a); the bin's own copy goes with P32b, on
+the bin's board.
 
 **Unverified, and flagged as such:** an observer agent reported that the converter is liftable —
 that its bin-specific parts are confined to `check-consistency.ts` and `lib/checks/`, and that
