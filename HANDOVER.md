@@ -9,7 +9,8 @@ Written 2026-09-25. Read this first, then `CLAUDE.md` for the project's own conv
 | **this file** | the whole picture: both repos, what was decided and why, what is left |
 | `CLAUDE.md` | working conventions and where things live. Stable |
 | `STATUS.md` | the bin's blocker table, kept short and current |
-| `../spark/scrum/` | the backlog and process, for the plugin side |
+| [the bin's board](https://github.com/users/xmejkal/projects/1) | the bin's work in the PO's order; each card is an issue in this repo |
+| `../spark/scrum/` | the process; the plugin's work is on [spark's board](https://github.com/users/xmejkal/projects/2) |
 
 ---
 
@@ -276,10 +277,12 @@ Say these are unknown rather than estimating them.
 
 ## 9. The spark side, briefly
 
-Its own backlog and process live in `../spark/scrum/` — `PRODUCT_BACKLOG.md` is the single
-ordered list, `WORKING_AGREEMENTS.md` the rules with their origins, `RETROSPECTIVES.md` the
-changes each retro produced *and a check that it stuck*. Petr is Product Owner; items needing his
-decision are marked `[PO]`.
+Its work is ordered on [spark's board](https://github.com/users/xmejkal/projects/2): each card is
+an issue in xmejkal/spark, moving through Kanban stages whose limits are checked at every push.
+The process lives in `../spark/scrum/` — `README.md` the flow and its stages,
+`WORKING_AGREEMENTS.md` the rules with their origins, `RETROSPECTIVES.md` the changes each retro
+produced *and a check that it stuck*; `PRODUCT_BACKLOG.md` is the archive, frozen 2026-10-05.
+Petr is Product Owner; a card waiting on his decision carries *Waiting on: the PO*.
 
 What works today: `python3 scripts/check_spine.py` runs idea → parts → pin map → schematic →
 footprint → build and reports *"the chain runs end to end"*. 367 tests.
@@ -287,7 +290,8 @@ footprint → build and reports *"the chain runs end to end"*. 367 tests.
 What does not: **simulation**. `bench_sim.py` is a *pretend bench* that fabricates measurement
 numbers and never reads a circuit. The link that would close it already exists here —
 `tools/circuit-to-wokwi/`, ~1790 lines of TypeScript with 50 tests, turning `circuit.json` into a
-Wokwi `diagram.json`. Moving it into spark is the next item on that backlog.
+Wokwi `diagram.json`. It has since moved into spark (P32a); the bin's own copy goes with P32b, on
+the bin's board.
 
 **Unverified, and flagged as such:** an observer agent reported that the converter is liftable —
 that its bin-specific parts are confined to `check-consistency.ts` and `lib/checks/`, and that

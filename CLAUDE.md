@@ -165,6 +165,11 @@ bytes against its datasheet (`parts.py --kept dfr0534-datasheet` — kept in the
 ## Status / next
 **Read `HANDOVER.md` first** — the whole picture, both repos, every decision and its reasoning,
 and what is left. `STATUS.md` is the short blocker table.
+**The work is ordered on two boards** (GitHub Projects): [the bin's](https://github.com/users/xmejkal/projects/1)
+(issues in this repo) and [spark's](https://github.com/users/xmejkal/projects/2).
+A session opens with both, from the `board.py status` hook in the PO's settings; the PO orders
+them, and the flow is in `../spark/scrum/README.md`. Where the NEXT list below and a board
+disagree, the board wins.
 
 DONE (2026-09-25, each verified by running it): routed **v4** board, 60 traces, 0 errors; audio
 moved to I2S; firmware **113 tests**; 14-check MicroPython run; **50** converter tests; **all
