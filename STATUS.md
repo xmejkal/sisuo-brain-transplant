@@ -22,7 +22,7 @@ this Mac's pre-commit gate runs. **No part of it has ever run on hardware.**
 
 Six of the seven blockers are closed, each verified by running something rather than by reading
 the change; the seventh is now an advisory. These seven are the original fab blockers. B25, B26 and
-B28 below are newer open circuit faults, filed 2026-10-08.
+B28 below are newer open circuit faults, filed 2026-10-06.
 
 | # | was | now |
 | --- | --- | --- |
