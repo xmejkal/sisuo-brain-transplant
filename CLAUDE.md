@@ -173,7 +173,7 @@ A session opens with both, from the `../spark/tools/board.py status` hook in the
 
 DONE (2026-09-25, each verified by running it): routed **v4** board, 60 traces, 0 errors; audio
 moved to I2S; firmware **113 tests**; 14-check MicroPython run; **50** converter tests; **all
-five** Wokwi scenarios passing; `make check` green. Five of the seven fab blockers closed —
+five** Wokwi scenarios passing; `make check` green. Five of the seven fab blockers closed (six by 2026-10-06: B1 — STATUS.md) —
 the SOT-23 pad mapping, the pad-identical headers, the screw that bridged V33 to GND, the
 hard-switched 470 uF, and deep sleep never waking.
 
@@ -182,10 +182,10 @@ fabrication-process limit is parked while a circuit fault is not.
 
 NEXT is the bin's board, in the PO's order there — https://github.com/users/xmejkal/projects/1;
 every card carries its detail. Nothing has touched hardware. B1 (#1) closed 2026-10-06: the audio is
-the DFR0954 I2S amplifier, owned ×2 (no DFR0534 was ever bought); B29 (#23) retires the DFR0534
-fallback. Open circuit faults awaiting a fix: B25 (#19) the ToF wake line asserts at 1.89 V, below the
+the DFR0954 I2S amplifier, owned ×2, from the DFRobot order history (B1, #1; no DFR0534 in any DFRobot order); B29 (#23) retires the DFR0534
+fallback. Open circuit faults, in Idea until the PO orders them: B25 (#19) the ToF wake line asserts at 1.89 V, below the
 S3's 2.48 V input-high; B26 (#20) the L9110S module drains the AA pack at rest; B28 (#22) the motor
-current over 0.15 mm track; B27 (#21) this file's Wokwi wake claim.
+current over 0.15 mm track; B27 (#21), a claim to test: the Wokwi-cannot-wake line above was shown on the C6 only.
 
 ## The `spark` plugin
 This whole flow (describe→schematic→verify→route→fab, real parts, reverse-engineering) is packaged as

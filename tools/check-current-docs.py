@@ -54,8 +54,8 @@ NEGATED = r"\b(?:no|not|never|without|rather\s+than|instead\s+of)\s+(?:the\s+|a\
 #: files, the Arduino sketch — and in git.
 CURRENT = ("README.md", "STATUS.md", "DESIGN_RULES.md", "PCB_PIPELINE.md")
 
-#: The brief, read as data: `parts_on_hand` is an inventory — the XIAO and the DFR0534 ARE in the
-#: drawer — so it is the one field allowed to name them without saying they are history.
+#: The brief, read as data: `parts_on_hand` is an inventory — the XIAO is in the drawer;
+#: a DFR0534 never was (B1, 2026-10-06) — so it is the one field allowed to name them without saying they are history.
 BRIEF = ".spark/project.json"
 INVENTORY_FIELDS = ("parts_on_hand",)
 

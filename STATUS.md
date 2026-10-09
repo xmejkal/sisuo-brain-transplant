@@ -1,11 +1,11 @@
 # Where we are, and what happens next
 
-Updated 2026-10-09. The short state of the bin: read it first after a break, then `HANDOVER.md`
+Updated 2026-10-09 (the audio module and the next steps); the rest as checked 2026-10-01. The short state of the bin: read it first after a break, then `HANDOVER.md`
 for the whole picture and `CLAUDE.md` for the project map. Rewritten on 2026-10-01 because the
 previous version described a board two changes old — a XIAO ESP32-C6 and a DFR0534 MP3 module, a
 deleted findings tool, "84 tests" and "CI green" — while the board, the firmware and the checks had
 moved on. That version is in git at `22677e6`, if its reasoning about the UART audio path is ever
-needed again (see B29 (#23) below).
+needed again (B29, #23, retires that path).
 
 ## In one paragraph
 
@@ -21,7 +21,8 @@ this Mac's pre-commit gate runs. **No part of it has ever run on hardware.**
 ## Where the circuit stands
 
 Six of the seven blockers are closed, each verified by running something rather than by reading
-the change; the seventh is now an advisory.
+the change; the seventh is now an advisory. These seven are the original fab blockers. B25, B26 and
+B28 below are newer open circuit faults, filed 2026-10-08.
 
 | # | was | now |
 | --- | --- | --- |
@@ -68,7 +69,7 @@ card carries its detail.
 **B29** (#23) "Retire the DFR0534 fallback: B1 confirmed the DFR0954 I2S amplifier, and no DFR0534 was
 ever bought".
 
-Open circuit faults awaiting a fix: **B25** (#19) the ToF wake line at 1.89 V against the S3's 2.48 V
+Open circuit faults, in Idea until the PO orders them: **B25** (#19) the ToF wake line at 1.89 V against the S3's 2.48 V
 input-high, **B26** (#20) the L9110S module draining the AA pack at rest, and **B28** (#22) the motor
 current over 0.15 mm track. **B27** (#21) is separate: CLAUDE.md's claim that Wokwi cannot wake an
 ESP32 from a GPIO was shown on the C6 and only assumed for the S3, so it is a claim to test.

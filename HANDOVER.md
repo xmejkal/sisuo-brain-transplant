@@ -68,15 +68,15 @@ directory, because a `wokwi.toml` names exactly one firmware.
 
 ## 3. Which audio module — answered 2026-10-06 (B1)
 
-*Answered 2026-10-06 (B1, #1): the DFR0954 I2S amplifier, owned ×2; no DFR0534 was ever bought. B29 (#23) retires the fallback below. The guide stays as the record.*
+*Answered 2026-10-06 (B1, #1) from the DFRobot order history: the DFR0954 I2S amplifier, owned ×2; no DFR0534 in any DFRobot order. B29 (#23) retires the fallback below. The guide stays as the record.*
 
-**Which audio module do you actually own?** Four things waited on this and the board was drawn
-for the answer you gave, unverified. Five-second test:
+*The question, as it stood (answered above):* four things waited on it, and the board was drawn for
+an unverified answer. The test that distinguished the three candidates:
 
 - a **microSD slot** → DFPlayer Mini (DFR0299)
 - **micro-USB, no card slot, "Voice Module V1.0"** on the silkscreen → DFR0534
-- pads marked **BCLK / LRC / DIN** → the I2S amplifier (DFR0954). **This is what the board now
-  assumes.**
+- pads marked **BCLK / LRC / DIN** → the I2S amplifier (DFR0954). **which is what the board
+  assumes, and what B1 confirmed.**
 
 It did not turn out to be a DFR0534; the recovery path below stays as a record (B29, #23, retires it).
 Had it been one, the recovery was in place and not a rewrite:
@@ -95,6 +95,7 @@ there; since 2026-10-05 each item that was listed here is a card carrying its de
 answered.
 
 - **B1** (#1) — closed 2026-10-06: the DFR0954 I2S amplifier, owned ×2; B29 (#23) retires the DFR0534 fallback.
+- **B25** (#19), **B26** (#20), **B28** (#22) — open circuit faults, in Idea; **B27** (#21) — a claim to test.
 - **B14** (#8) bench bring-up, `bringup/01`…`06`, each prints PASS · **B15** (#9) the motor's
   real current, running and stalled — the rules file's 1.5 A is the L9110S's own limit, **not** a
   measurement · **B16** (#10) deep sleep wakes, on the bench (Wokwi cannot; checked structurally,

@@ -12,6 +12,6 @@
     "no OLED - the bin never had a screen",
     "rangefinder and speaker live on ribbons, not on the board",
     "the board is a DFRobot FireBeetle 2 ESP32-S3, not the XIAO ESP32-C6 on hand (2026-09-24): the C6 wakes from GPIO0-7 only, three usable pins on the XIAO; the S3 has 22",
-    "audio is an I2S amplifier (DFRobot DFR0954, MAX98357A) with tones synthesised by the ESP32, not the DFR0534 on hand (2026-09-25); which module is really in the drawer is still unconfirmed (B1)"
+    "audio is an I2S amplifier (DFRobot DFR0954, MAX98357A) with tones synthesised by the ESP32, not a UART MP3 module (2026-09-25); B1 confirmed the DFR0954 on 2026-10-06 from the DFRobot order history, owned ×2, on hand; no DFR0534 in any DFRobot order"
   ]
 }

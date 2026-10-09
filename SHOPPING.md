@@ -1,6 +1,6 @@
 # Shopping list — Czech shops (prices checked 2026-09-23)
 
-> **Updated 2026-09-25.** Two changes since this list was first written, and one correction
+> **Updated 2026-10-09 (B1 settled the audio module); the rest as of 2026-09-25.** Two changes since this list was first written, and one correction
 > that would have wasted a parcel.
 >
 > The microcontroller is a DFRobot FireBeetle 2 ESP32-S3, not a XIAO ESP32-C6 — the cell plugs
@@ -21,13 +21,13 @@ than the parts, so spares are worth adding. Prices are CZK incl. VAT, per piece.
 ## Already owned — do NOT buy
 LiPo · **L9110S dual motor driver module** (blue, HG7881 type; also owns an L298N
 and an A4988 stepper driver, both unsuitable) · **DFRobot DFR0954 I2S amplifier ×2** (confirmed
-2026-10-06, B1) · DFRobot speaker ·
+2026-10-06 from the DFRobot order history, B1) · DFRobot speaker ·
 **VL6180X ToF sensor** (see [parts/SENSOR_OPTIONS.md](parts/SENSOR_OPTIONS.md)) · breadboards,
 jumper wires, perfboard.
 
 > **Settled 2026-10-06 (B1, #1):** the audio module is the DFR0954 MAX98357A I2S amplifier, and you own
-> two. This line used to say "DFR0534 MP3 module" from the first commit, unverified; no DFR0534 was ever
-> bought, so there is nothing to buy for the audio path.
+> two. This line used to say "DFR0534 MP3 module" from the first commit, unverified; there is no DFR0534 in any
+> DFRobot order, so there is nothing to buy for the audio path.
 The original Sisuo board stays **untouched** — nothing gets desoldered from it.
 
 **XIAO ESP32-C6** — owned, but no longer the design's board. Kept as a spare; `boards/` still
