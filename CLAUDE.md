@@ -50,7 +50,7 @@ speaker, **VL6180X** time-of-flight rangefinder on I2C, 2 tactile buttons, a bic
 LED, JST connectors, 0603/0805 passives. No OLED — the bin never had a screen.
 **The audio changed on 2026-09-25**: a UART MP3 module (DFR0534) became an I2S amplifier, the
 ESP32 synthesises the tones, and four fab blockers went with it. `board-v3-dfr0534.tsx` is the
-superseded design, kept because nobody has confirmed which module is in the drawer.
+superseded design, kept until B29 (#23) retires it; B1 settled the module on 2026-10-06.
 
 ## tscircuit — how to work with the board (runs locally; installed here)
 ```
@@ -180,18 +180,12 @@ hard-switched 470 uF, and deep sleep never waking.
 **We are NOT ordering the board.** The goal is a circuit that is good and working, so a
 fabrication-process limit is parked while a circuit fault is not.
 
-NEXT is the bin's board, in the PO's order there. **Nothing has ever touched hardware.** Its
-cards, each carrying the detail that was listed here:
-
-- **B1** (#1) which audio module is in the drawer — blocked on Petr; four things wait on it.
-- **B14** (#8) bench bring-up, `bringup/01..06` · **B15** (#9) the motor's real current (the
-  rules file's 1.5 A is the L9110S's limit, NOT a measurement) · **B16** (#10) deep sleep wakes,
-  on the bench (Wokwi cannot) · **B17** (#11) calibrate.
-- **B18** (#12) order what `SHOPPING.md` lists · **B19** (#13) CI runs spark's checks beside the
-  bin · **B20** (#14) the bin connector's pitch · **B21** (#15) the FireBeetle's SKU and revision
-  · **B22** (#16) stall-sensing, optional · **B23** (#17) DFRobot STEP models for the enclosure ·
-  **B24** (#18) blocker 7's rings, if ever.
-- From spark's earlier backlog: P58 (#5), P73 (#2), B5 (#4), B8 (#3), P32b (#6).
+NEXT is the bin's board, in the PO's order there — https://github.com/users/xmejkal/projects/1;
+every card carries its detail. Nothing has touched hardware. B1 (#1) closed 2026-10-06: the audio is
+the DFR0954 I2S amplifier, owned ×2 (no DFR0534 was ever bought); B29 (#23) retires the DFR0534
+fallback. Open circuit faults awaiting a fix: B25 (#19) the ToF wake line asserts at 1.89 V, below the
+S3's 2.48 V input-high; B26 (#20) the L9110S module drains the AA pack at rest; B28 (#22) the motor
+current over 0.15 mm track; B27 (#21) this file's Wokwi wake claim.
 
 ## The `spark` plugin
 This whole flow (describe→schematic→verify→route→fab, real parts, reverse-engineering) is packaged as

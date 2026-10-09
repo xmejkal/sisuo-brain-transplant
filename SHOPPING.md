@@ -20,18 +20,14 @@ than the parts, so spares are worth adding. Prices are CZK incl. VAT, per piece.
 
 ## Already owned — do NOT buy
 LiPo · **L9110S dual motor driver module** (blue, HG7881 type; also owns an L298N
-and an A4988 stepper driver, both unsuitable) · **a DFRobot audio module — identity UNCONFIRMED,
-see below** · DFRobot speaker ·
+and an A4988 stepper driver, both unsuitable) · **DFRobot DFR0954 I2S amplifier ×2** (confirmed
+2026-10-06, B1) · DFRobot speaker ·
 **VL6180X ToF sensor** (see [parts/SENSOR_OPTIONS.md](parts/SENSOR_OPTIONS.md)) · breadboards,
 jumper wires, perfboard.
 
-> **This line said "DFR0534 MP3 module" from the first commit and nobody recorded who checked.**
-> That single unverified word is the root of the project's longest-standing blocker: the board
-> was drawn twice for a module nobody had looked at. It is a five-second test —
-> **microSD slot** → DFPlayer Mini (DFR0299); **micro-USB, no card slot, "Voice Module V1.0"**
-> on the silkscreen → DFR0534; pads marked **BCLK / LRC / DIN** → the I2S amplifier.
-> The current board assumes the last of those. Until somebody looks, the entry below for a
-> DFR0954 is "buy unless you already have it", not "buy".
+> **Settled 2026-10-06 (B1, #1):** the audio module is the DFR0954 MAX98357A I2S amplifier, and you own
+> two. This line used to say "DFR0534 MP3 module" from the first commit, unverified; no DFR0534 was ever
+> bought, so there is nothing to buy for the audio path.
 The original Sisuo board stays **untouched** — nothing gets desoldered from it.
 
 **XIAO ESP32-C6** — owned, but no longer the design's board. Kept as a spare; `boards/` still
@@ -133,10 +129,8 @@ the board and the module's own pins through it. Row spacings are from the footpr
 | **Speaker** | JST PH 2-pin | `jst_ph_2` |
 | **Bin connector** | JST PH 4-pin | `jst_ph_4` — **pitch unconfirmed.** 2.0 mm is PH, 2.5 mm is XH, and they do not mate. Measure the bin's own plug before buying either |
 
-**The amplifier itself** — DFRobot **DFR0954** (MAX98357A), ~250 Kč. Buy **only if the module in
-the drawer is not already one**; see the note under *Already owned*. If it turns out to be a
-DFR0534 instead, buy nothing: `board-v3-dfr0534.tsx` is the design that fits it and
-`config.AUDIO_STRATEGY = "dfr0534"` is the firmware side, with no sound profile changes.
+**The amplifier itself** — DFRobot **DFR0954** (MAX98357A), ~250 Kč: **buy nothing**. You own two
+(B1, closed 2026-10-06). The price is kept only as a reference for a replacement.
 
 ## LaskaKit ([laskakit.cz](https://www.laskakit.cz)) — for the gaps
 - Tactile switch **6×6×12 mm** (if the bin's buttons are taller than Hadex's 8 mm), 2 Kč —
@@ -159,8 +153,6 @@ minimum order quantities (BC337 min 24, 220 µF min 18, resistors min 5) push a 
 ~150–180 Kč.
 
 ## Open questions before ordering
-0. **Which audio module is in the drawer.** Everything in the audio path turns on it, and it is
-   a look, not a measurement. See the note under *Already owned*.
 1. **Button height** — board surface to top of the black cap (Hadex tops out at 8 mm).
 2. **Bin connector pin pitch** — 2.0 mm = JST PH (LaskaKit), 2.5 mm = JST XH (Hadex).
 3. **VL6180X breakout markings** — confirm it has a regulator + level shifter before 3.3 V.

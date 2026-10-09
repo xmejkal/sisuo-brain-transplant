@@ -1,11 +1,11 @@
 # Where we are, and what happens next
 
-Updated 2026-10-01. The short state of the bin: read it first after a break, then `HANDOVER.md`
+Updated 2026-10-09. The short state of the bin: read it first after a break, then `HANDOVER.md`
 for the whole picture and `CLAUDE.md` for the project map. Rewritten on 2026-10-01 because the
 previous version described a board two changes old — a XIAO ESP32-C6 and a DFR0534 MP3 module, a
 deleted findings tool, "84 tests" and "CI green" — while the board, the firmware and the checks had
 moved on. That version is in git at `22677e6`, if its reasoning about the UART audio path is ever
-needed again (see B1 below).
+needed again (see B29 (#23) below).
 
 ## In one paragraph
 
@@ -20,13 +20,13 @@ this Mac's pre-commit gate runs. **No part of it has ever run on hardware.**
 
 ## Where the circuit stands
 
-Five of the seven blockers are closed, each verified by running something rather than by reading
-the change; the sixth is now an advisory.
+Six of the seven blockers are closed, each verified by running something rather than by reading
+the change; the seventh is now an advisory.
 
 | # | was | now |
 | --- | --- | --- |
 | 1 | `Mp3Switch` SOT-23 pads mapped drain/source/gate where every real P-FET is gate/source/drain | **gone** — the part is not on the board. The I2S amplifier has a shutdown pin, so there is no rail to switch |
-| 2 | Nobody knows which audio module this is | **STILL OPEN, and yours to settle.** It is a look in a drawer — B1 below |
+| 2 | Nobody knows which audio module this is | **closed 2026-10-06** — the DFR0954 I2S amplifier, owned ×2 (B1) |
 | 3 | `MotorDriver` and the audio module pad-identical, 24 mm apart | **gone** — 12 pads in two rows against 6 in one. spark's cross-pluggable rule no longer reports it |
 | 4 | Pours ran to the mounting-hole walls; a screw head bridged V33 to GND | **gone** — measured at 0.19 mm on two corners, an M3 head overhangs 1.15 mm. Ground is now the only poured net, so there is nothing to bridge TO |
 | 5 | Deep sleep never woke: `WAKEUP_ALL_LOW` is an AND across every armed pin | **misdiagnosed, and closed anyway** — on the S3 ESP-IDF aliases `ALL_LOW` to `ANY_LOW`, an OR (found 2026-10-01, spark P60), so this was reasoned, never observed. Both sources now assert HIGH and the firmware arms `WAKEUP_ANY_HIGH`, which also stays clear of MicroPython #17334 |
@@ -35,31 +35,24 @@ the change; the sixth is now an advisory.
 
 ## Waiting on Petr
 
-1. **B1 — which audio module is in the drawer.** The board and the firmware assume the I2S
-   amplifier; `SHOPPING.md` has listed a DFR0534 as owned since the first commit, and nothing
-   records who checked. Five-second test: a microSD slot means **DFPlayer Mini**; micro-USB with no
-   card slot and "Voice Module V1.0" means **DFR0534**; pads marked **BCLK / LRC / DIN** mean the
-   I2S amplifier. Only the last fits this board. The firmware keeps a `Dfr0534Player` strategy, and
-   the old reasoning about that path (its command bytes, its missing standby opcode, the high-side
-   switch it would need) is in this file at `22677e6`.
-2. **Button height** — board surface to the top of the black cap, on the original board. Hadex
+1. **Button height** — board surface to the top of the black cap, on the original board. Hadex
    stocks 4.3/5/8 mm; if yours are taller (they look ~12 mm), LaskaKit has 6x6x12 mm.
-3. **Bin connector pin pitch** — 2.0 mm means JST PH (LaskaKit), 2.5 mm means JST XH (Hadex).
+2. **Bin connector pin pitch** — 2.0 mm means JST PH (LaskaKit), 2.5 mm means JST XH (Hadex).
    Measure across the white 4-pin connector on the original board.
-4. **A photo of the VL6180X breakout** — to confirm it has a regulator and level shifter. The bare
+3. **A photo of the VL6180X breakout** — to confirm it has a regulator and level shifter. The bare
    chip is a 2.8 V part; Adafruit 3316 and Pololu 2489 are safe on 3.3 V, cheap boards may not be.
-5. **Motor current, running and stalled** (multimeter in series, stall the lid by hand). The rules
+4. **Motor current, running and stalled** (multimeter in series, stall the lid by hand). The rules
    file states **1.5 A — the L9110S's own limit, as an upper bound, not a measurement** — so that
    the gate can run (2026-10-01, spark retro R8.1). The 70 mA / 230 mA figures are from patent
    literature, not this motor. **Above ~500 mA the L9110S has no margin and the driver choice
    changes.** This single number can still invalidate the design.
-6. **The L9110S's input pull-ups** — a meter, thirty seconds: resistance from each input pin to
+5. **The L9110S's input pull-ups** — a meter, thirty seconds: resistance from each input pin to
    VCC. Its vendor schematic shows four 10k to VCC and the board adds 10k pull-downs, together a
    divider near VCC/2, which on 6 V is above the part's 2.5 V input-high threshold. **This decides
    whether the motor twitches at power-up.**
-7. **The DFR0954's SD bias resistor** — a download, not a bench: DFRobot's schematic says 100k,
+6. **The DFR0954's SD bias resistor** — a download, not a bench: DFRobot's schematic says 100k,
    their wiki says 680k.
-8. **Which FireBeetle you own** (owned since 2026-10-03). The SKU — DFR0975 (N16R8) or DFR1145
+7. **Which FireBeetle you own** (owned since 2026-10-03). The SKU — DFR0975 (N16R8) or DFR1145
    (N4) — from the box or the label. The revision — the chip between BOOT and the USB-C: a QFN
    marked AXP313A is V1.1, a tiny SOT-563 beside two SOT-23-5 regulators is V1.2 or later. On V1.1
    the PMIC sits on the I2C bus with its own 5.1k pull-ups, and the MODE button — this bin's mode
@@ -68,8 +61,19 @@ the change; the sixth is now an advisory.
 ## Next steps — the bin's board
 
 The order is [the bin's board](https://github.com/users/xmejkal/projects/1), set by the PO; each
-card carries its detail. **B1** (#1) the drawer decides whether the audio on the board is the
-audio you own. The bench cards: **B14** (#8) bring-up, `bringup/01..06` — take pins from
+card carries its detail.
+
+**B1** (#1) is closed (2026-10-06): the audio is the DFR0954 I2S amplifier, owned ×2.
+
+**B29** (#23) "Retire the DFR0534 fallback: B1 confirmed the DFR0954 I2S amplifier, and no DFR0534 was
+ever bought".
+
+Open circuit faults awaiting a fix: **B25** (#19) the ToF wake line at 1.89 V against the S3's 2.48 V
+input-high, **B26** (#20) the L9110S module draining the AA pack at rest, and **B28** (#22) the motor
+current over 0.15 mm track. **B27** (#21) is separate: CLAUDE.md's claim that Wokwi cannot wake an
+ESP32 from a GPIO was shown on the C6 and only assumed for the S3, so it is a claim to test.
+
+The bench cards: **B14** (#8) bring-up, `bringup/01..06` — take pins from
 `config.py` until P58 (#5) fixes the bench steps · **B15** (#9) the motor's real current, to
 replace the 1.5 A bound · **B16** (#10) deep sleep wakes, on the bench · **B17** (#11) calibrate.
 Also **B18** (#12) the `SHOPPING.md` order · **B19** (#13) B7's second half, CI with spark beside
