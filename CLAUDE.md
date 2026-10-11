@@ -100,9 +100,11 @@ bench/calibration/deploy: `firmware/micropython/README.md`.
   the whole firmware on a real MicroPython runtime, **14 checks**, exit code = pass/fail. Also
   `mpy-cross` every module to catch on-device compile errors. **Wokwi runs**, in
   `firmware/micropython/sim/` (not `sim/`): `make simulate` — the real 4 MB flash image on a
-  simulated S3, with hand-written `vl6180x` and `l9110s` chips. **All five scenarios pass** as of
+  simulated S3, with hand-written `vl6180x` and `l9110s` chips. **All five scenarios passed** on
   2026-09-25 — lid-cycle, wave-to-open, obstruction, sensor-trouble and deep-sleep/sleep-and-wake
-  (`make simulate-all`). Two of them could never have passed before: the sim image inherited
+  (`make simulate-all`) — **but on 2026-10-11 the serial log came back empty (Wokwi stopped connecting
+  the S3's serial port by default), so none runs now: B31,
+  https://github.com/xmejkal/sisuo-brain-transplant/issues/26.** Two of them could never have passed before: the sim image inherited
   config.py's deployed defaults, so the bin slept while the scenario waved a hand at it. Wokwi CI
   minutes are a limited free quota, so run them deliberately, not on every change. **Wokwi does
   not wake an ESP32 from a GPIO at all**, so deep sleep waking is a bench test, not a sim one.

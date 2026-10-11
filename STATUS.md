@@ -12,8 +12,9 @@ needed again (B29, #23, retires that path).
 The board is a **DFRobot FireBeetle 2 ESP32-S3** with an **I2S amplifier** (DFRobot DFR0954,
 MAX98357A), an L9110S motor driver, a VL6180X rangefinder, two buttons and a bicolour LED: v4,
 **100 x 62 mm, 60 traces, 0 routing errors**. The firmware passes **113 tests**, **14 checks on a
-real MicroPython runtime**, and **five Wokwi scenarios** on a simulated S3 (all five passed on
-2026-09-25; paid, so not rerun since). **`make check` is green** and the pre-commit gate is used
+real MicroPython runtime**, and **five Wokwi scenarios** on a simulated S3 (all five passed
+on 2026-09-25; on 2026-10-11 the serial log came back empty, so none runs now — B31,
+https://github.com/xmejkal/sisuo-brain-transplant/issues/26). **`make check` is green** and the pre-commit gate is used
 again (2026-10-01). **The repository's CI is green** since 2026-10-01 (backlog B7, `f4e6bf5`): with
 no spark plugin to reach, it reads the resolved board and skips spark's four checks by name, which
 this Mac's pre-commit gate runs. **No part of it has ever run on hardware.**
@@ -85,7 +86,7 @@ stall-sensing, STEP models, blocker 7.
 
 * **Nothing has run on hardware.** Every green result is a test or a simulation. The strongest of
   them — the real 4 MB flash image booting on a simulated S3 with our own `vl6180x` and `l9110s`
-  chip models, all five scenarios passing — is still not a bench: no real motor, current or sensor.
+  chip models, all five scenarios passing until B31 — is still not a bench: no real motor, current or sensor.
 * **Deep-sleep wake** is checked structurally (`wake-polarity.ts` compares the level the board
   asserts with the level the firmware arms for) and not by running it: Wokwi does not wake an
   ESP32 from a GPIO, established by experiment on the C6 and *assumed* for the S3 stand-in.

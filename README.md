@@ -10,7 +10,7 @@ a new PCB designed in code.
 
 | Part | State |
 | --- | --- |
-| Firmware | Written, 113 tests passing, **simulated end to end** on a real MicroPython runtime (14 checks) and on a simulated ESP32-S3 in Wokwi (five scenarios) |
+| Firmware | Written, 113 tests passing, **simulated end to end** on a real MicroPython runtime (14 checks) and on a simulated ESP32-S3 in Wokwi (five scenarios, last green 2026-09-25; on 2026-10-11 the serial log came back empty — [B31](https://github.com/xmejkal/sisuo-brain-transplant/issues/26)) |
 | PCB | v4 drawn and routed: 60 traces, 0 errors, fab package generated. Never fabricated |
 | Hardware | **Nothing has been run on a bench yet.** Parts are still being ordered |
 
