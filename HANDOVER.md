@@ -45,7 +45,7 @@ Every number here came from running the command beside it, not from memory.
 | Firmware on a real MicroPython runtime | 14 checks pass | `micropython sim/run_on_micropython.py` |
 | Board↔simulation↔firmware↔bench scripts | **62 tests**, 0 fail (2026-10-11) | `cd tools/circuit-to-wokwi && bun test` |
 | Wokwi, simulated ESP32-S3 silicon | **last green 2026-09-25; none runs now** — on 2026-10-11 the serial log came back empty, Wokwi changed (B31, #26) | `make simulate-all` (costs minutes — see §7) |
-| spark's own suite | **367 tests**, OK | `cd ../spark && python3 -m unittest discover -s tests` |
+| spark's own suite | **1,803 tests**, OK (2026-10-11) | `cd ../spark && python3 -m unittest discover -s tests` |
 | spark end to end | *"the chain runs end to end"* | `python3 ../spark/scripts/check_spine.py` |
 
 ### The five Wokwi scenarios and what each proves
@@ -257,6 +257,18 @@ everything a scenario would except real silicon behaviour.
   the memory.
 
 ---
+
+### Changing the microcontroller
+
+Start at `boards/active.json`: one field naming a board file in spark's `boards/`. The firmware's copy
+(`smartbin/board_spec.py`) is generated from it, and `make check` fails if anything drifts. Done for real on
+2026-09-24 (the XIAO ESP32-C6 → the FireBeetle 2 ESP32-S3):
+* **Mechanical, and it worked:** the board file, the selection, the firmware's board facts, the Wokwi part and its
+  pin names, the MicroPython build name, the wake and ADC checks.
+* **Real work no structure avoids:** which function sits on which pin (`config.py` + `mcu-pins.ts`), and the
+  footprint and placement in `board.tsx`.
+* **What rotted anyway:** the Wokwi scenarios named a part that no longer existed, the flash-image script named the
+  old chip's build (both now checked), and the prose described the old board for a week (checked since 2026-10-01).
 
 ## 8. What cannot be known without hardware
 

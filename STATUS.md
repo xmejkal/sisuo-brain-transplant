@@ -66,7 +66,7 @@ The long version of this file (04e3817 and earlier, in git) held the following; 
 * **Next steps and the bench cards** (B14-B24 and the rest): the board, in the PO's order.
 * **Decisions and why**, with the smaller ones: `HANDOVER.md` section 5. **The traps**, including the two bugs
   worth not reintroducing (a task cannot cancel itself; a hand that never leaves): section 6.
-* **Changing the microcontroller**: the spark plugin's `boards/README.md`, "Switching board".
+* **Changing the microcontroller**: `HANDOVER.md` section 7, and spark's `boards/README.md`, "Switching board" and "Adding a board".
 * **Commands**: README "Testing" and `HANDOVER.md` section 7; deploy and REPL in `firmware/micropython/README.md`.
 * **Published**: <https://github.com/xmejkal/sisuo-brain-transplant> — public, MIT. CI green since 2026-10-01 (B7;
   spark's four checks are skipped there until spark is public).

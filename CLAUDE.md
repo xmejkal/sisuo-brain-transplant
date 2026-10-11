@@ -99,7 +99,7 @@ bench/calibration/deploy: `firmware/micropython/README.md`.
   `machine` module in tests/fake_machine.py, so device construction and the VL6180X driver run
   on the Mac). **Simulate: `micropython sim/run_on_micropython.py`** (brew install micropython) —
   the whole firmware on a real MicroPython runtime, **14 checks**, exit code = pass/fail. Also
-  `mpy-cross` every module to catch on-device compile errors. **Wokwi runs**, in
+  `mpy-cross` every module to catch on-device compile errors. **Wokwi ran**, in
   `firmware/micropython/sim/` (not `sim/`): `make simulate` — the real 4 MB flash image on a
   simulated S3, with hand-written `vl6180x` and `l9110s` chips. **All five scenarios passed** on
   2026-09-25 — lid-cycle, wave-to-open, obstruction, sensor-trouble and deep-sleep/sleep-and-wake
@@ -171,5 +171,5 @@ A session opens with both, from the `../spark/tools/board.py status` hook in the
 fabrication-process limit is parked while a circuit fault is not. Nothing has touched hardware.
 
 ## The `spark` plugin
-This whole flow (describe→schematic→verify→route→fab, real parts, reverse-engineering) is packaged as
-the **spark** plugin (v0.6.0). Install it in Claude Code to reuse the skills + recipes on any board.
+The flow (idea → parts → build → breadboard sheet → firmware → simulation, the PCB on request) is
+the **spark** plugin (v0.8.1). Install it in Claude Code to reuse the skills + recipes on any board.
