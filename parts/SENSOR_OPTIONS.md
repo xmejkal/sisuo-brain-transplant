@@ -7,7 +7,7 @@ projects. Firmware is **MicroPython only**.
 ## Decision
 
 **Try the VL6180X Petr already owns** (I2C, 0x29) on the breadboard first — it costs nothing, it
-is pure digital, it shares the I2C pins freed by dropping the OLED, and its range band is the
+is pure digital, it sits on the board's dedicated I2C pins (SDA GPIO1, SCL GPIO2), and its range band is the
 right one. If the lid-window mounting defeats it, buy **DFRobot SEN0245 (Gravity VL53L0X)**.
 Discrete IR LED + receiver is now the *fallback*, not the plan — it is the only option that fits
 the bin's existing IR holes, but it needs a transistor + resistors (against the "all digital" goal).
@@ -21,7 +21,7 @@ the bin's existing IR holes, but it needs a transistor + resistors (against the 
 | DFRobot SEN0315 Gravity PAJ7620U2 gesture | I2C 0x73, Gravity | 3–20 cm, real "wave" gesture | $13.90 / **275 Kč** Botland, in stock | **thin** — only one unproven repo; would need porting | Best false-trigger rejection, worst driver situation |
 | DFRobot SEN0427 Fermion VL6180X | I2C, 2.54 header | 5–100 mm | $9.50 | same as owned part | No reason to buy — Petr owns the chip already |
 | DFRobot SEN0239 Gravity digital IR (in old BOM) | 1 digital pin | 0–200 cm adjustable | $12.90 | none needed | **Rejected** — Ø18 mm × 75 mm cylinder, will not fit the lid |
-| DFRobot SEN0019 digital IR | 1 digital pin | 10–80 cm | $6.90 | none needed | **Rejected — 5V only**, XIAO/LiPo has no 5V rail |
+| DFRobot SEN0019 digital IR | 1 digital pin | 10–80 cm | $6.90 | none needed | **Rejected — 5V only**, the LiPo-powered bin has no 5V rail |
 | Discrete IR LED + 38 kHz receiver | 1 GPIO out (38 kHz burst) + 1 GPIO in | tune by LED current | ~15 Kč | none needed | Fallback; fits the original holes; needs transistor + resistors |
 | Ultrasonic (URM09 etc.) | I2C | 2–500 cm | $12.90 | — | Rejected — wide cone sees floor/wall/legs |
 
@@ -72,6 +72,6 @@ Nothing DFRobot-IR is stocked in Czechia; Botland stocks the Gravity ToF and ges
   back to SEN0245.
 
 ## Firmware consequences
-- Sensor moves onto **I2C (D4 SDA / D5 SCL)** — the pins the dropped OLED used. **D2 is freed.**
+- The sensor sits on **I2C (SDA GPIO1 / SCL GPIO2)**, the board's dedicated pins (`PIN_I2C_SDA` / `PIN_I2C_SCL` in `config.py`).
 - Trigger logic: `30 mm < range < 100 mm` for N consecutive samples at 10–20 Hz, plus a cooldown,
   instead of a single digital level.

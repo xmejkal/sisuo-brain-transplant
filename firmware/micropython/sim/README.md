@@ -11,7 +11,7 @@ real firmware on a real MicroPython runtime with a fake chip underneath it.
 
 ```sh
 brew install micropython          # once
-micropython sim/run_on_micropython.py     # 13 checks; exit code says pass or fail
+micropython sim/run_on_micropython.py     # 14 checks; exit code says pass or fail
 python3     sim/run_on_micropython.py     # the same script under CPython, as a control
 ```
 

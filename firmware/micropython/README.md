@@ -62,6 +62,10 @@ is `b`.
 Run each from `firmware/micropython/`; only move on when a script prints PASS. Nothing is
 written to flash by `mpremote run`.
 
+> **XIAO pins — being fixed by P58 (bin #5).** The wiring column, the `D…` pin names and the step-4 script
+> name below predate the FireBeetle and the I2S amplifier: take pins from `config.py`, and note that
+> step 4 is `bringup/04_audio.py`.
+
 | Step | Wire up | Run |
 | --- | --- | --- |
 | 1 | XIAO on USB only | `mpremote run bringup/01_board_alive.py` |
@@ -93,7 +97,7 @@ the fake chip with a stand-in for the person, so it cannot call a method that no
 ```sh
 cd firmware/micropython && python3 -m unittest discover -s tests -t tests -v
 ```
-60 tests, no hardware, under two seconds: the safety cap, the open/hold/close cycle, obstruction
+113 tests, no hardware, under two seconds: the safety cap, the open/hold/close cycle, obstruction
 retries and the latched fault, transition-table reachability, sensor debounce and cooldown,
 button debounce, the LED and sound-profile mapping, the DFR0534's frame bytes, the difference
 between an empty room and a dead sensor, the event bus isolating broken listeners, the assembly

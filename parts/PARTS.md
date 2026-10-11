@@ -5,15 +5,17 @@ STEP files linked below (ideal for the Fusion 360 enclosure).
 
 Two ways a module reaches the board, and the difference decides the board size:
 
-- **On the board**, plugged onto a header: the XIAO, the L9110S driver, the DFR0534 MP3 module.
-  These take real board area — 21 x 17.5, 29 x 23 and 30 x 22 mm — which is why the outline is
-  70 x 45 mm and why `tools/check-module-clearance.py` exists.
+- **On the board**, plugged onto a header: the FireBeetle 2 ESP32-S3, the L9110S driver, the DFR0954
+  I2S amplifier. These take real board area, which is why the outline is 100 x 62 mm and why
+  `tools/check-module-clearance.py` exists. (The FireBeetle and the DFR0954 have no entry below yet; the
+  FireBeetle's wiki and pin header are linked in `DESIGN_RULES.md`, Sources.)
 - **On a ribbon**, because the part has to be somewhere else in the bin: the rangefinder looks
   out through the lid, and the speaker sits behind a grille. Both carry 2.54 mm headers of their
   own, so a flat multi-way cable plugs straight on. The board carries only the mating header or
   JST, and no body is drawn for them — they are not on the board.
 
 ## Seeed XIAO ESP32-C6  (the brain of the superseded v2 board)
+**Superseded — the board now carries the FireBeetle 2 ESP32-S3 and the DFR0954 amplifier.** Kept for reference.
 The vendor files left this repo (spark B12, 2026-10-04); the spark store keeps each one (`parts.py --kept xiao`).
 - Footprint: XIAO-ESP32-C6-SMD.kicad_mod — Seeed's OPL KiCad library, CC BY-SA 4.0:
   https://raw.githubusercontent.com/Seeed-Studio/OPL_Kicad_Library/master/Seeed%20Studio%20XIAO%20Series%20Library/XIAO-ESP32-C6-SMD.kicad_mod
@@ -22,6 +24,8 @@ The vendor files left this repo (spark B12, 2026-10-04); the spark store keeps e
 - Wiki: https://wiki.seeedstudio.com/xiao_esp32c6_getting_started/
 
 ## DFRobot DFR0534  (UART MP3 module + built-in amp)
+**Superseded — the board now carries the FireBeetle 2 ESP32-S3 and the DFR0954 amplifier** (B1, 2026-10-06; no
+DFR0534 was ever bought). Kept for reference until B29 (#23) retires the fallback.
 - Wiki: https://wiki.dfrobot.com/dfr0534  ·  Product: https://www.dfrobot.com/product-1741.html
 - Dimension drawing (the only mechanical source DFRobot publish): https://dfimg.dfrobot.com/wiki/19342/DFR0534_mp3-player-module_dimension_V1.0.pdf
 - Datasheet, 11 pp, DFRobot-authored, with the full `AA ..` command table: https://media.digikey.com/pdf/Data%20Sheets/DFRobot%20PDFs/DFR0534_Web.pdf

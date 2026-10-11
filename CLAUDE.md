@@ -42,7 +42,7 @@ only GND.
 use an AXP313A PMIC (1.5 A) which sits on the I2C bus as another device and supplies 5.1k
 pull-ups, and there the MODE button also drives the PMIC's power-off. Tell them apart by the chip
 between BOOT and the USB-C: a QFN marked AXP313A is old, a tiny SOT-563 beside two SOT-23-5 LDOs
-is new. Details and sources: `boards/firebeetle2-esp32s3.json` → `hardware_revisions`.
+is new. Details and sources: `spark/boards/firebeetle2-esp32s3.json` → `hardware_revisions`.
 **Neither SKU is preferred on current yet.** This used to say the DFR0975's octal PSRAM costs
 ~140 µA in deep sleep; the WROOM-1 v1.1 datasheet it cited (Table 12, page 15 — kept in the spark
 store, not in this repo: `parts.py --kept wroom`) attaches that figure to **Light-sleep**, and Deep-sleep reads 8/7 µA. Whether

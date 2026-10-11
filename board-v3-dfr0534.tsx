@@ -1,5 +1,5 @@
 /**
- * SUPERSEDED — v3 of this board, kept because the audio module has never been identified.
+ * SUPERSEDED — v3 of this board. B1 settled the audio module as the DFR0954 on 2026-10-06; B29 (#23) retires this file.
  *
  * This is the design for a DFRobot DFR0534: a 6-way header, one UART line on D3, and a
  * P-channel high-side switch cutting its rail because that module has no enable pin and an idle
