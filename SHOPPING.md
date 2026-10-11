@@ -74,7 +74,7 @@ Note: Hadex RC0204 resistors have thin legs — they sit loosely in a breadboard
 MFR-25 1/4 W at 1 Kč grip better ([link](https://www.laskakit.cz/metal-oxidovy-rezistor-yageo-mfr-25fte52-1-4w-1-/)).
 
 ### Added after the 2026-09-23 electronics review (all Hadex, few Kč each)
-Reasons in `FIRMWARE_PLAN.md` + `parts/SENSOR_OPTIONS.md`.
+Reasons in `docs/archive/FIRMWARE_PLAN.md` + `parts/SENSOR_OPTIONS.md`.
 
 | Part | Qty | Why |
 | --- | --- | --- |

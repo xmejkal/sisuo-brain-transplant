@@ -146,9 +146,9 @@ help (copper pours are excluded from keepout enforcement) and there is no board-
 setting. Explicit `<copperpour connectsTo="net.GND">` per layer removes the hazard structurally:
 one net, nothing to bridge to. It also turned 447 pour fragments into 3.
 
-**Board versions live side by side**: `board-v1-tb6612.tsx`, `board-v3-dfr0534.tsx`, and
-`board.tsx` (v4). Each superseded file's header says what is wrong with it, so nobody fabricates
-one by finding it.
+**Board versions**: `board.tsx` (v4) is the board; `board-v3-dfr0534.tsx` waits at the root for B29 (#23) to
+retire it, and `docs/archive/board-v1-tb6612.tsx` is the v1 design. Each superseded file's header says what is
+wrong with it, so nobody fabricates one by finding it.
 
 ### The pin map, as it stands
 

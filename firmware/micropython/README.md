@@ -7,8 +7,9 @@ end to end when someone waves a hand at the bin. Everything else is one chapter 
 The rule in one line: **a device is a thing you command (`hardware.py`); a strategy is a decision
 you make with it (`proximity.py`, `close_detection.py`, `power.py`, chosen in `assembly.py`).**
 
-Design and rationale: [`../../FIRMWARE_PLAN.md`](../../FIRMWARE_PLAN.md).
-The Arduino v1 sketch in `../arduino/` is kept only as a reference.
+Design and rationale: the tour above. The original plan, now historical, is
+[`../../docs/archive/FIRMWARE_PLAN.md`](../../docs/archive/FIRMWARE_PLAN.md); the Arduino v1 sketch is in
+`../../docs/archive/arduino-v1/`, kept only as a reference.
 
 ## Layout
 ```

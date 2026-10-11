@@ -108,7 +108,7 @@ stall-sensing, STEP models, blocker 7.
 | FireBeetle footprint **generated**, not downloaded | Obround pads, a through-hole 1.27 mm inboard plus a castellated half-hole; rows **22.86 mm** apart, not 25.40 — a public KiCad footprint uses 25.40, and a header fitted to it will not mate |
 | Original board **not desoldered** | Petr wants it intact; all small parts bought new |
 | Deep sleep via `esp32.wake_on_ext1`, both sources active-HIGH | `Pin.irq(wake=DEEPSLEEP)` does nothing on the C6; on the S3 a level trigger arms ext0 — one pin, and there are two wake sources. ext1 takes one level for the whole mask, so both sources assert the same way; HIGH because low-level wake has an open MicroPython bug (#17334) |
-| Flat module layout, names by job | Recorded with the rejected alternatives in `FIRMWARE_PLAN.md` |
+| Flat module layout, names by job | Recorded with the rejected alternatives in `docs/archive/FIRMWARE_PLAN.md` |
 
 ## Changing the microcontroller
 

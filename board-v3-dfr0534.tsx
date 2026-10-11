@@ -26,7 +26,7 @@ import { MCU } from "./mcu-pins"
  * firmware/micropython/sim/ models. The three must agree; `tools/circuit-to-wokwi` regenerates
  * the simulation from this file and fails if they drift.
  *
- * What changed from v1 (board-v1-tb6612.tsx, kept for reference):
+ * What changed from v1 (docs/archive/board-v1-tb6612.tsx, kept for reference):
  *  - no OLED: the bin never had a screen, and a bicolour LED says everything it needs to.
  *  - L9110S instead of the TB6612: right current class, two inputs instead of three, and the
  *    same simple design the original board used.

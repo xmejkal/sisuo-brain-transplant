@@ -51,8 +51,8 @@ ON_PURPOSE = {
 NEGATED = r"\b(?:no|not|never|without|rather\s+than|instead\s+of)\s+(?:the\s+|a\s+|an\s+)?$"
 
 #: The documents that describe the bin as it is now. History lives elsewhere — the v1 and v3 board
-#: files, the Arduino sketch — and in git.
-CURRENT = ("README.md", "STATUS.md", "DESIGN_RULES.md", "PCB_PIPELINE.md")
+#: files, the Arduino sketch, the superseded plans in docs/archive/ — and in git.
+CURRENT = ("README.md", "STATUS.md", "DESIGN_RULES.md")
 
 #: The brief, read as data: `parts_on_hand` is an inventory — the XIAO is in the drawer;
 #: a DFR0534 never was (B1, 2026-10-06) — so it is the one field allowed to name them without saying they are history.
