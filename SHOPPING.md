@@ -30,8 +30,9 @@ jumper wires, perfboard.
 > DFRobot order, so there is nothing to buy for the audio path.
 The original Sisuo board stays **untouched** — nothing gets desoldered from it.
 
-**XIAO ESP32-C6** — owned, but no longer the design's board. Kept as a spare; `boards/` still
-carries its definition, so switching back is one line in `boards/active.json`.
+**XIAO ESP32-C6** — owned, but no longer the design's board. Kept as a spare. Its board definition lives in
+the spark plugin (`spark/boards/xiao-esp32-c6.json`); switching back means changing `boards/active.json`
+and redoing the hand-written pins and footprint (spark's `boards/README.md`, "Adding a board").
 
 ## Confirm before ordering anything else
 **DFRobot FireBeetle 2 ESP32-S3** — the design assumes one, and **Petr owns one (2026-10-03)**.
@@ -74,7 +75,7 @@ Note: Hadex RC0204 resistors have thin legs — they sit loosely in a breadboard
 MFR-25 1/4 W at 1 Kč grip better ([link](https://www.laskakit.cz/metal-oxidovy-rezistor-yageo-mfr-25fte52-1-4w-1-/)).
 
 ### Added after the 2026-09-23 electronics review (all Hadex, few Kč each)
-Reasons in `FIRMWARE_PLAN.md` + `parts/SENSOR_OPTIONS.md`.
+Reasons in `docs/archive/FIRMWARE_PLAN.md` + `parts/SENSOR_OPTIONS.md`.
 
 | Part | Qty | Why |
 | --- | --- | --- |

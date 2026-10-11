@@ -47,4 +47,4 @@ We choose the close-detection method; the original's doesn't constrain us.
   an ADC pin, or a motor-driver breakout that exposes current. Adds a touch of analog (against the
   "minimize analog" goal), so treat as a v2 once the mechanism is understood.
 - **Safety in both cases:** cap the close time and/or current so a blocked lid never burns the motor.
-- Hand-wave to OPEN stays on the digital IR module regardless.
+- Hand-wave to OPEN stays on the VL6180X time-of-flight sensor regardless.

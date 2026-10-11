@@ -39,10 +39,6 @@ RETIRED = {
 #: claim this exists to catch. So a new mention fails until someone reads it and lists it here,
 #: and a listed quote that no longer exists fails too, so the list cannot outlive its text.
 ON_PURPOSE = {
-    ("STATUS.md", "described a board two changes old"): "names what the previous version wrongly described",
-    ("STATUS.md", "Retire the DFR0534 fallback"): "B29's exact title; B1 closed 2026-10-06 and no DFR0534 was ever bought",
-    ("STATUS.md", "not the XIAO ESP32-C6 on hand"): "the decision that replaced it, and why",
-    ("STATUS.md", "when the XIAO ESP32-C6 was replaced by"): "how the board change went",
     ("DESIGN_RULES.md", "Until then this was the XIAO ESP32-C6's checklist"): "what the section used to be",
 }
 
@@ -51,8 +47,8 @@ ON_PURPOSE = {
 NEGATED = r"\b(?:no|not|never|without|rather\s+than|instead\s+of)\s+(?:the\s+|a\s+|an\s+)?$"
 
 #: The documents that describe the bin as it is now. History lives elsewhere — the v1 and v3 board
-#: files, the Arduino sketch — and in git.
-CURRENT = ("README.md", "STATUS.md", "DESIGN_RULES.md", "PCB_PIPELINE.md")
+#: files, the Arduino sketch, the superseded plans in docs/archive/ — and in git.
+CURRENT = ("README.md", "STATUS.md", "DESIGN_RULES.md")
 
 #: The brief, read as data: `parts_on_hand` is an inventory — the XIAO is in the drawer;
 #: a DFR0534 never was (B1, 2026-10-06) — so it is the one field allowed to name them without saying they are history.

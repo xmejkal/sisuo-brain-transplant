@@ -10,7 +10,7 @@ import { MCU } from "./mcu-pins"
  * firmware/micropython/sim/ models. The three must agree; `tools/circuit-to-wokwi` regenerates
  * the simulation from this file and fails if they drift.
  *
- * What changed from v1 (board-v1-tb6612.tsx, kept for reference):
+ * What changed from v1 (docs/archive/board-v1-tb6612.tsx, kept for reference):
  *  - no OLED: the bin never had a screen, and a bicolour LED says everything it needs to.
  *  - L9110S instead of the TB6612: right current class, two inputs instead of three, and the
  *    same simple design the original board used.
@@ -92,7 +92,7 @@ export default () => (
     {/* The audio, since 2026-09-25: a DFR0954 MAX98357A I2S amplifier, not a UART MP3 module.
         The ESP32 synthesises the sound and this only amplifies it, which is what removes the
         high-side switch, the reservoir capacitor, the cross-pluggable 6-way header and the
-        unmeasured idle current in one move — see the four blockers this closes in STATUS.md.
+        unmeasured idle current in one move — see the four blockers this closes (HANDOVER.md section 5).
 
         Pads are placed by NAME in Dfr0954I2sAmp.tsx because the module has no pad-1 marker and
         DFRobot number its two rows in opposite directions. 18 x 18 mm, 7.1 mm tall with the JST

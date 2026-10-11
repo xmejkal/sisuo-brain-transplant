@@ -10,7 +10,7 @@ a new PCB designed in code.
 
 | Part | State |
 | --- | --- |
-| Firmware | Written, 113 tests passing, **simulated end to end** on a real MicroPython runtime (14 checks) and on a simulated ESP32-S3 in Wokwi (five scenarios) |
+| Firmware | Written, 113 tests passing, **simulated end to end** on a real MicroPython runtime (14 checks) and on a simulated ESP32-S3 in Wokwi (five scenarios, last green 2026-09-25; on 2026-10-11 the serial log came back empty — [B31](https://github.com/xmejkal/sisuo-brain-transplant/issues/26)) |
 | PCB | v4 drawn and routed: 60 traces, 0 errors, fab package generated. Never fabricated |
 | Hardware | **Nothing has been run on a bench yet.** Parts are still being ordered |
 
@@ -81,19 +81,18 @@ device once hid a bug that would have frozen the lid after a single open.
 
 ```
 firmware/micropython/   the firmware — start at smartbin/__init__.py, which is a guided tour
-firmware/arduino/       the first version, kept for reference
 board.tsx               the PCB, in code (tscircuit)
-parts/                  datasheets, pinouts, and the sensor research
+parts/                  the module reference and the sensor research (vendor datasheets are not kept here)
+docs/archive/           done or superseded, kept for reference: the v1 board and Arduino sketch, old plans
 firmware/micropython/sim/   simulation: MicroPython runtime and Wokwi
 ```
 
-Where to go next: [STATUS.md](STATUS.md) for what is done and what is blocked,
+Where to go next: [STATUS.md](STATUS.md) for what waits on Petr and what is not verified, [HANDOVER.md](HANDOVER.md) for the whole picture,
 [firmware/micropython/README.md](firmware/micropython/README.md) for the firmware and how to put
 it on a board, and [`smartbin/__init__.py`](firmware/micropython/smartbin/__init__.py) — whose
 docstring is a guided tour of how the code fits together.
 
-Design notes worth reading: [`FIRMWARE_PLAN.md`](FIRMWARE_PLAN.md) (architecture and the audit
-that reshaped it), [`parts/SENSOR_OPTIONS.md`](parts/SENSOR_OPTIONS.md) (why a time-of-flight
+Design notes worth reading: [`parts/SENSOR_OPTIONS.md`](parts/SENSOR_OPTIONS.md) (why a time-of-flight
 sensor, and what its datasheet demands of the lid window),
 [`LID_CLOSE_DETECTION.md`](LID_CLOSE_DETECTION.md) (how motorised bins actually detect a closed
 lid, with patents), and [`TEST_PROTOCOL.md`](TEST_PROTOCOL.md) (reverse-engineering the dead

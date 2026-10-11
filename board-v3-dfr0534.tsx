@@ -1,16 +1,14 @@
 /**
- * SUPERSEDED — v3 of this board, kept because the audio module has never been identified.
+ * SUPERSEDED — v3 of this board. B1 settled the audio module as the DFR0954 on 2026-10-06; B29 (#23) retires this file.
  *
  * This is the design for a DFRobot DFR0534: a 6-way header, one UART line on D3, and a
  * P-channel high-side switch cutting its rail because that module has no enable pin and an idle
  * current nobody has measured. `board.tsx` is v4 and carries a DFR0954 I2S amplifier instead.
  *
- * WHEN THIS ONE IS THE RIGHT FILE: if the module in the drawer turns out to be a DFR0534 —
- * micro-USB, no memory-card slot, "Voice Module V1.0" on the silkscreen. Then this becomes
- * board.tsx again and `config.AUDIO_STRATEGY` goes to "dfr0534", which the firmware already
- * supports: both players translate the same cue vocabulary, so no sound profile changes.
+ * It was kept for the case the module in the drawer turned out to be a DFR0534. B1 settled that it is
+ * not (2026-10-06), so this file is history until B29 (#23) removes it.
  *
- * WHAT IS WRONG WITH IT, and why v4 was drawn: four of the seven fab blockers in STATUS.md live
+ * WHAT IS WRONG WITH IT, and why v4 was drawn: four of the seven fab blockers (HANDOVER.md section 5; the full table is in git, 04e3817) live
  * in this file. The SOT-23 MOSFET's pads are mapped drain/source/gate where every real part is
  * gate/source/drain; its 470 uF reservoir is hard-switched with no soft-start; its 6-way header
  * is pad-identical to the motor driver's and 24 mm away. Fix those before fabricating this.
@@ -26,7 +24,7 @@ import { MCU } from "./mcu-pins"
  * firmware/micropython/sim/ models. The three must agree; `tools/circuit-to-wokwi` regenerates
  * the simulation from this file and fails if they drift.
  *
- * What changed from v1 (board-v1-tb6612.tsx, kept for reference):
+ * What changed from v1 (docs/archive/board-v1-tb6612.tsx, kept for reference):
  *  - no OLED: the bin never had a screen, and a bicolour LED says everything it needs to.
  *  - L9110S instead of the TB6612: right current class, two inputs instead of three, and the
  *    same simple design the original board used.

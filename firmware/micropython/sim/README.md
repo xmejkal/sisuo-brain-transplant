@@ -1,5 +1,9 @@
 # Simulating the bin
 
+> **The Wokwi layer below was last green on 2026-09-25 and does not run now:** on 2026-10-11 the serial log came
+> back empty, because Wokwi stopped connecting the S3's serial port by default (B31,
+> https://github.com/xmejkal/sisuo-brain-transplant/issues/26). The "It runs" transcript is from 2026-09-25.
+
 Three layers of testing, cheapest first. Each catches things the one below cannot.
 
 **The middle layer runs today, locally, with no account:** `sim/run_on_micropython.py` runs the
@@ -7,7 +11,7 @@ real firmware on a real MicroPython runtime with a fake chip underneath it.
 
 ```sh
 brew install micropython          # once
-micropython sim/run_on_micropython.py     # 13 checks; exit code says pass or fail
+micropython sim/run_on_micropython.py     # 14 checks; exit code says pass or fail
 python3     sim/run_on_micropython.py     # the same script under CPython, as a control
 ```
 
