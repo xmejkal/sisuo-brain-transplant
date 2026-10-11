@@ -41,7 +41,7 @@ ESP32-C6's checklist, a week after the board changed; that version is in git his
 bare-chip decoupling are **already done**. You're a pin-allocation + power-budget problem.
 
 **The pin map is not restated here** — that is how this section went stale. Silkscreen to GPIO,
-what each pin can do and its roles: `boards/firebeetle2-esp32s3.json`. Signal to GPIO: `config.py`.
+what each pin can do and its roles: spark's `boards/firebeetle2-esp32s3.json`. Signal to GPIO: `config.py`.
 Signal to silkscreen: `mcu-pins.ts`. `make check` proves the three agree.
 
 - [x] **Motor VM off the bin's 6 V pack, never the module's 3V3.** 3V3 feeds logic and audio only;

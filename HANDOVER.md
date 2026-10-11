@@ -43,7 +43,7 @@ Every number here came from running the command beside it, not from memory.
 | Everything agrees | green | `make check` → *"everything is in step"* |
 | Firmware logic | **113 tests**, OK | `cd firmware/micropython && python3 -m unittest discover -s tests -t tests` |
 | Firmware on a real MicroPython runtime | 14 checks pass | `micropython sim/run_on_micropython.py` |
-| Board↔simulation↔firmware↔bench scripts | **50 tests**, 0 fail | `cd tools/circuit-to-wokwi && bun test` |
+| Board↔simulation↔firmware↔bench scripts | **62 tests**, 0 fail (2026-10-11) | `cd tools/circuit-to-wokwi && bun test` |
 | Wokwi, simulated ESP32-S3 silicon | **last green 2026-09-25; none runs now** — on 2026-10-11 the serial log came back empty, Wokwi changed (B31, #26) | `make simulate-all` (costs minutes — see §7) |
 | spark's own suite | **367 tests**, OK | `cd ../spark && python3 -m unittest discover -s tests` |
 | spark end to end | *"the chain runs end to end"* | `python3 ../spark/scripts/check_spine.py` |
@@ -226,7 +226,8 @@ case they did not think of.
 ```bash
 export PATH="$PWD/node_modules/.bin:$PATH"
 
-make check            # the gate. Must say "everything is in step"
+make install-hooks    # once per clone: the pre-commit hook runs make check
+make check            # the gate. Must say "everything is in step". A derived file edited by hand is undone by the next make
 make simulate         # one Wokwi scenario (lid-cycle)
 make simulate-all     # all five — costs minutes, see below
 

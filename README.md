@@ -87,7 +87,7 @@ docs/archive/           done or superseded, kept for reference: the v1 board and
 firmware/micropython/sim/   simulation: MicroPython runtime and Wokwi
 ```
 
-Where to go next: [STATUS.md](STATUS.md) for what is done and what is blocked,
+Where to go next: [STATUS.md](STATUS.md) for what waits on Petr and what is not verified, [HANDOVER.md](HANDOVER.md) for the whole picture,
 [firmware/micropython/README.md](firmware/micropython/README.md) for the firmware and how to put
 it on a board, and [`smartbin/__init__.py`](firmware/micropython/smartbin/__init__.py) — whose
 docstring is a guided tour of how the code fits together.

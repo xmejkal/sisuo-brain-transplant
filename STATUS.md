@@ -50,6 +50,9 @@ this Mac's pre-commit gate runs. **No part of it has ever run on hardware.**
 * **Deep-sleep wake** is checked structurally (`wake-polarity.ts` compares the level the board
   asserts with the level the firmware arms for) and not by running it: Wokwi does not wake an
   ESP32 from a GPIO, established by experiment on the C6 and *assumed* for the S3 stand-in.
+* **Three open circuit faults**, each a card: B25 (#19) the ToF wake line asserts at 1.89 V, below the S3's 2.48 V
+  input-high; B26 (#20) the L9110S module drains the AA pack flat in weeks with the lid at rest; B28 (#22) the motor
+  current reaches its shunt over 0.15 mm track, lifting the driver's ground 300 mV at 2 A.
 * **Lid run times, the distance window and the ToF calibration** are placeholders.
 * **Which SKU to buy** is undecided on current: the PSRAM deep-sleep cost that argued for the N4
   is not in the datasheet it cited (the 140 uA is Light-sleep). A bench number.

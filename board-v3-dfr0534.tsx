@@ -5,12 +5,10 @@
  * P-channel high-side switch cutting its rail because that module has no enable pin and an idle
  * current nobody has measured. `board.tsx` is v4 and carries a DFR0954 I2S amplifier instead.
  *
- * WHEN THIS ONE IS THE RIGHT FILE: if the module in the drawer turns out to be a DFR0534 —
- * micro-USB, no memory-card slot, "Voice Module V1.0" on the silkscreen. Then this becomes
- * board.tsx again and `config.AUDIO_STRATEGY` goes to "dfr0534", which the firmware already
- * supports: both players translate the same cue vocabulary, so no sound profile changes.
+ * It was kept for the case the module in the drawer turned out to be a DFR0534. B1 settled that it is
+ * not (2026-10-06), so this file is history until B29 (#23) removes it.
  *
- * WHAT IS WRONG WITH IT, and why v4 was drawn: four of the seven fab blockers in STATUS.md live
+ * WHAT IS WRONG WITH IT, and why v4 was drawn: four of the seven fab blockers (HANDOVER.md section 5; the full table is in git, 04e3817) live
  * in this file. The SOT-23 MOSFET's pads are mapped drain/source/gate where every real part is
  * gate/source/drain; its 470 uF reservoir is hard-switched with no soft-start; its 6-way header
  * is pad-identical to the motor driver's and 24 mm away. Fix those before fabricating this.
