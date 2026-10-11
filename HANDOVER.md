@@ -1,6 +1,7 @@
 # Smart bin + spark — everything needed to pick this up cold and finish it
 
-Written 2026-09-25. Read this first, then `CLAUDE.md` for the project's own conventions.
+Written 2026-09-25; trimmed 2026-10-11, when the order of work moved to the board. Read this first, then
+`CLAUDE.md` for the project's own conventions.
 
 **What each document is for**, because three overlapping lists is how work stops draining:
 
@@ -8,7 +9,7 @@ Written 2026-09-25. Read this first, then `CLAUDE.md` for the project's own conv
 | --- | --- |
 | **this file** | the whole picture: both repos, what was decided and why, what is left |
 | `CLAUDE.md` | working conventions and where things live. Stable |
-| `STATUS.md` | the bin's blocker table, kept short and current |
+| `STATUS.md` | what is true now, what waits on a person, what has never been checked: one page |
 | [the bin's board](https://github.com/users/xmejkal/projects/1) | the bin's work in the PO's order; each card is an issue in this repo |
 | `../spark/scrum/` | the process; the plugin's work is on [spark's board](https://github.com/users/xmejkal/projects/2) |
 
@@ -68,43 +69,18 @@ directory, because a `wokwi.toml` names exactly one firmware.
 
 ## 3. Which audio module — answered 2026-10-06 (B1)
 
-*Answered 2026-10-06 (B1, #1) from the DFRobot order history: the DFR0954 I2S amplifier, owned ×2; no DFR0534 in any DFRobot order. B29 (#23) retires the fallback below. The guide stays as the record.*
-
-*The question, as it stood (answered above):* four things waited on it, and the board was drawn for
-an unverified answer. The test that distinguished the three candidates:
-
-- a **microSD slot** → DFPlayer Mini (DFR0299)
-- **micro-USB, no card slot, "Voice Module V1.0"** on the silkscreen → DFR0534
-- pads marked **BCLK / LRC / DIN** → the I2S amplifier (DFR0954). **which is what the board
-  assumes, and what B1 confirmed.**
-
-It did not turn out to be a DFR0534; the recovery path below stays as a record (B29, #23, retires it).
-Had it been one, the recovery was in place and not a rewrite:
-`board-v3-dfr0534.tsx` becomes `board.tsx` again and `config.AUDIO_STRATEGY` goes to `"dfr0534"`.
-The firmware supports both, and because both players translate the same cue vocabulary
-(§5), **no sound profile changes**. Fix that file's four known defects first; its header lists
-them.
+The DFR0954 I2S amplifier, owned ×2, from the DFRobot order history; no DFR0534 appears in any DFRobot order
+(B1, #1). The board and the firmware assume it. B29 (#23) retires the DFR0534 fallback
+(`board-v3-dfr0534.tsx`, `AUDIO_STRATEGY="dfr0534"`); until it does, both players translate the same cue
+vocabulary (§5).
 
 ---
 
 ## 4. What to do next
 
-The next work is [the bin's board](https://github.com/users/xmejkal/projects/1), in the PO's order
-there; since 2026-10-05 each item that was listed here is a card carrying its detail.
-**Nothing has ever touched hardware**, and the bench is where every remaining unknown gets
-answered.
-
-- **B1** (#1) — closed 2026-10-06: the DFR0954 I2S amplifier, owned ×2; B29 (#23) retires the DFR0534 fallback.
-- **B25** (#19), **B26** (#20), **B28** (#22) — open circuit faults, in Idea; **B27** (#21) — a claim to test.
-- **B14** (#8) bench bring-up, `bringup/01`…`06`, each prints PASS · **B15** (#9) the motor's
-  real current, running and stalled — the rules file's 1.5 A is the L9110S's own limit, **not** a
-  measurement · **B16** (#10) deep sleep wakes, on the bench (Wokwi cannot; checked structurally,
-  §6) · **B17** (#11) calibrate with `firmware/micropython/tools/calibrate.py`.
-- **B18** (#12) order what `SHOPPING.md` lists (current since 2026-09-25) · **B19** (#13) CI runs
-  spark's checks beside the bin · **B20** (#14) the connector's pitch · **B21** (#15) the
-  FireBeetle's SKU and revision · **B22** (#16) stall-sensing, optional · **B23** (#17) STEP models
-  for the enclosure · **B24** (#18) blocker 7, the 0.225 mm rings on `Speaker` and
-  `BinConnector`, if ever — an advisory since spark P57.
+[The bin's board](https://github.com/users/xmejkal/projects/1), in the PO's order; each card is an issue in this
+repo and carries its detail. **Nothing has ever touched hardware**, and the bench is where every remaining
+unknown gets answered (§8).
 
 ---
 
@@ -118,7 +94,7 @@ everything else on the board combined. The board worked around it with a P-chann
 switch, a gate hold resistor and a 470 uF reservoir. The MAX98357A has a shutdown pin instead:
 **0.6 µA held low, against 340 µA if the clock merely stops.** So the switch, its resistor, the
 reservoir, the switched rail, the SOT-23 pad-mapping defect and the pad-identical 6-way header
-all went together.
+all went together. Never stop LRCLK while BCLK runs; real shutdown needs SD below 0.16 V.
 
 **A cue is a word, not a number.** This is the part worth keeping even if the bin changes. A cue
 used to be a bare integer, and the integer meant *"track 1 in the module's flash"* to the DFR0534
@@ -149,6 +125,24 @@ one net, nothing to bridge to. It also turned 447 pour fragments into 3.
 **Board versions**: `board.tsx` (v4) is the board; `board-v3-dfr0534.tsx` waits at the root for B29 (#23) to
 retire it, and `docs/archive/board-v1-tb6612.tsx` is the v1 design. Each superseded file's header says what is
 wrong with it, so nobody fabricates one by finding it.
+
+**Smaller decisions, one line each** (moved here from STATUS.md, 2026-10-11):
+
+- **FireBeetle 2 ESP32-S3, not the XIAO ESP32-C6 on hand:** the C6 wakes from GPIO0-7 only (three usable pins); the
+  S3 has 22 RTC pins, so pins are spent on purpose — wake pins on non-ADC1 RTC pins, both strapping pins left empty.
+- **No OLED:** the bin never had a screen; a bicolour LED replaces it and frees I2C for the sensor.
+- **L9110S (owned), not TB6612:** right current class, 3.3 V logic, the same two-input design the original used.
+- **VL6180X ToF (owned) as the primary sensor:** all-digital, the trigger distance is a number in software.
+  Fallback: an IR LED + 38 kHz receiver, the only option that fits the lid's holes.
+- **The board is chosen in `boards/active.json`:** one field, three consumers; `make check` reports what cannot be
+  derived (`config.py`'s pins, `mcu-pins.ts`, the footprint and placement in `board.tsx`).
+- **Everything runs on the module's `3V3`:** it is a buck (TPS62A02, 2 A, V1.2+; AXP313A, 1.5 A, V1.1), so there is
+  no VBAT rail.
+- **I2C pull-ups 2.2k, not 4.7k:** at 400 kHz on a ribbon, 4.7k x 100 pF = 566 ns against a 300 ns limit; 2.2k gives 265 ns.
+- **The FireBeetle footprint is generated, not downloaded:** rows **22.86 mm** apart, not the 25.40 of a public
+  KiCad footprint, which a real header would not mate.
+- **The original board is not desoldered:** Petr wants it intact; all small parts are bought new.
+- **Flat module layout, names by job:** the rejected alternatives are in `docs/archive/FIRMWARE_PLAN.md`.
 
 ### The pin map, as it stands
 
@@ -217,6 +211,14 @@ directions. `Dfr0954I2sAmp.tsx` places every pad **by name** for that reason. SP
 the rightmost pad of *each* row — directly across, 15.24 mm apart, **not** adjacent. A footprint
 drawn as though they neighboured wires the speaker across SPK+ and DIN.
 
+**A task cannot cancel itself in MicroPython** (`RuntimeError: can't cancel self`), and every lid stroke does
+exactly that when it fires the trigger that transitions away. `lid.py` handles it; the test fakes model it
+deliberately. A "simplified" fake would hide it again, and the lid would freeze after one open.
+
+**A hand that never leaves used to hold the lid open forever**, because every detection re-armed the hold
+timer. `config.MAX_OPEN_MS` caps it. Found by simulation, not by unit tests, because nobody writes a test for the
+case they did not think of.
+
 ---
 
 ## 7. How to work on this
@@ -234,9 +236,8 @@ python3 ../spark/scripts/check_all.py --project .     # spark's deterministic ch
 
 **Wokwi minutes are a budget, not a resource.** The quota is 50 free CI minutes and the only
 source of truth is wokwi.com/dashboard/ci — **check there, do not trust a number written here.**
-What is known: Petr reported 21 remaining before 2026-09-25, and confirming all five scenarios
-that day cost roughly six to eight minutes of wall-clock simulation, including two runs that
-timed out before the cause was found. Needs `WOKWI_CLI_TOKEN`, which Petr has; it is deliberately
+What is known: confirming all five scenarios on 2026-09-25 cost roughly six to eight minutes of
+wall-clock simulation, including two runs that timed out before the cause was found. Needs `WOKWI_CLI_TOKEN`, which Petr has; it is deliberately
 **not** in the repo and should go in `~/.zshrc`. Run one scenario per question, never the full set to "check nothing
 broke". The free checks — 113 firmware tests, the MicroPython run, `make check` — catch
 everything a scenario would except real silicon behaviour.
@@ -258,43 +259,19 @@ everything a scenario would except real silicon behaviour.
 
 ## 8. What cannot be known without hardware
 
-Say these are unknown rather than estimating them.
-
-- **The motor's real current**, running and stalled. The one number that could still change the
-  driver choice.
-- **Whether the bin actually wakes.** Wokwi does not wake an ESP32 from a GPIO at all.
-- **Lid stroke times** — `LID_OPEN_RUN_MS` / `LID_CLOSE_RUN_MS` are uncalibrated.
-- **The bin connector's pin pitch** — 2.0 mm means JST PH, 2.5 mm means XH.
-- **The VL6180X breakout's identity.** Four exist with different sizes, pin counts and orders.
-  The board assumes a 5-wire ribbon (VIN, GND, SDA, SCL, INT) to an off-board module. That
-  suits the Adafruit 3316 and the Pololu 2489, which are the two this project has facts for;
-  the generic GY-VL6180 boards vary between factories and were not checked.
-- **Which FireBeetle revision you have.** V1.2+ has a TPS62A02 and **no I2C pull-ups**; V1.1 has
-  an AXP313A that sits on the I2C bus and supplies 5.1k pull-ups. The board carries its own
-  2.2k pull-ups, which is right for V1.2+ and parallels the PMIC's on V1.1.
+Say these are unknown rather than estimating them. `STATUS.md` keeps the list, in "Waiting on Petr" and "What is
+NOT verified": the motor's real current (the one number that could still change the driver choice), whether the
+bin wakes, the lid stroke times, the bin connector's pitch, which VL6180X breakout it is (the board assumes a
+5-wire ribbon — VIN, GND, SDA, SCL, INT — to an off-board module), and which FireBeetle revision you own.
 
 ---
 
 ## 9. The spark side, briefly
 
-Its work is ordered on [spark's board](https://github.com/users/xmejkal/projects/2): each card is
-an issue in xmejkal/spark, moving through Kanban stages whose limits are checked at every push.
-The process lives in `../spark/scrum/` — `README.md` the flow and its stages,
-`WORKING_AGREEMENTS.md` the rules with their origins, `RETROSPECTIVES.md` the changes each retro
-produced *and a check that it stuck*; `PRODUCT_BACKLOG.md` is the archive, frozen 2026-10-05.
-Petr is Product Owner; a card waiting on his decision carries *Waiting on: the PO*.
-
-What works today: `python3 scripts/check_spine.py` runs idea → parts → pin map → schematic →
-footprint → build and reports *"the chain runs end to end"*. 367 tests.
-
-What does not: **simulation**. `bench_sim.py` is a *pretend bench* that fabricates measurement
-numbers and never reads a circuit. The link that would close it already exists here —
-`tools/circuit-to-wokwi/`, ~1790 lines of TypeScript with 50 tests, turning `circuit.json` into a
-Wokwi `diagram.json`. It has since moved into spark (P32a); the bin's own copy goes with P32b, on
-the bin's board.
-
-**Unverified, and flagged as such:** an observer agent reported that the converter is liftable —
-that its bin-specific parts are confined to `check-consistency.ts` and `lib/checks/`, and that
-pointing it at a spark-generated board stopped only on three missing rows in `lib/mapping.ts`,
-the documented extension point. That was not reproduced by anyone else. Several observer claims
-in this project have been confidently wrong, so **reproduce it before planning around it.**
+spark has its own board, [spark's board](https://github.com/users/xmejkal/projects/2); the process lives in
+`../spark/scrum/` (`README.md` the flow, `WORKING_AGREEMENTS.md` the rules, `RETROSPECTIVES.md` what each retro
+changed). Petr is Product Owner; a card waiting on his decision carries *Waiting on: the PO*. The Wokwi converter
+(`tools/circuit-to-wokwi/`) moved into spark (P32a); the bin's copy goes with P32b (#6). The 2026-10-11 replan
+(`../spark/docs/2026-10-11-replan.md`, a proposal until the PO decides) makes the bin's bench the second proof of
+spark's journey, after spark's own walk. `python3 scripts/check_spine.py` in spark reports *"the chain runs end to
+end"*.
