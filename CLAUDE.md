@@ -107,7 +107,7 @@ bench/calibration/deploy: `firmware/micropython/README.md`.
   https://github.com/xmejkal/sisuo-brain-transplant/issues/26.** Two of them could never have passed before: the sim image inherited
   config.py's deployed defaults, so the bin slept while the scenario waved a hand at it. Wokwi CI
   minutes are a limited free quota, so run them deliberately, not on every change. **Wokwi does
-  not wake an ESP32 from a GPIO at all**, so deep sleep waking is a bench test, not a sim one.
+  not wake an ESP32 from a GPIO at all** (shown on the C6 only, assumed for the S3: B27, #21), so deep sleep waking is a bench test, not a sim one.
   Needs `WOKWI_CLI_TOKEN` (wokwi.com/dashboard/ci) and `wokwi-cli` on PATH.
   Wokwi has no FireBeetle part, so the generic S3 devkit stands in — same silicon, superset of
   pins, named by raw GPIO; `wokwi_is_stand_in` in the board file says so.
@@ -158,29 +158,15 @@ dominates; ESP ~15 µA). **The C6's LP core is not usable from MicroPython** (no
 coprocessor, not a second app core). The S3's ULP-FSM is, as `esp32.ULP`; its RISC-V ULP is not.
 
 ## Status / next
-**Read `HANDOVER.md` first** — the whole picture, both repos, every decision and its reasoning,
-and what is left. `STATUS.md` is the short blocker table.
-**The work is ordered on two boards** (GitHub Projects): [the bin's](https://github.com/users/xmejkal/projects/1)
-(issues in this repo) and [spark's](https://github.com/users/xmejkal/projects/2).
+**Read `HANDOVER.md` first** — the whole picture, both repos, every decision and its reasoning. `STATUS.md` is
+one page: what is true now, what waits on Petr, what has never been checked.
+**The order of work is the two boards, not prose** (GitHub Projects): [the bin's](https://github.com/users/xmejkal/projects/1)
+(issues in this repo, each card carries its detail) and [spark's](https://github.com/users/xmejkal/projects/2).
 A session opens with both, from the `../spark/tools/board.py status` hook in the PO's settings
 (not the bin's own `board.py`, the firmware's chip facts); the PO orders them, and the flow is in
 `../spark/scrum/README.md`. There is no other ordered list.
-
-DONE (2026-09-25, each verified by running it): routed **v4** board, 60 traces, 0 errors; audio
-moved to I2S; firmware **113 tests**; 14-check MicroPython run; **50** converter tests; **all
-five** Wokwi scenarios passing; `make check` green. Five of the seven fab blockers closed (six by 2026-10-06: B1 — STATUS.md) —
-the SOT-23 pad mapping, the pad-identical headers, the screw that bridged V33 to GND, the
-hard-switched 470 uF, and deep sleep never waking.
-
 **We are NOT ordering the board.** The goal is a circuit that is good and working, so a
-fabrication-process limit is parked while a circuit fault is not.
-
-NEXT is the bin's board, in the PO's order there — https://github.com/users/xmejkal/projects/1;
-every card carries its detail. Nothing has touched hardware. B1 (#1) closed 2026-10-06: the audio is
-the DFR0954 I2S amplifier, owned ×2, from the DFRobot order history (B1, #1; no DFR0534 in any DFRobot order); B29 (#23) retires the DFR0534
-fallback. Open circuit faults, in Idea until the PO orders them: B25 (#19) the ToF wake line asserts at 1.89 V, below the
-S3's 2.48 V input-high; B26 (#20) the L9110S module drains the AA pack at rest; B28 (#22) the motor
-current over 0.15 mm track; B27 (#21), a claim to test: the Wokwi-cannot-wake line above was shown on the C6 only.
+fabrication-process limit is parked while a circuit fault is not. Nothing has touched hardware.
 
 ## The `spark` plugin
 This whole flow (describe→schematic→verify→route→fab, real parts, reverse-engineering) is packaged as
